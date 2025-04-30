@@ -9,24 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { UsersTable } from "./user/UsersTable";
 
 type UserInfo = {
   id: string;
@@ -83,8 +67,8 @@ export function AdminUsers() {
     fetchUsers();
   }, [toast]);
 
-  // Update user role
-  const updateUserRole = async (userId: string, newRole: string) => {
+  // Handle role updates
+  const handleRoleUpdate = (userId: string, newRole: string) => {
     if (!session) {
       toast({
         title: "Authentication error",
@@ -95,41 +79,14 @@ export function AdminUsers() {
     }
 
     setUpdating(userId);
-    try {
-      // Call the Edge Function to update the role
-      const { data, error } = await supabase.functions.invoke("manage-user-roles", {
-        body: { userId, role: newRole },
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // Update the local state
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.id === userId ? { ...user, role: newRole } : user
-        )
-      );
-
-      toast({
-        title: "Role updated",
-        description: `User role has been updated to ${newRole}.`,
-      });
-    } catch (error) {
-      console.error("Error updating role:", error);
-      toast({
-        title: "Error updating role",
-        description: (error as Error).message || "Failed to update user role.",
-        variant: "destructive",
-      });
-    } finally {
-      setUpdating(null);
-    }
+    // The actual API call is handled in the UserRoleSelector component
+    // We just need to update our local state here
+    setUsers((prevUsers) =>
+      prevUsers.map((user) =>
+        user.id === userId ? { ...user, role: newRole } : user
+      )
+    );
+    setUpdating(null);
   };
 
   return (
@@ -141,81 +98,12 @@ export function AdminUsers() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center py-6">
-                    No users found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.role || "public"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-4">
-                        <Select
-                          value={user.role || "public"} // Ensure value is never empty
-                          onValueChange={(value) => updateUserRole(user.id, value)}
-                          disabled={updating === user.id}
-                        >
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="clerk">Clerk</SelectItem>
-                            <SelectItem value="public">Public</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        {updating === user.id && (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        )}
-                        
-                        {user.role !== "admin" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateUserRole(user.id, "admin")}
-                            disabled={updating === user.id}
-                          >
-                            Make Admin
-                          </Button>
-                        )}
-                        
-                        {user.role !== "clerk" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateUserRole(user.id, "clerk")}
-                            disabled={updating === user.id}
-                          >
-                            Make Clerk
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        )}
+        <UsersTable 
+          users={users} 
+          loading={loading} 
+          updatingUserId={updating} 
+          onRoleUpdated={handleRoleUpdate} 
+        />
       </CardContent>
     </Card>
   );
