@@ -55,12 +55,14 @@ export function AdminUsers() {
         // Get the user emails from auth (requires admin privileges)
         const usersWithEmails = await Promise.all(
           data.map(async (profile) => {
-            // We'll assume username is email for now
+            // Ensure role is never empty
+            const role = profile.role || "public";
+            
             return {
               id: profile.id,
               username: profile.username,
               email: profile.username || "",
-              role: profile.role || "public", // Ensure role is never empty
+              role, // Use the non-empty role value
             };
           })
         );
@@ -163,7 +165,7 @@ export function AdminUsers() {
                 users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.role}</TableCell>
+                    <TableCell>{user.role || "public"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-4">
                         <Select
