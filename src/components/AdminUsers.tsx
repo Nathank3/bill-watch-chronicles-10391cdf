@@ -60,7 +60,7 @@ export function AdminUsers() {
               id: profile.id,
               username: profile.username,
               email: profile.username || "",
-              role: profile.role,
+              role: profile.role || "public", // Ensure role is never empty
             };
           })
         );
@@ -167,7 +167,7 @@ export function AdminUsers() {
                     <TableCell>
                       <div className="flex items-center gap-4">
                         <Select
-                          value={user.role}
+                          value={user.role || "public"} {/* Ensure value is never empty */}
                           onValueChange={(value) => updateUserRole(user.id, value)}
                           disabled={updating === user.id}
                         >
