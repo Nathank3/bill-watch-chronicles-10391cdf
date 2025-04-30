@@ -167,7 +167,7 @@ export function AdminUsers() {
                     <TableCell>
                       <div className="flex items-center gap-4">
                         <Select
-                          value={user.role || "public"} {/* Ensure value is never empty */}
+                          value={user.role || "public"} // Ensure value is never empty
                           onValueChange={(value) => updateUserRole(user.id, value)}
                           disabled={updating === user.id}
                         >
