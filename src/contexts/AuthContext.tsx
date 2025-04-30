@@ -1,13 +1,15 @@
 
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import { User, Session } from '@supabase/supabase-js';
 
 // Define user roles
 export type UserRole = "admin" | "clerk" | "public";
 
 // Define user type
-export interface User {
+export interface AuthUser {
   id: string;
   username: string;
   role: UserRole;
@@ -15,107 +17,171 @@ export interface User {
 
 // Define auth context type
 interface AuthContextType {
-  user: User | null;
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  user: AuthUser | null;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isClerk: boolean;
+  isLoading: boolean;
 }
-
-// Mock user data (in a real app, this would come from a database)
-const mockUsers = [
-  {
-    id: "1",
-    username: "admin",
-    password: "admin123",
-    role: "admin" as UserRole
-  },
-  {
-    id: "2",
-    username: "clerk",
-    password: "clerk123",
-    role: "clerk" as UserRole
-  }
-];
 
 // Create the context with default values
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  session: null,
   login: async () => {},
-  logout: () => {},
+  logout: async () => {},
   isAuthenticated: false,
   isAdmin: false,
-  isClerk: false
+  isClerk: false,
+  isLoading: true
 });
 
 // Auth provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Check for existing user session on mount
+  // Check for existing user session and setup auth state listener
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
-
-  // Login handler
-  const login = async (username: string, password: string) => {
-    // In a real app, we'd make an API call to verify credentials
-    const foundUser = mockUsers.find(
-      u => u.username === username && u.password === password
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        setSession(newSession);
+        
+        if (newSession?.user) {
+          // If session exists, fetch user profile with role
+          setTimeout(() => {
+            fetchUserProfile(newSession.user.id);
+          }, 0);
+        } else {
+          setUser(null);
+          setIsLoading(false);
+        }
+      }
     );
 
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem("user", JSON.stringify(userWithoutPassword));
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
       
+      if (currentSession?.user) {
+        fetchUserProfile(currentSession.user.id);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username, role')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        setUser(null);
+      } else if (data) {
+        setUser({
+          id: userId,
+          username: data.username || '',
+          role: data.role as UserRole
+        });
+      }
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Login handler
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Navigation happens in useEffect based on user role
       toast({
         title: "Login successful",
-        description: `Welcome back, ${username}!`,
+        description: `Welcome back!`,
       });
-      
-      // Redirect based on role
-      if (foundUser.role === "admin") {
-        navigate("/admin");
-      } else if (foundUser.role === "clerk") {
-        navigate("/clerk");
-      }
-    } else {
+
+    } catch (err) {
       toast({
         title: "Login failed",
-        description: "Invalid username or password",
+        description: (err as Error).message || "Invalid email or password",
         variant: "destructive"
       });
-      throw new Error("Invalid username or password");
+      throw err;
     }
   };
 
   // Logout handler
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("user");
-    navigate("/");
-    
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out",
-    });
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setUser(null);
+      setSession(null);
+      navigate("/");
+      
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out",
+      });
+    } catch (err) {
+      toast({
+        title: "Logout failed",
+        description: (err as Error).message,
+        variant: "destructive"
+      });
+    }
   };
+
+  // Redirect based on role when user state changes
+  useEffect(() => {
+    if (user && !isLoading) {
+      if (user.role === "admin") {
+        navigate("/admin");
+      } else if (user.role === "clerk") {
+        navigate("/clerk");
+      }
+    }
+  }, [user, isLoading, navigate]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        session,
         login,
         logout,
         isAuthenticated: !!user,
         isAdmin: user?.role === "admin",
-        isClerk: user?.role === "clerk"
+        isClerk: user?.role === "clerk",
+        isLoading
       }}
     >
       {children}

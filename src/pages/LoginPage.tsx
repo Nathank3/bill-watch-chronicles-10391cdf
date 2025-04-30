@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { LucideGavel } from "@/components/icons/LucideGavel";
 
 const LoginPage = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +22,7 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      await login(username, password);
+      await login(email, password);
       // Navigation happens in the login function based on user role
     } catch (err) {
       setError((err as Error).message || "An error occurred during login");
@@ -44,13 +44,13 @@ const LoginPage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
               required
             />
           </div>
@@ -77,9 +77,8 @@ const LoginPage = () => {
         </form>
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
-          <p>Demo credentials:</p>
-          <p>Admin: username: admin, password: admin123</p>
-          <p>Clerk: username: clerk, password: clerk123</p>
+          <p>Note: You need to sign up in Supabase first.</p>
+          <p>After signing up, an admin can promote you to admin/clerk role.</p>
         </div>
         
         <Button
