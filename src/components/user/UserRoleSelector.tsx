@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -108,10 +109,10 @@ export const UserRoleSelector = ({
           <SelectValue placeholder="Select role" />
         </SelectTrigger>
         <SelectContent>
-          {/* Ensure each SelectItem has a non-empty string value */}
-          <SelectItem value={adminRole || "admin"}>{adminRole}</SelectItem>
-          <SelectItem value={clerkRole || "clerk"}>{clerkRole}</SelectItem>
-          <SelectItem value={publicRole || "public"}>{publicRole}</SelectItem>
+          {/* Fix: Ensure each SelectItem has a non-empty string value */}
+          <SelectItem value={adminRole}>{adminRole}</SelectItem>
+          <SelectItem value={clerkRole}>{clerkRole}</SelectItem>
+          <SelectItem value={publicRole}>{publicRole}</SelectItem>
         </SelectContent>
       </Select>
 
