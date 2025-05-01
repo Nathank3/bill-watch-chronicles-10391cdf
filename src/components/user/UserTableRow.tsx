@@ -17,14 +17,17 @@ interface UserTableRowProps {
 }
 
 export const UserTableRow = ({ user, isUpdating, onRoleUpdated }: UserTableRowProps) => {
+  // Ensure role is never undefined or null
+  const safeRole = user.role || "public";
+  
   return (
-    <TableRow key={user.id}>
+    <TableRow>
       <TableCell>{user.email}</TableCell>
-      <TableCell>{user.role || "public"}</TableCell>
+      <TableCell>{safeRole}</TableCell>
       <TableCell>
         <UserRoleSelector
           userId={user.id}
-          currentRole={user.role || "public"}
+          currentRole={safeRole}
           onRoleUpdated={onRoleUpdated}
           disabled={isUpdating}
         />

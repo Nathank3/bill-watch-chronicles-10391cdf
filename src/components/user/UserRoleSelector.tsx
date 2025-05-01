@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,8 +27,14 @@ export const UserRoleSelector = ({
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
+  // Ensure currentRole is never empty
+  const safeRole = currentRole || "public";
+
   // Update user role
   const updateUserRole = async (newRole: string) => {
+    // Skip if the role is empty or unchanged
+    if (!newRole || newRole === safeRole) return;
+    
     setUpdating(true);
     try {
       // Call the Edge Function to update the role
@@ -66,7 +71,7 @@ export const UserRoleSelector = ({
   return (
     <div className="flex items-center gap-4">
       <Select
-        value={currentRole || "public"}
+        value={safeRole}
         onValueChange={updateUserRole}
         disabled={disabled || updating}
       >
@@ -82,7 +87,7 @@ export const UserRoleSelector = ({
 
       {updating && <Loader2 className="h-4 w-4 animate-spin" />}
       
-      {currentRole !== "admin" && (
+      {safeRole !== "admin" && (
         <Button
           variant="outline"
           size="sm"
@@ -93,7 +98,7 @@ export const UserRoleSelector = ({
         </Button>
       )}
       
-      {currentRole !== "clerk" && (
+      {safeRole !== "clerk" && (
         <Button
           variant="outline"
           size="sm"
