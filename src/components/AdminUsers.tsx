@@ -40,7 +40,7 @@ export function AdminUsers() {
         const usersWithEmails = await Promise.all(
           data.map(async (profile) => {
             // Ensure role is never empty
-            const role = profile.role || "public";
+            const role = profile.role && profile.role.trim() !== "" ? profile.role : "public";
             
             return {
               id: profile.id,
@@ -79,7 +79,7 @@ export function AdminUsers() {
     }
 
     // Never accept empty role values
-    if (!newRole) {
+    if (!newRole || newRole.trim() === "") {
       toast({
         title: "Invalid role",
         description: "Role cannot be empty.",

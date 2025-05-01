@@ -17,8 +17,8 @@ interface UserTableRowProps {
 }
 
 export const UserTableRow = ({ user, isUpdating, onRoleUpdated }: UserTableRowProps) => {
-  // Ensure role is never undefined or null
-  const safeRole = user.role || "public";
+  // Ensure role is never undefined, null, or empty string
+  const safeRole = user.role && user.role.trim() !== "" ? user.role : "public";
   
   return (
     <TableRow>

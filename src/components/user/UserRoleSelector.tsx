@@ -27,13 +27,13 @@ export const UserRoleSelector = ({
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
-  // Ensure currentRole is never empty
-  const safeRole = currentRole || "public";
+  // Ensure currentRole is never empty - default to "public" if empty
+  const safeRole = currentRole && currentRole.trim() !== "" ? currentRole : "public";
 
   // Update user role
   const updateUserRole = async (newRole: string) => {
     // Skip if the role is empty or unchanged
-    if (!newRole || newRole === "") {
+    if (!newRole || newRole.trim() === "") {
       console.error("Empty role value detected, ignoring update");
       toast({
         title: "Error updating role",
