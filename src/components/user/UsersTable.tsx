@@ -32,20 +32,29 @@ export const UsersTable = ({
   updatingUserId,
   onRoleUpdated 
 }: UsersTableProps) => {
-  // Define default role
-  const defaultRole: UserRole = "public";
+  // Define valid role values as constants to ensure they're never empty
+  const adminRole: UserRole = "admin";
+  const clerkRole: UserRole = "clerk";
+  const publicRole: UserRole = "public";
+  const validRoles = [adminRole, clerkRole, publicRole];
 
   if (loading) {
     return <UserListSkeleton />;
   }
 
   // Ensure all users have valid roles
-  const validatedUsers = users.map(user => ({
-    ...user,
-    role: user.role && user.role.trim() !== "" ? 
-      (["admin", "clerk", "public"].includes(user.role) ? user.role : defaultRole) : 
-      defaultRole
-  }));
+  const validatedUsers = users.map(user => {
+    let role = publicRole;
+    if (user.role && user.role.trim() !== "") {
+      if (validRoles.includes(user.role as UserRole)) {
+        role = user.role as UserRole;
+      }
+    }
+    return {
+      ...user,
+      role
+    };
+  });
 
   return (
     <Table>

@@ -31,6 +31,7 @@ export function AdminUsers() {
   const adminRole: UserRole = "admin";
   const clerkRole: UserRole = "clerk";
   const publicRole: UserRole = "public";
+  const validRoles = [adminRole, clerkRole, publicRole];
 
   // Fetch all users and their profiles
   useEffect(() => {
@@ -45,12 +46,13 @@ export function AdminUsers() {
         // Map the roles to ensure they are valid UserRole types
         const usersWithEmails = await Promise.all(
           data.map(async (profile) => {
-            // Validate and normalize role to ensure it's a valid UserRole
-            let role: UserRole = publicRole;
+            // Default to public role
+            let safeRole: UserRole = publicRole;
             
+            // Only use the role if it's valid
             if (profile.role && profile.role.trim() !== "") {
-              if ([adminRole, clerkRole, publicRole].includes(profile.role as UserRole)) {
-                role = profile.role as UserRole;
+              if (validRoles.includes(profile.role as UserRole)) {
+                safeRole = profile.role as UserRole;
               } else {
                 console.warn(`Invalid role '${profile.role}' detected for user ${profile.id}, defaulting to 'public'`);
               }
@@ -62,7 +64,7 @@ export function AdminUsers() {
               id: profile.id,
               username: profile.username,
               email: profile.username || "",
-              role,
+              role: safeRole,
             };
           })
         );
@@ -81,7 +83,7 @@ export function AdminUsers() {
     }
 
     fetchUsers();
-  }, [toast, publicRole, adminRole, clerkRole]);
+  }, [toast, publicRole, adminRole, clerkRole, validRoles]);
 
   // Handle role updates
   const handleRoleUpdate = (userId: string, newRole: string) => {
@@ -105,7 +107,7 @@ export function AdminUsers() {
     }
 
     // Validate that the role is one of our allowed types
-    if (newRole !== adminRole && newRole !== clerkRole && newRole !== publicRole) {
+    if (!validRoles.includes(newRole as UserRole)) {
       toast({
         title: "Invalid role",
         description: "Role must be admin, clerk, or public.",

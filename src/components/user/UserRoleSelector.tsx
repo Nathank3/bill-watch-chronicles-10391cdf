@@ -35,9 +35,9 @@ export const UserRoleSelector = ({
   const publicRole: UserRole = "public";
 
   // Ensure currentRole is never empty - default to "public" if empty or invalid
-  const safeRole = currentRole && currentRole.trim() !== "" 
+  const safeRole: UserRole = currentRole && currentRole.trim() !== "" 
     ? (currentRole === adminRole || currentRole === clerkRole || currentRole === publicRole 
-        ? currentRole 
+        ? (currentRole as UserRole) 
         : publicRole)
     : publicRole;
 
