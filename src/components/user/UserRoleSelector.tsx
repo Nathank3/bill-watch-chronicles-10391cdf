@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,16 +28,17 @@ export const UserRoleSelector = ({
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
-  // Define role constants to ensure non-empty values
-  const adminRole = "admin" as UserRole;
-  const clerkRole = "clerk" as UserRole;
-  const publicRole = "public" as UserRole;
+  // Define role constants with explicit values to prevent empty strings
+  const adminRole: UserRole = "admin";
+  const clerkRole: UserRole = "clerk";
+  const publicRole: UserRole = "public";
 
-  // Ensure currentRole is never empty - default to "public" if empty or invalid
-  const safeRole: UserRole = currentRole && currentRole.trim() !== "" 
-    ? (currentRole === adminRole || currentRole === clerkRole || currentRole === publicRole 
-        ? (currentRole as UserRole) 
-        : publicRole)
+  // Always ensure a valid role, defaulting to 'public' if the current role is invalid
+  const safeRole: UserRole = 
+    (currentRole && 
+     currentRole.trim() !== "" && 
+     (currentRole === adminRole || currentRole === clerkRole || currentRole === publicRole)) 
+    ? currentRole as UserRole 
     : publicRole;
 
   // Update user role
@@ -92,7 +92,7 @@ export const UserRoleSelector = ({
   return (
     <div className="flex items-center gap-4">
       <Select
-        defaultValue={safeRole} 
+        defaultValue={safeRole}
         value={safeRole}
         onValueChange={(value) => {
           // Extra validation to ensure value is never empty
@@ -108,9 +108,10 @@ export const UserRoleSelector = ({
           <SelectValue placeholder="Select role" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={adminRole}>{adminRole}</SelectItem>
-          <SelectItem value={clerkRole}>{clerkRole}</SelectItem>
-          <SelectItem value={publicRole}>{publicRole}</SelectItem>
+          {/* Ensure each SelectItem has a non-empty string value */}
+          <SelectItem value={adminRole || "admin"}>{adminRole}</SelectItem>
+          <SelectItem value={clerkRole || "clerk"}>{clerkRole}</SelectItem>
+          <SelectItem value={publicRole || "public"}>{publicRole}</SelectItem>
         </SelectContent>
       </Select>
 

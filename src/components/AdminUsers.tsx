@@ -27,10 +27,10 @@ export function AdminUsers() {
   const { toast } = useToast();
   const { session } = useAuth();
 
-  // Define valid role values as constants
-  const adminRole = "admin" as UserRole;
-  const clerkRole = "clerk" as UserRole;
-  const publicRole = "public" as UserRole;
+  // Define valid role values as constants with explicit non-empty values
+  const adminRole: UserRole = "admin";
+  const clerkRole: UserRole = "clerk";
+  const publicRole: UserRole = "public";
   const validRoles = [adminRole, clerkRole, publicRole];
 
   // Fetch all users and their profiles
@@ -83,7 +83,7 @@ export function AdminUsers() {
     }
 
     fetchUsers();
-  }, [toast, publicRole, adminRole, clerkRole, validRoles]);
+  }, [toast]);
 
   // Handle role updates
   const handleRoleUpdate = (userId: string, newRole: string) => {
