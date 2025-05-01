@@ -95,8 +95,11 @@ export const UserRoleSelector = ({
         defaultValue={safeRole} 
         value={safeRole}
         onValueChange={(value) => {
+          // Extra validation to ensure value is never empty
           if (value && value.trim() !== "") {
             updateUserRole(value);
+          } else {
+            console.error("Empty value detected in onValueChange");
           }
         }}
         disabled={disabled || updating}
