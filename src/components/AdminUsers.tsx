@@ -27,6 +27,11 @@ export function AdminUsers() {
   const { toast } = useToast();
   const { session } = useAuth();
 
+  // Define valid role values as constants
+  const adminRole: UserRole = "admin";
+  const clerkRole: UserRole = "clerk";
+  const publicRole: UserRole = "public";
+
   // Fetch all users and their profiles
   useEffect(() => {
     async function fetchUsers() {
@@ -41,10 +46,10 @@ export function AdminUsers() {
         const usersWithEmails = await Promise.all(
           data.map(async (profile) => {
             // Validate and normalize role to ensure it's a valid UserRole
-            let role: UserRole = "public";
+            let role: UserRole = publicRole;
             
             if (profile.role && profile.role.trim() !== "") {
-              if (["admin", "clerk", "public"].includes(profile.role)) {
+              if ([adminRole, clerkRole, publicRole].includes(profile.role as UserRole)) {
                 role = profile.role as UserRole;
               } else {
                 console.warn(`Invalid role '${profile.role}' detected for user ${profile.id}, defaulting to 'public'`);
@@ -76,7 +81,7 @@ export function AdminUsers() {
     }
 
     fetchUsers();
-  }, [toast]);
+  }, [toast, publicRole, adminRole, clerkRole]);
 
   // Handle role updates
   const handleRoleUpdate = (userId: string, newRole: string) => {
@@ -100,7 +105,7 @@ export function AdminUsers() {
     }
 
     // Validate that the role is one of our allowed types
-    if (newRole !== "admin" && newRole !== "clerk" && newRole !== "public") {
+    if (newRole !== adminRole && newRole !== clerkRole && newRole !== publicRole) {
       toast({
         title: "Invalid role",
         description: "Role must be admin, clerk, or public.",

@@ -29,12 +29,17 @@ export const UserRoleSelector = ({
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
+  // Define role constants to ensure non-empty values
+  const adminRole: UserRole = "admin";
+  const clerkRole: UserRole = "clerk";
+  const publicRole: UserRole = "public";
+
   // Ensure currentRole is never empty - default to "public" if empty
   const safeRole = currentRole && currentRole.trim() !== "" 
-    ? (currentRole === "admin" || currentRole === "clerk" || currentRole === "public" 
+    ? (currentRole === adminRole || currentRole === clerkRole || currentRole === publicRole 
         ? currentRole 
-        : "public")
-    : "public";
+        : publicRole)
+    : publicRole;
 
   // Update user role
   const updateUserRole = async (newRole: string) => {
@@ -83,11 +88,6 @@ export const UserRoleSelector = ({
       setUpdating(false);
     }
   };
-
-  // Define role constants to ensure non-empty values
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk";
-  const publicRole: UserRole = "public";
 
   return (
     <div className="flex items-center gap-4">
