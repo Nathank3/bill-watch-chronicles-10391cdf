@@ -34,7 +34,7 @@ export const UserRoleSelector = ({
   const clerkRole: UserRole = "clerk";
   const publicRole: UserRole = "public";
 
-  // Ensure currentRole is never empty - default to "public" if empty
+  // Ensure currentRole is never empty - default to "public" if empty or invalid
   const safeRole = currentRole && currentRole.trim() !== "" 
     ? (currentRole === adminRole || currentRole === clerkRole || currentRole === publicRole 
         ? currentRole 
@@ -67,7 +67,7 @@ export const UserRoleSelector = ({
         throw new Error(error.message);
       }
 
-      if (data.error) {
+      if (data?.error) {
         throw new Error(data.error);
       }
 
@@ -92,17 +92,22 @@ export const UserRoleSelector = ({
   return (
     <div className="flex items-center gap-4">
       <Select
+        defaultValue={safeRole} 
         value={safeRole}
-        onValueChange={updateUserRole}
+        onValueChange={(value) => {
+          if (value && value.trim() !== "") {
+            updateUserRole(value);
+          }
+        }}
         disabled={disabled || updating}
       >
         <SelectTrigger className="w-[120px]">
-          <SelectValue />
+          <SelectValue placeholder="Select role" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={adminRole}>Admin</SelectItem>
-          <SelectItem value={clerkRole}>Clerk</SelectItem>
-          <SelectItem value={publicRole}>Public</SelectItem>
+          <SelectItem value={adminRole}>{adminRole}</SelectItem>
+          <SelectItem value={clerkRole}>{clerkRole}</SelectItem>
+          <SelectItem value={publicRole}>{publicRole}</SelectItem>
         </SelectContent>
       </Select>
 

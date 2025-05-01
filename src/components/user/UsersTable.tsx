@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { UserTableRow } from "./UserTableRow";
 import { UserListSkeleton } from "./UserListSkeleton";
+import { UserRole } from "@/types/auth";
 
 interface UserInfo {
   id: string;
@@ -31,9 +32,20 @@ export const UsersTable = ({
   updatingUserId,
   onRoleUpdated 
 }: UsersTableProps) => {
+  // Define default role
+  const defaultRole: UserRole = "public";
+
   if (loading) {
     return <UserListSkeleton />;
   }
+
+  // Ensure all users have valid roles
+  const validatedUsers = users.map(user => ({
+    ...user,
+    role: user.role && user.role.trim() !== "" ? 
+      (["admin", "clerk", "public"].includes(user.role) ? user.role : defaultRole) : 
+      defaultRole
+  }));
 
   return (
     <Table>
@@ -45,14 +57,14 @@ export const UsersTable = ({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {users.length === 0 ? (
+        {validatedUsers.length === 0 ? (
           <TableRow>
             <TableCell colSpan={3} className="text-center py-6">
               No users found
             </TableCell>
           </TableRow>
         ) : (
-          users.map((user) => (
+          validatedUsers.map((user) => (
             <UserTableRow
               key={user.id} 
               user={user} 
