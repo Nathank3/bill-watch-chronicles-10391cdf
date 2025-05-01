@@ -30,9 +30,9 @@ export const UserRoleSelector = ({
   const { toast } = useToast();
 
   // Define role constants to ensure non-empty values
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk";
-  const publicRole: UserRole = "public";
+  const adminRole = "admin" as UserRole;
+  const clerkRole = "clerk" as UserRole;
+  const publicRole = "public" as UserRole;
 
   // Ensure currentRole is never empty - default to "public" if empty or invalid
   const safeRole: UserRole = currentRole && currentRole.trim() !== "" 

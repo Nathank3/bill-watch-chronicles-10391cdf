@@ -28,9 +28,9 @@ export function AdminUsers() {
   const { session } = useAuth();
 
   // Define valid role values as constants
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk";
-  const publicRole: UserRole = "public";
+  const adminRole = "admin" as UserRole;
+  const clerkRole = "clerk" as UserRole;
+  const publicRole = "public" as UserRole;
   const validRoles = [adminRole, clerkRole, publicRole];
 
   // Fetch all users and their profiles

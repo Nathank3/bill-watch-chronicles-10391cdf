@@ -33,9 +33,9 @@ export const UsersTable = ({
   onRoleUpdated 
 }: UsersTableProps) => {
   // Define valid role values as constants to ensure they're never empty
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk";
-  const publicRole: UserRole = "public";
+  const adminRole = "admin" as UserRole;
+  const clerkRole = "clerk" as UserRole;
+  const publicRole = "public" as UserRole;
   const validRoles = [adminRole, clerkRole, publicRole];
 
   if (loading) {

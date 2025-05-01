@@ -19,9 +19,9 @@ interface UserTableRowProps {
 
 export const UserTableRow = ({ user, isUpdating, onRoleUpdated }: UserTableRowProps) => {
   // Define valid role values as constants
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk";
-  const publicRole: UserRole = "public";
+  const adminRole = "admin" as UserRole;
+  const clerkRole = "clerk" as UserRole;
+  const publicRole = "public" as UserRole;
   
   // Ensure role is never undefined, null, or empty string
   // Strict validation to guarantee we have a valid role
