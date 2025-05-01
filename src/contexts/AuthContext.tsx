@@ -4,28 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { User, Session } from '@supabase/supabase-js';
-
-// Define user roles
-export type UserRole = "admin" | "clerk" | "public";
-
-// Define user type
-export interface AuthUser {
-  id: string;
-  username: string;
-  role: UserRole;
-}
-
-// Define auth context type
-interface AuthContextType {
-  user: AuthUser | null;
-  session: Session | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
-  isAuthenticated: boolean;
-  isAdmin: boolean;
-  isClerk: boolean;
-  isLoading: boolean;
-}
+import { AuthContextType, AuthUser } from '@/types/auth';
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 // Create the context with default values
 const AuthContext = createContext<AuthContextType>({
@@ -45,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { fetchUserProfile } = useUserProfile();
 
   // Check for existing user session and setup auth state listener
   useEffect(() => {
@@ -57,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (newSession?.user) {
           // If session exists, fetch user profile with role
           setTimeout(() => {
-            fetchUserProfile(newSession.user.id);
+            handleProfileFetch(newSession.user.id);
           }, 0);
         } else {
           setUser(null);
@@ -72,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(currentSession);
       
       if (currentSession?.user) {
-        fetchUserProfile(currentSession.user.id);
+        handleProfileFetch(currentSession.user.id);
       } else {
         setIsLoading(false);
       }
@@ -83,31 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const handleProfileFetch = async (userId: string) => {
     try {
-      console.log("Fetching profile for user:", userId);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('username, role')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        setUser(null);
-      } else if (data) {
-        // Ensure role is never empty string, null or undefined
-        const safeRole = data.role || "public";
-        console.log("User profile retrieved:", { username: data.username, role: safeRole });
-        
-        setUser({
-          id: userId,
-          username: data.username || '',
-          role: safeRole as UserRole
-        });
-      }
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
+      const profile = await fetchUserProfile(userId);
+      setUser(profile);
     } finally {
       setIsLoading(false);
     }
@@ -139,9 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive"
       });
       throw err;
-    } finally {
-      // isLoading will be set to false in fetchUserProfile
     }
+    // isLoading will be set to false in fetchUserProfile
   };
 
   // Logout handler

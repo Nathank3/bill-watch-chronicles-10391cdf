@@ -33,7 +33,17 @@ export const UserRoleSelector = ({
   // Update user role
   const updateUserRole = async (newRole: string) => {
     // Skip if the role is empty or unchanged
-    if (!newRole || newRole === safeRole) return;
+    if (!newRole || newRole === "") {
+      console.error("Empty role value detected, ignoring update");
+      toast({
+        title: "Error updating role",
+        description: "Role cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (newRole === safeRole) return;
     
     setUpdating(true);
     try {
