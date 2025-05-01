@@ -27,10 +27,10 @@ export function AdminUsers() {
   const { toast } = useToast();
   const { session } = useAuth();
 
-  // Define valid role values as constants with explicit non-empty values
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk";
-  const publicRole: UserRole = "public";
+  // Define valid role values as constants with explicit string literals
+  const adminRole = "admin";
+  const clerkRole = "clerk";
+  const publicRole = "public";
   const validRoles = [adminRole, clerkRole, publicRole];
 
   // Fetch all users and their profiles
@@ -49,15 +49,13 @@ export function AdminUsers() {
             // Default to public role
             let safeRole: UserRole = publicRole;
             
-            // Only use the role if it's valid
-            if (profile.role && profile.role.trim() !== "") {
-              if (validRoles.includes(profile.role as UserRole)) {
-                safeRole = profile.role as UserRole;
-              } else {
-                console.warn(`Invalid role '${profile.role}' detected for user ${profile.id}, defaulting to 'public'`);
-              }
+            // Only use the role if it's valid and not empty
+            if (profile.role && 
+                profile.role.trim() !== "" && 
+                validRoles.includes(profile.role as UserRole)) {
+              safeRole = profile.role as UserRole;
             } else {
-              console.warn(`Empty role detected for user ${profile.id}, defaulting to 'public'`);
+              console.warn(`Invalid or empty role detected for user ${profile.id}, defaulting to '${publicRole}'`);
             }
             
             return {

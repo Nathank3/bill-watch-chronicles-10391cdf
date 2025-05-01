@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,17 +28,17 @@ export const UserRoleSelector = ({
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
-  // Define role constants with explicit values to prevent empty strings
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk";
-  const publicRole: UserRole = "public";
+  // Define role constants as explicit string literals to ensure they're never empty
+  const adminRole = "admin";
+  const clerkRole = "clerk";
+  const publicRole = "public";
 
   // Always ensure a valid role, defaulting to 'public' if the current role is invalid
   const safeRole: UserRole = 
     (currentRole && 
      currentRole.trim() !== "" && 
-     (currentRole === adminRole || currentRole === clerkRole || currentRole === publicRole)) 
-    ? currentRole as UserRole 
+     [adminRole, clerkRole, publicRole].includes(currentRole)) 
+    ? (currentRole as UserRole) 
     : publicRole;
 
   // Update user role
@@ -93,7 +92,6 @@ export const UserRoleSelector = ({
   return (
     <div className="flex items-center gap-4">
       <Select
-        defaultValue={safeRole}
         value={safeRole}
         onValueChange={(value) => {
           // Extra validation to ensure value is never empty
@@ -109,7 +107,6 @@ export const UserRoleSelector = ({
           <SelectValue placeholder="Select role" />
         </SelectTrigger>
         <SelectContent>
-          {/* Fix: Ensure each SelectItem has a non-empty string value */}
           <SelectItem value={adminRole}>{adminRole}</SelectItem>
           <SelectItem value={clerkRole}>{clerkRole}</SelectItem>
           <SelectItem value={publicRole}>{publicRole}</SelectItem>

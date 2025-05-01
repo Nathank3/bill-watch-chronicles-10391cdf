@@ -18,23 +18,17 @@ interface UserTableRowProps {
 }
 
 export const UserTableRow = ({ user, isUpdating, onRoleUpdated }: UserTableRowProps) => {
-  // Define valid role values as constants with explicit values
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk";
-  const publicRole: UserRole = "public";
+  // Define valid role values as constants with explicit string literals
+  const adminRole = "admin";
+  const clerkRole = "clerk";
+  const publicRole = "public";
+  const validRoles = [adminRole, clerkRole, publicRole];
   
   // Ensure role is always valid and never an empty string
-  let safeRole: UserRole;
-  if (user.role && user.role.trim() !== "") {
-    if (user.role === adminRole) {
-      safeRole = adminRole;
-    } else if (user.role === clerkRole) {
-      safeRole = clerkRole;
-    } else {
-      safeRole = publicRole;
-    }
-  } else {
-    safeRole = publicRole;
+  let safeRole: UserRole = publicRole; // Default to public
+  
+  if (user.role && user.role.trim() !== "" && validRoles.includes(user.role)) {
+    safeRole = user.role as UserRole;
   }
   
   return (

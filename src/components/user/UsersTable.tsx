@@ -32,10 +32,10 @@ export const UsersTable = ({
   updatingUserId,
   onRoleUpdated 
 }: UsersTableProps) => {
-  // Define valid role values as constants with explicit non-empty values
-  const adminRole: UserRole = "admin";
-  const clerkRole: UserRole = "clerk"; 
-  const publicRole: UserRole = "public";
+  // Define valid role values as constants with explicit string literals
+  const adminRole = "admin";
+  const clerkRole = "clerk"; 
+  const publicRole = "public";
   const validRoles = [adminRole, clerkRole, publicRole];
 
   if (loading) {
@@ -46,10 +46,10 @@ export const UsersTable = ({
   const validatedUsers = users.map(user => {
     let role: UserRole = publicRole; // Always start with a valid default
     
-    if (user.role && user.role.trim() !== "") {
-      if (validRoles.includes(user.role as UserRole)) {
-        role = user.role as UserRole;
-      }
+    if (user.role && user.role.trim() !== "" && validRoles.includes(user.role as UserRole)) {
+      role = user.role as UserRole;
+    } else {
+      console.warn(`Invalid or empty role detected for user ${user.id}, defaulting to '${publicRole}'`);
     }
     
     return {
