@@ -1,7 +1,6 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { User } from '@supabase/supabase-js';
 import { AuthUser, UserRole } from '@/types/auth';
 
 export const useUserProfile = () => {
@@ -28,6 +27,7 @@ export const useUserProfile = () => {
         
         // Check if the role from DB is null, undefined or not in our allowed types
         if (!data.role || 
+            data.role.trim() === '' || 
             (data.role !== 'admin' && 
              data.role !== 'clerk' && 
              data.role !== 'public')) {

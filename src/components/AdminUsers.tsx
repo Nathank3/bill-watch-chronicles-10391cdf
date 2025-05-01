@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { UsersTable } from "./user/UsersTable";
+import { UserRole } from "@/types/auth";
 
 type UserInfo = {
   id: string;
@@ -39,14 +40,14 @@ export function AdminUsers() {
         // Get the user emails from auth (requires admin privileges)
         const usersWithEmails = await Promise.all(
           data.map(async (profile) => {
-            // Ensure role is never empty
+            // Ensure role is never empty, default to "public" if it is
             const role = profile.role && profile.role.trim() !== "" ? profile.role : "public";
             
             return {
               id: profile.id,
               username: profile.username,
               email: profile.username || "",
-              role, // Use the non-empty role value
+              role,
             };
           })
         );
@@ -83,6 +84,16 @@ export function AdminUsers() {
       toast({
         title: "Invalid role",
         description: "Role cannot be empty.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate that the role is one of our allowed types
+    if (newRole !== "admin" && newRole !== "clerk" && newRole !== "public") {
+      toast({
+        title: "Invalid role",
+        description: "Role must be admin, clerk, or public.",
         variant: "destructive",
       });
       return;

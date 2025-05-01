@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +79,11 @@ export const UserRoleSelector = ({
     }
   };
 
+  // Always make sure the role values in SelectItem are non-empty strings
+  const adminRole = "admin";
+  const clerkRole = "clerk";
+  const publicRole = "public";
+
   return (
     <div className="flex items-center gap-4">
       <Select
@@ -89,30 +95,30 @@ export const UserRoleSelector = ({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="admin">Admin</SelectItem>
-          <SelectItem value="clerk">Clerk</SelectItem>
-          <SelectItem value="public">Public</SelectItem>
+          <SelectItem value={adminRole}>Admin</SelectItem>
+          <SelectItem value={clerkRole}>Clerk</SelectItem>
+          <SelectItem value={publicRole}>Public</SelectItem>
         </SelectContent>
       </Select>
 
       {updating && <Loader2 className="h-4 w-4 animate-spin" />}
       
-      {safeRole !== "admin" && (
+      {safeRole !== adminRole && (
         <Button
           variant="outline"
           size="sm"
-          onClick={() => updateUserRole("admin")}
+          onClick={() => updateUserRole(adminRole)}
           disabled={disabled || updating}
         >
           Make Admin
         </Button>
       )}
       
-      {safeRole !== "clerk" && (
+      {safeRole !== clerkRole && (
         <Button
           variant="outline"
           size="sm"
-          onClick={() => updateUserRole("clerk")}
+          onClick={() => updateUserRole(clerkRole)}
           disabled={disabled || updating}
         >
           Make Clerk
