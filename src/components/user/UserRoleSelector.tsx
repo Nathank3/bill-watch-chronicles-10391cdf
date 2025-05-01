@@ -30,7 +30,11 @@ export const UserRoleSelector = ({
   const { toast } = useToast();
 
   // Ensure currentRole is never empty - default to "public" if empty
-  const safeRole = currentRole && currentRole.trim() !== "" ? currentRole : "public";
+  const safeRole = currentRole && currentRole.trim() !== "" 
+    ? (currentRole === "admin" || currentRole === "clerk" || currentRole === "public" 
+        ? currentRole 
+        : "public")
+    : "public";
 
   // Update user role
   const updateUserRole = async (newRole: string) => {

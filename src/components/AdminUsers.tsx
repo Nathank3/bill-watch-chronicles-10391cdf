@@ -46,7 +46,11 @@ export function AdminUsers() {
             if (profile.role && profile.role.trim() !== "") {
               if (["admin", "clerk", "public"].includes(profile.role)) {
                 role = profile.role as UserRole;
+              } else {
+                console.warn(`Invalid role '${profile.role}' detected for user ${profile.id}, defaulting to 'public'`);
               }
+            } else {
+              console.warn(`Empty role detected for user ${profile.id}, defaulting to 'public'`);
             }
             
             return {
