@@ -96,8 +96,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error fetching user profile:', error);
         setUser(null);
       } else if (data) {
+        // Ensure role is never empty string, null or undefined
         const safeRole = data.role || "public";
         console.log("User profile retrieved:", { username: data.username, role: safeRole });
+        
         setUser({
           id: userId,
           username: data.username || '',

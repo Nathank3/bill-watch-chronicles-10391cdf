@@ -78,6 +78,16 @@ export function AdminUsers() {
       return;
     }
 
+    // Never accept empty role values
+    if (!newRole) {
+      toast({
+        title: "Invalid role",
+        description: "Role cannot be empty.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUpdating(userId);
     // The actual API call is handled in the UserRoleSelector component
     // We just need to update our local state here
