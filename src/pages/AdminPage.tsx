@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBills, Bill, BillStatus } from "@/contexts/BillContext";
@@ -7,11 +8,26 @@ import { BillFilter } from "@/components/BillFilter";
 import { Navbar } from "@/components/Navbar";
 import { AdminUsers } from "@/components/AdminUsers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const AdminPage = () => {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin, isLoading } = useAuth();
   const { updateBillStatus } = useBills();
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
+
+  // Show loading state while auth state is being determined
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-secondary/30">
+        <Navbar />
+        <main className="container py-8">
+          <div className="flex justify-center items-center h-64">
+            <Skeleton className="h-12 w-12 rounded-full" />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   // If user is not an admin, redirect to login
   if (!isAdmin) {

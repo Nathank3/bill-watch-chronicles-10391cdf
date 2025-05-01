@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
+        console.log("Auth state change:", event, newSession?.user?.id);
         setSession(newSession);
         
         if (newSession?.user) {
@@ -67,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log("Got initial session:", currentSession?.user?.id);
       setSession(currentSession);
       
       if (currentSession?.user) {
@@ -83,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log("Fetching profile for user:", userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('username, role')
@@ -93,10 +96,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error fetching user profile:', error);
         setUser(null);
       } else if (data) {
+        const safeRole = data.role || "public";
+        console.log("User profile retrieved:", { username: data.username, role: safeRole });
         setUser({
           id: userId,
           username: data.username || '',
-          role: data.role as UserRole
+          role: safeRole as UserRole
         });
       }
     } catch (error) {
@@ -109,6 +114,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Login handler
   const login = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -131,12 +137,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive"
       });
       throw err;
+    } finally {
+      // isLoading will be set to false in fetchUserProfile
     }
   };
 
   // Logout handler
   const logout = async () => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -157,12 +166,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: (err as Error).message,
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Redirect based on role when user state changes
   useEffect(() => {
     if (user && !isLoading) {
+      console.log("User role:", user.role);
       if (user.role === "admin") {
         navigate("/admin");
       } else if (user.role === "clerk") {
