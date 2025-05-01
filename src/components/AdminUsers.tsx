@@ -17,7 +17,7 @@ type UserInfo = {
   id: string;
   username: string | null;
   email: string;
-  role: string;
+  role: UserRole;
 };
 
 export function AdminUsers() {
@@ -37,11 +37,17 @@ export function AdminUsers() {
 
         if (error) throw error;
 
-        // Get the user emails from auth (requires admin privileges)
+        // Map the roles to ensure they are valid UserRole types
         const usersWithEmails = await Promise.all(
           data.map(async (profile) => {
-            // Ensure role is never empty, default to "public" if it is
-            const role = profile.role && profile.role.trim() !== "" ? profile.role : "public";
+            // Validate and normalize role to ensure it's a valid UserRole
+            let role: UserRole = "public";
+            
+            if (profile.role && profile.role.trim() !== "") {
+              if (["admin", "clerk", "public"].includes(profile.role)) {
+                role = profile.role as UserRole;
+              }
+            }
             
             return {
               id: profile.id,
@@ -104,7 +110,7 @@ export function AdminUsers() {
     // We just need to update our local state here
     setUsers((prevUsers) =>
       prevUsers.map((user) =>
-        user.id === userId ? { ...user, role: newRole } : user
+        user.id === userId ? { ...user, role: newRole as UserRole } : user
       )
     );
     setUpdating(null);

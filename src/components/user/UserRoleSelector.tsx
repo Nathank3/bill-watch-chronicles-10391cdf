@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { UserRole } from "@/types/auth";
 
 interface UserRoleSelectorProps {
   userId: string;
@@ -79,10 +80,10 @@ export const UserRoleSelector = ({
     }
   };
 
-  // Always make sure the role values in SelectItem are non-empty strings
-  const adminRole = "admin";
-  const clerkRole = "clerk";
-  const publicRole = "public";
+  // Define role constants to ensure non-empty values
+  const adminRole: UserRole = "admin";
+  const clerkRole: UserRole = "clerk";
+  const publicRole: UserRole = "public";
 
   return (
     <div className="flex items-center gap-4">

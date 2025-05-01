@@ -5,6 +5,7 @@ import {
   TableCell
 } from "@/components/ui/table";
 import { UserRoleSelector } from "./UserRoleSelector";
+import { UserRole } from "@/types/auth";
 
 interface UserTableRowProps {
   user: {
@@ -18,7 +19,11 @@ interface UserTableRowProps {
 
 export const UserTableRow = ({ user, isUpdating, onRoleUpdated }: UserTableRowProps) => {
   // Ensure role is never undefined, null, or empty string
-  const safeRole = user.role && user.role.trim() !== "" ? user.role : "public";
+  const safeRole = user.role && user.role.trim() !== "" 
+    ? (user.role === "admin" || user.role === "clerk" || user.role === "public" 
+        ? user.role as UserRole 
+        : "public" as UserRole)
+    : "public" as UserRole;
   
   return (
     <TableRow>
