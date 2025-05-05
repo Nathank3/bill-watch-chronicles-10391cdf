@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { UserTableRow } from "./UserTableRow";
 import { UserListSkeleton } from "./UserListSkeleton";
-import { UserRole } from "@/types/auth";
+import { validateRole } from "@/utils/roleUtils";
 
 interface UserInfo {
   id: string;
@@ -32,35 +32,15 @@ export const UsersTable = ({
   updatingUserId,
   onRoleUpdated 
 }: UsersTableProps) => {
-  // Define valid role values as constants with explicit string literals
-  const ADMIN_ROLE = "admin";
-  const CLERK_ROLE = "clerk";
-  const PUBLIC_ROLE = "public";
-  const VALID_ROLES = [ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE];
-
   if (loading) {
     return <UserListSkeleton />;
   }
 
-  // Ensure all users have valid roles that are never empty strings
-  const validatedUsers = users.map(user => {
-    let role: UserRole = PUBLIC_ROLE; // Always start with a valid default
-    
-    // Check if the role from DB is valid
-    if (user.role && 
-        typeof user.role === 'string' &&
-        user.role.trim() !== '' && 
-        VALID_ROLES.includes(user.role as UserRole)) {
-      role = user.role as UserRole;
-    } else {
-      console.warn(`Invalid or empty role detected for user ${user.id}, defaulting to '${PUBLIC_ROLE}'`);
-    }
-    
-    return {
-      ...user,
-      role
-    };
-  });
+  // Ensure all users have valid roles
+  const validatedUsers = users.map(user => ({
+    ...user,
+    role: validateRole(user.role)
+  }));
 
   return (
     <Table>

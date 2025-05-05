@@ -1,16 +1,11 @@
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { UserRole } from "@/types/auth";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE, validateRole } from "@/utils/roleUtils";
 
 interface UserRoleSelectorProps {
   userId: string;
@@ -27,44 +22,23 @@ export const UserRoleSelector = ({
 }: UserRoleSelectorProps) => {
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
-
-  // Define role constants with explicit string literals
-  const ADMIN_ROLE = "admin";
-  const CLERK_ROLE = "clerk";
-  const PUBLIC_ROLE = "public";
-  const VALID_ROLES = [ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE];
-
-  // Ensure we have a valid role before proceeding
-  let safeRole: UserRole;
-  if (typeof currentRole === 'string' && currentRole.trim() !== "" && VALID_ROLES.includes(currentRole)) {
-    safeRole = currentRole as UserRole;
-  } else {
-    // Default to public role if invalid
-    safeRole = PUBLIC_ROLE;
-    console.warn(`Invalid role detected: "${currentRole}", defaulting to '${PUBLIC_ROLE}'`);
-  }
-
-  // Update user role
+  
+  // Validate current role to ensure it's never empty or invalid
+  const safeRole = validateRole(currentRole);
+  
+  // Handle role changes
   const updateUserRole = async (newRole: string) => {
-    // Additional validation to prevent empty role values
-    if (!newRole || typeof newRole !== 'string' || newRole.trim() === "") {
-      console.error("Invalid role value detected, ignoring update");
-      toast({
-        title: "Error updating role",
-        description: "Role cannot be empty",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Validate the new role
+    const validatedRole = validateRole(newRole);
     
     // Skip if role is unchanged
-    if (newRole === safeRole) return;
+    if (validatedRole === safeRole) return;
     
     setUpdating(true);
     try {
       // Call the Edge Function to update the role
       const { data, error } = await supabase.functions.invoke("manage-user-roles", {
-        body: { userId, role: newRole },
+        body: { userId, role: validatedRole },
       });
 
       if (error) {
@@ -75,11 +49,11 @@ export const UserRoleSelector = ({
         throw new Error(data.error);
       }
 
-      onRoleUpdated(userId, newRole);
+      onRoleUpdated(userId, validatedRole);
 
       toast({
         title: "Role updated",
-        description: `User role has been updated to ${newRole}.`,
+        description: `User role has been updated to ${validatedRole}.`,
       });
     } catch (error) {
       console.error("Error updating role:", error);
@@ -94,57 +68,28 @@ export const UserRoleSelector = ({
   };
 
   return (
-    <div className="flex items-center gap-4">
-      <Select
-        value={safeRole}
-        onValueChange={(value) => {
-          // Additional validation before updating
-          if (value && value.trim() !== "" && VALID_ROLES.includes(value as UserRole)) {
-            updateUserRole(value);
-          } else {
-            console.error(`Invalid value detected in onValueChange: "${value}"`);
-            toast({
-              title: "Error",
-              description: "Invalid role value selected",
-              variant: "destructive",
-            });
-          }
-        }}
+    <div className="space-y-4">
+      <RadioGroup 
+        value={safeRole} 
+        onValueChange={updateUserRole}
+        className="flex flex-col space-y-2"
         disabled={disabled || updating}
       >
-        <SelectTrigger className="w-[120px]">
-          <SelectValue placeholder="Select role" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ADMIN_ROLE}>{ADMIN_ROLE}</SelectItem>
-          <SelectItem value={CLERK_ROLE}>{CLERK_ROLE}</SelectItem>
-          <SelectItem value={PUBLIC_ROLE}>{PUBLIC_ROLE}</SelectItem>
-        </SelectContent>
-      </Select>
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value={ADMIN_ROLE} id={`${userId}-admin`} />
+          <Label htmlFor={`${userId}-admin`}>Admin</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value={CLERK_ROLE} id={`${userId}-clerk`} />
+          <Label htmlFor={`${userId}-clerk`}>Clerk</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value={PUBLIC_ROLE} id={`${userId}-public`} />
+          <Label htmlFor={`${userId}-public`}>Public</Label>
+        </div>
+      </RadioGroup>
 
-      {updating && <Loader2 className="h-4 w-4 animate-spin" />}
-      
-      {safeRole !== ADMIN_ROLE && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => updateUserRole(ADMIN_ROLE)}
-          disabled={disabled || updating}
-        >
-          Make Admin
-        </Button>
-      )}
-      
-      {safeRole !== CLERK_ROLE && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => updateUserRole(CLERK_ROLE)}
-          disabled={disabled || updating}
-        >
-          Make Clerk
-        </Button>
-      )}
+      {updating && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
     </div>
   );
 };

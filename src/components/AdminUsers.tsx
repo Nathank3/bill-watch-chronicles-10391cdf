@@ -11,13 +11,13 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { UsersTable } from "./user/UsersTable";
-import { UserRole } from "@/types/auth";
+import { validateRole } from "@/utils/roleUtils";
 
 type UserInfo = {
   id: string;
   username: string | null;
   email: string;
-  role: UserRole;
+  role: string;
 };
 
 export function AdminUsers() {
@@ -26,12 +26,6 @@ export function AdminUsers() {
   const [updating, setUpdating] = useState<string | null>(null);
   const { toast } = useToast();
   const { session } = useAuth();
-
-  // Define valid role values as constants with explicit string literals
-  const ADMIN_ROLE = "admin";
-  const CLERK_ROLE = "clerk";
-  const PUBLIC_ROLE = "public";
-  const VALID_ROLES = [ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE];
 
   // Fetch all users and their profiles
   useEffect(() => {
@@ -43,27 +37,14 @@ export function AdminUsers() {
 
         if (error) throw error;
 
-        // Map the roles to ensure they are valid UserRole types
+        // Map the roles to ensure they are valid
         const usersWithEmails = await Promise.all(
           data.map(async (profile) => {
-            // Default to public role
-            let safeRole: UserRole = PUBLIC_ROLE;
-            
-            // Only use the role if it's valid and not empty
-            if (profile.role && 
-                typeof profile.role === 'string' &&
-                profile.role.trim() !== "" && 
-                VALID_ROLES.includes(profile.role as UserRole)) {
-              safeRole = profile.role as UserRole;
-            } else {
-              console.warn(`Invalid or empty role detected for user ${profile.id}, defaulting to '${PUBLIC_ROLE}'`);
-            }
-            
             return {
               id: profile.id,
               username: profile.username,
               email: profile.username || "",
-              role: safeRole,
+              role: validateRole(profile.role),
             };
           })
         );
@@ -95,21 +76,12 @@ export function AdminUsers() {
       return;
     }
 
-    // Never accept empty role values
-    if (!newRole || typeof newRole !== 'string' || newRole.trim() === "") {
+    // Validate the role
+    const validatedRole = validateRole(newRole);
+    if (validatedRole !== newRole) {
       toast({
         title: "Invalid role",
-        description: "Role cannot be empty.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate that the role is one of our allowed types
-    if (!VALID_ROLES.includes(newRole as UserRole)) {
-      toast({
-        title: "Invalid role",
-        description: "Role must be admin, clerk, or public.",
+        description: `Role "${newRole}" is not valid. Using "${validatedRole}" instead.`,
         variant: "destructive",
       });
       return;
@@ -120,7 +92,7 @@ export function AdminUsers() {
     // We just need to update our local state here
     setUsers((prevUsers) =>
       prevUsers.map((user) =>
-        user.id === userId ? { ...user, role: newRole as UserRole } : user
+        user.id === userId ? { ...user, role: validatedRole } : user
       )
     );
     setUpdating(null);
