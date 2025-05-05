@@ -31,36 +31,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log("Auth state change:", event, newSession?.user?.id);
-        setSession(newSession);
         
         if (newSession?.user) {
+          setSession(newSession);
           // If session exists, fetch user profile with role
           setTimeout(() => {
             handleProfileFetch(newSession.user.id);
           }, 0);
         } else {
           setUser(null);
+          setSession(null);
           setIsLoading(false);
         }
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      console.log("Got initial session:", currentSession?.user?.id);
-      setSession(currentSession);
-      
-      if (currentSession?.user) {
-        handleProfileFetch(currentSession.user.id);
-      } else {
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log("Got initial session:", currentSession?.user?.id);
+        
+        if (currentSession?.user) {
+          setSession(currentSession);
+          await handleProfileFetch(currentSession.user.id);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
         setIsLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
+
+    // Listen for storage events to sync auth between tabs
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'supabase.auth.token') {
+        console.log("Auth storage changed, refreshing session");
+        supabase.auth.getSession().then(({ data: { session: newSession } }) => {
+          if (newSession?.user) {
+            setSession(newSession);
+            handleProfileFetch(newSession.user.id);
+          } else if (session) {
+            // If we had a session before but now we don't, user logged out in another tab
+            setUser(null);
+            setSession(null);
+            navigate('/');
+          }
+        });
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
 
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -68,6 +98,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const profile = await fetchUserProfile(userId);
       setUser(profile);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
     } finally {
       setIsLoading(false);
     }
@@ -136,9 +168,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (user && !isLoading) {
       console.log("User role:", user.role);
-      if (user.role === "admin") {
+      const path = window.location.pathname;
+      
+      if (user.role === "admin" && !path.includes('/admin')) {
         navigate("/admin");
-      } else if (user.role === "clerk") {
+      } else if (user.role === "clerk" && !path.includes('/clerk')) {
         navigate("/clerk");
       }
     }

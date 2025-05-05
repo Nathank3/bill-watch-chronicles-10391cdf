@@ -9,11 +9,31 @@ import { Navbar } from "@/components/Navbar";
 import { AdminUsers } from "@/components/AdminUsers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/use-toast";
 
 const AdminPage = () => {
-  const { user, isAdmin, isLoading } = useAuth();
+  const { user, session, isAdmin, isLoading } = useAuth();
   const { updateBillStatus } = useBills();
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
+
+  useEffect(() => {
+    // Debug auth state
+    console.log("AdminPage auth state:", { 
+      user: !!user, 
+      session: !!session, 
+      isAdmin, 
+      isLoading 
+    });
+    
+    if (!isLoading && !user && !session) {
+      console.log("No user session detected, redirecting to login");
+      toast({
+        title: "Authentication required",
+        description: "Please log in to access the admin dashboard",
+        variant: "destructive"
+      });
+    }
+  }, [user, session, isAdmin, isLoading]);
 
   // Show loading state while auth state is being determined
   if (isLoading) {
@@ -30,7 +50,8 @@ const AdminPage = () => {
   }
 
   // If user is not an admin, redirect to login
-  if (!isAdmin) {
+  if (!user || !session || !isAdmin) {
+    console.log("Not authenticated as admin, redirecting to login");
     return <Navigate to="/login" />;
   }
 
