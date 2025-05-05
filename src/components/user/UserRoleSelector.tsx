@@ -28,24 +28,27 @@ export const UserRoleSelector = ({
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
-  // Define role constants as explicit string literals to ensure they're never empty
-  const adminRole = "admin";
-  const clerkRole = "clerk";
-  const publicRole = "public";
+  // Define role constants with explicit string literals
+  const ADMIN_ROLE = "admin";
+  const CLERK_ROLE = "clerk";
+  const PUBLIC_ROLE = "public";
+  const VALID_ROLES = [ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE];
 
-  // Always ensure a valid role, defaulting to 'public' if the current role is invalid
-  const safeRole: UserRole = 
-    (currentRole && 
-     currentRole.trim() !== "" && 
-     [adminRole, clerkRole, publicRole].includes(currentRole)) 
-    ? (currentRole as UserRole) 
-    : publicRole;
+  // Ensure we have a valid role before proceeding
+  let safeRole: UserRole;
+  if (typeof currentRole === 'string' && currentRole.trim() !== "" && VALID_ROLES.includes(currentRole)) {
+    safeRole = currentRole as UserRole;
+  } else {
+    // Default to public role if invalid
+    safeRole = PUBLIC_ROLE;
+    console.warn(`Invalid role detected: "${currentRole}", defaulting to '${PUBLIC_ROLE}'`);
+  }
 
   // Update user role
   const updateUserRole = async (newRole: string) => {
-    // Skip if the role is empty or unchanged
-    if (!newRole || newRole.trim() === "") {
-      console.error("Empty role value detected, ignoring update");
+    // Additional validation to prevent empty role values
+    if (!newRole || typeof newRole !== 'string' || newRole.trim() === "") {
+      console.error("Invalid role value detected, ignoring update");
       toast({
         title: "Error updating role",
         description: "Role cannot be empty",
@@ -54,6 +57,7 @@ export const UserRoleSelector = ({
       return;
     }
     
+    // Skip if role is unchanged
     if (newRole === safeRole) return;
     
     setUpdating(true);
@@ -94,11 +98,16 @@ export const UserRoleSelector = ({
       <Select
         value={safeRole}
         onValueChange={(value) => {
-          // Extra validation to ensure value is never empty
-          if (value && value.trim() !== "") {
+          // Additional validation before updating
+          if (value && value.trim() !== "" && VALID_ROLES.includes(value as UserRole)) {
             updateUserRole(value);
           } else {
-            console.error("Empty value detected in onValueChange");
+            console.error(`Invalid value detected in onValueChange: "${value}"`);
+            toast({
+              title: "Error",
+              description: "Invalid role value selected",
+              variant: "destructive",
+            });
           }
         }}
         disabled={disabled || updating}
@@ -107,30 +116,30 @@ export const UserRoleSelector = ({
           <SelectValue placeholder="Select role" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={adminRole}>{adminRole}</SelectItem>
-          <SelectItem value={clerkRole}>{clerkRole}</SelectItem>
-          <SelectItem value={publicRole}>{publicRole}</SelectItem>
+          <SelectItem value={ADMIN_ROLE}>{ADMIN_ROLE}</SelectItem>
+          <SelectItem value={CLERK_ROLE}>{CLERK_ROLE}</SelectItem>
+          <SelectItem value={PUBLIC_ROLE}>{PUBLIC_ROLE}</SelectItem>
         </SelectContent>
       </Select>
 
       {updating && <Loader2 className="h-4 w-4 animate-spin" />}
       
-      {safeRole !== adminRole && (
+      {safeRole !== ADMIN_ROLE && (
         <Button
           variant="outline"
           size="sm"
-          onClick={() => updateUserRole(adminRole)}
+          onClick={() => updateUserRole(ADMIN_ROLE)}
           disabled={disabled || updating}
         >
           Make Admin
         </Button>
       )}
       
-      {safeRole !== clerkRole && (
+      {safeRole !== CLERK_ROLE && (
         <Button
           variant="outline"
           size="sm"
-          onClick={() => updateUserRole(clerkRole)}
+          onClick={() => updateUserRole(CLERK_ROLE)}
           disabled={disabled || updating}
         >
           Make Clerk

@@ -33,10 +33,10 @@ export const UsersTable = ({
   onRoleUpdated 
 }: UsersTableProps) => {
   // Define valid role values as constants with explicit string literals
-  const adminRole = "admin";
-  const clerkRole = "clerk"; 
-  const publicRole = "public";
-  const validRoles = [adminRole, clerkRole, publicRole];
+  const ADMIN_ROLE = "admin";
+  const CLERK_ROLE = "clerk";
+  const PUBLIC_ROLE = "public";
+  const VALID_ROLES = [ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE];
 
   if (loading) {
     return <UserListSkeleton />;
@@ -44,12 +44,16 @@ export const UsersTable = ({
 
   // Ensure all users have valid roles that are never empty strings
   const validatedUsers = users.map(user => {
-    let role: UserRole = publicRole; // Always start with a valid default
+    let role: UserRole = PUBLIC_ROLE; // Always start with a valid default
     
-    if (user.role && user.role.trim() !== "" && validRoles.includes(user.role as UserRole)) {
+    // Check if the role from DB is valid
+    if (user.role && 
+        typeof user.role === 'string' &&
+        user.role.trim() !== '' && 
+        VALID_ROLES.includes(user.role as UserRole)) {
       role = user.role as UserRole;
     } else {
-      console.warn(`Invalid or empty role detected for user ${user.id}, defaulting to '${publicRole}'`);
+      console.warn(`Invalid or empty role detected for user ${user.id}, defaulting to '${PUBLIC_ROLE}'`);
     }
     
     return {
