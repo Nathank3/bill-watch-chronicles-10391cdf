@@ -11,10 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogHeader } from "@/components/ui/dialog";
+import { isPast } from "date-fns";
 
 const ClerkPage = () => {
   const { isClerk } = useAuth();
-  const { pendingBills } = useBills();
+  const { pendingBills, updateBillStatus } = useBills();
   const [searchQuery, setSearchQuery] = useState("");
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
@@ -27,8 +28,7 @@ const ClerkPage = () => {
   // Filter pending bills based on search query
   const filteredPendingBills = pendingBills.filter(bill =>
     bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bill.mca.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bill.department.toLowerCase().includes(searchQuery.toLowerCase())
+    bill.committee.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleEditBill = (bill: Bill) => {
@@ -39,6 +39,10 @@ const ClerkPage = () => {
   const handleFormSuccess = () => {
     setEditingBill(null);
     setIsFormDialogOpen(false);
+  };
+
+  const handleStatusChange = (id: string, status: "pending" | "concluded") => {
+    updateBillStatus(id, status);
   };
 
   return (
@@ -103,7 +107,11 @@ const ClerkPage = () => {
                       {filteredPendingBills.map((bill) => (
                         <div key={bill.id} className="flex items-center gap-4">
                           <div className="flex-1">
-                            <BillCard bill={bill} />
+                            <BillCard 
+                              bill={bill} 
+                              showActions={isPast(bill.presentationDate)} 
+                              onStatusChange={handleStatusChange}
+                            />
                           </div>
                           <Button
                             variant="outline"
@@ -122,10 +130,10 @@ const ClerkPage = () => {
                 </TabsContent>
                 
                 <TabsContent value="upcoming" className="mt-4">
-                  {filteredPendingBills.filter(bill => bill.presentationDate > new Date()).length > 0 ? (
+                  {filteredPendingBills.filter(bill => !isPast(bill.presentationDate)).length > 0 ? (
                     <div className="space-y-4">
                       {filteredPendingBills
-                        .filter(bill => bill.presentationDate > new Date())
+                        .filter(bill => !isPast(bill.presentationDate))
                         .map((bill) => (
                           <div key={bill.id} className="flex items-center gap-4">
                             <div className="flex-1">
@@ -148,14 +156,18 @@ const ClerkPage = () => {
                 </TabsContent>
                 
                 <TabsContent value="past" className="mt-4">
-                  {filteredPendingBills.filter(bill => bill.presentationDate <= new Date()).length > 0 ? (
+                  {filteredPendingBills.filter(bill => isPast(bill.presentationDate)).length > 0 ? (
                     <div className="space-y-4">
                       {filteredPendingBills
-                        .filter(bill => bill.presentationDate <= new Date())
+                        .filter(bill => isPast(bill.presentationDate))
                         .map((bill) => (
                           <div key={bill.id} className="flex items-center gap-4">
                             <div className="flex-1">
-                              <BillCard bill={bill} />
+                              <BillCard 
+                                bill={bill} 
+                                showActions={true}
+                                onStatusChange={handleStatusChange}
+                              />
                             </div>
                             <Button
                               variant="outline"

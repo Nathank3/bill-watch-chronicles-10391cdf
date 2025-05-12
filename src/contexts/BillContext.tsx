@@ -1,17 +1,19 @@
 
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
+import { addDays, isSaturday, isSunday, format } from "date-fns";
 
-// Define bill status type
-export type BillStatus = "pending" | "passed" | "rejected" | "rescheduled";
+// Define bill status type - Only pending and concluded
+export type BillStatus = "pending" | "concluded";
 
 // Define bill interface
 export interface Bill {
   id: string;
   title: string;
-  mca: string;
-  department: string;
-  presentationDate: Date;
+  committee: string; // Changed from 'department'
+  dateCommitted: Date; // Added dateCommitted field
+  pendingDays: number; // Added pendingDays field
+  presentationDate: Date; // This becomes the "date due"
   status: BillStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -21,55 +23,70 @@ export interface Bill {
 interface BillContextType {
   bills: Bill[];
   pendingBills: Bill[];
-  passedBills: Bill[];
-  rejectedBills: Bill[];
-  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status">) => void;
+  concludedBills: Bill[]; // Changed from passedBills/rejectedBills
+  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => void;
   updateBill: (id: string, updates: Partial<Bill>) => void;
-  updateBillStatus: (id: string, status: BillStatus, newDate?: Date) => void;
+  updateBillStatus: (id: string, status: BillStatus) => void;
   getBillById: (id: string) => Bill | undefined;
   searchBills: (query: string) => Bill[];
   filterBills: (filters: {
     year?: number;
-    department?: string;
-    mca?: string;
+    committee?: string;
+    pendingDays?: number;
     status?: BillStatus;
   }) => Bill[];
 }
 
+// Adjust date for weekends (move to next Monday if it falls on weekend)
+const adjustForWeekend = (date: Date): Date => {
+  const newDate = new Date(date);
+  
+  if (isSaturday(newDate)) {
+    return addDays(newDate, 2); // Move to Monday
+  } else if (isSunday(newDate)) {
+    return addDays(newDate, 1); // Move to Monday
+  }
+  
+  return newDate;
+};
+
+// Calculate presentation date based on date committed and pending days
+const calculatePresentationDate = (dateCommitted: Date, pendingDays: number): Date => {
+  const calculatedDate = addDays(new Date(dateCommitted), pendingDays);
+  return adjustForWeekend(calculatedDate);
+};
+
 // Generate mock data
 const generateMockBills = (): Bill[] => {
-  const departments = ["Health", "Education", "Finance", "Transportation", "Agriculture"];
-  const mcaNames = ["John Doe", "Jane Smith", "Robert Johnson", "Emily Davis", "Michael Wilson"];
+  const committees = ["Agriculture", "Education", "Finance", "Health", "Transportation"];
   
   const now = new Date();
   
   return Array(15).fill(null).map((_, index) => {
     const id = (index + 1).toString();
+    const committee = committees[index % committees.length];
     const createdAt = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000); // Random date within the last 30 days
+    const pendingDays = Math.floor(Math.random() * 20) + 5; // 5-25 days
+    const dateCommitted = new Date(createdAt);
     
     let presentationDate: Date;
     let status: BillStatus;
     
     // Distribute bills across different statuses
-    if (index < 8) { // Pending bills with future dates
-      presentationDate = new Date(now.getTime() + (Math.random() * 14 + 1) * 24 * 60 * 60 * 1000); // 1-15 days in future
+    if (index < 10) { // Pending bills
+      presentationDate = calculatePresentationDate(dateCommitted, pendingDays);
       status = "pending";
-    } else if (index < 11) { // Passed bills
-      presentationDate = new Date(now.getTime() - (Math.random() * 10 + 1) * 24 * 60 * 60 * 1000); // 1-10 days in past
-      status = "passed";
-    } else if (index < 14) { // Rejected bills
-      presentationDate = new Date(now.getTime() - (Math.random() * 10 + 1) * 24 * 60 * 60 * 1000); // 1-10 days in past
-      status = "rejected";
-    } else { // Rescheduled bill
-      presentationDate = new Date(now.getTime() + (Math.random() * 7 + 1) * 24 * 60 * 60 * 1000); // 1-7 days in future
-      status = "rescheduled";
+    } else { // Concluded bills
+      presentationDate = new Date(dateCommitted.getTime() - (Math.random() * 10 + 1) * 24 * 60 * 60 * 1000); // Date in the past
+      status = "concluded";
     }
     
     return {
       id,
-      title: `Bill ${id} - ${departments[index % departments.length]} Reform Act`,
-      mca: mcaNames[index % mcaNames.length],
-      department: departments[index % departments.length],
+      title: `Bill ${id} - ${committee} Reform Act`,
+      committee,
+      dateCommitted,
+      pendingDays,
       presentationDate,
       status,
       createdAt,
@@ -82,8 +99,7 @@ const generateMockBills = (): Bill[] => {
 const BillContext = createContext<BillContextType>({
   bills: [],
   pendingBills: [],
-  passedBills: [],
-  rejectedBills: [],
+  concludedBills: [],
   addBill: () => {},
   updateBill: () => {},
   updateBillStatus: () => {},
@@ -104,6 +120,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const parsedBills = JSON.parse(storedBills).map((bill: any) => ({
         ...bill,
         presentationDate: new Date(bill.presentationDate),
+        dateCommitted: new Date(bill.dateCommitted || bill.createdAt), // Fallback for older data
         createdAt: new Date(bill.createdAt),
         updatedAt: new Date(bill.updatedAt)
       }));
@@ -124,24 +141,23 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Filtered bills by status
   const pendingBills = bills
-    .filter(bill => bill.status === "pending" || bill.status === "rescheduled")
+    .filter(bill => bill.status === "pending")
     .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime()); // Sort by date (soonest first)
 
-  const passedBills = bills
-    .filter(bill => bill.status === "passed")
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()); // Sort by update date (newest first)
-
-  const rejectedBills = bills
-    .filter(bill => bill.status === "rejected")
+  const concludedBills = bills
+    .filter(bill => bill.status === "concluded")
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()); // Sort by update date (newest first)
 
   // Add new bill
-  const addBill = (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status">) => {
+  const addBill = (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => {
     const now = new Date();
+    const presentationDate = calculatePresentationDate(billData.dateCommitted, billData.pendingDays);
+    
     const newBill: Bill = {
       id: (bills.length + 1).toString(),
       ...billData,
       status: "pending",
+      presentationDate,
       createdAt: now,
       updatedAt: now
     };
@@ -157,11 +173,22 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update bill
   const updateBill = (id: string, updates: Partial<Bill>) => {
     setBills(prevBills =>
-      prevBills.map(bill =>
-        bill.id === id
-          ? { ...bill, ...updates, updatedAt: new Date() }
-          : bill
-      )
+      prevBills.map(bill => {
+        if (bill.id === id) {
+          const updated = { ...bill, ...updates, updatedAt: new Date() };
+          
+          // Recalculate presentation date if needed
+          if ((updates.dateCommitted || updates.pendingDays) && bill.status === "pending") {
+            updated.presentationDate = calculatePresentationDate(
+              updates.dateCommitted || bill.dateCommitted,
+              updates.pendingDays || bill.pendingDays
+            );
+          }
+          
+          return updated;
+        }
+        return bill;
+      })
     );
     
     toast({
@@ -171,32 +198,23 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Update bill status
-  const updateBillStatus = (id: string, status: BillStatus, newDate?: Date) => {
+  const updateBillStatus = (id: string, status: BillStatus) => {
     setBills(prevBills =>
       prevBills.map(bill => {
         if (bill.id === id) {
-          const updatedBill = {
+          return {
             ...bill,
             status,
             updatedAt: new Date()
           };
-          
-          // If rescheduled, update presentation date
-          if (status === "rescheduled" && newDate) {
-            updatedBill.presentationDate = newDate;
-          }
-          
-          return updatedBill;
         }
         return bill;
       })
     );
     
     const statusMessages = {
-      passed: "Bill has been marked as passed",
-      rejected: "Bill has been marked as rejected",
-      rescheduled: "Bill has been rescheduled",
-      pending: "Bill status has been reset to pending"
+      pending: "Bill has been marked as pending",
+      concluded: "Bill has been marked as concluded",
     };
     
     toast({
@@ -216,16 +234,15 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return bills.filter(
       bill =>
         bill.title.toLowerCase().includes(lowercaseQuery) ||
-        bill.mca.toLowerCase().includes(lowercaseQuery) ||
-        bill.department.toLowerCase().includes(lowercaseQuery)
+        bill.committee.toLowerCase().includes(lowercaseQuery)
     );
   };
 
   // Filter bills
   const filterBills = (filters: {
     year?: number;
-    department?: string;
-    mca?: string;
+    committee?: string;
+    pendingDays?: number;
     status?: BillStatus;
   }) => {
     return bills.filter(bill => {
@@ -234,13 +251,13 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // Filter by department if specified
-      if (filters.department && bill.department !== filters.department) {
+      // Filter by committee if specified
+      if (filters.committee && bill.committee !== filters.committee) {
         return false;
       }
 
-      // Filter by MCA if specified
-      if (filters.mca && bill.mca !== filters.mca) {
+      // Filter by pending days if specified
+      if (filters.pendingDays && bill.pendingDays !== filters.pendingDays) {
         return false;
       }
 
@@ -258,8 +275,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         bills,
         pendingBills,
-        passedBills,
-        rejectedBills,
+        concludedBills,
         addBill,
         updateBill,
         updateBillStatus,

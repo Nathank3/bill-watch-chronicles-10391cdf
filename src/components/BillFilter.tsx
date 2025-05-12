@@ -16,27 +16,27 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     year: "",
-    department: "",
-    mca: "",
+    committee: "",
+    pendingDays: "",
     status: ""
   });
 
   // Get unique values for filter dropdowns
   const years = [...new Set(bills.map(bill => bill.presentationDate.getFullYear()))].sort((a, b) => b - a);
-  const departments = [...new Set(bills.map(bill => bill.department))].sort();
-  const mcas = [...new Set(bills.map(bill => bill.mca))].sort();
-  const statuses: BillStatus[] = ["pending", "passed", "rejected", "rescheduled"];
+  const committees = [...new Set(bills.map(bill => bill.committee))].sort();
+  const pendingDaysOptions = [...new Set(bills.map(bill => bill.pendingDays))].sort((a, b) => a - b);
+  const statuses: BillStatus[] = ["pending", "concluded"];
 
   // Apply filters and search when values change
   useEffect(() => {
     let filteredResults = bills;
 
     // Apply filters
-    if (filters.year || filters.department || filters.mca || filters.status) {
+    if (filters.year || filters.committee || filters.pendingDays || filters.status) {
       filteredResults = filterBills({
         year: filters.year ? parseInt(filters.year) : undefined,
-        department: filters.department || undefined,
-        mca: filters.mca || undefined,
+        committee: filters.committee || undefined,
+        pendingDays: filters.pendingDays ? parseInt(filters.pendingDays) : undefined,
         status: filters.status as BillStatus || undefined
       });
     }
@@ -56,8 +56,8 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
   const handleReset = () => {
     setFilters({
       year: "",
-      department: "",
-      mca: "",
+      committee: "",
+      pendingDays: "",
       status: ""
     });
     setSearchQuery("");
@@ -71,7 +71,7 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
           <Label htmlFor="search">Search</Label>
           <Input
             id="search"
-            placeholder="Search by title, MCA, or department"
+            placeholder="Search by title or committee"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -98,19 +98,19 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
         </div>
         
         <div className="grid gap-2">
-          <Label htmlFor="department">Department</Label>
+          <Label htmlFor="committee">Committee</Label>
           <Select
-            value={filters.department}
-            onValueChange={(value) => handleFilterChange("department", value)}
+            value={filters.committee}
+            onValueChange={(value) => handleFilterChange("committee", value)}
           >
-            <SelectTrigger id="department">
-              <SelectValue placeholder="All Departments" />
+            <SelectTrigger id="committee">
+              <SelectValue placeholder="All Committees" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Departments</SelectItem>
-              {departments.map((department) => (
-                <SelectItem key={department} value={department}>
-                  {department}
+              <SelectItem value="">All Committees</SelectItem>
+              {committees.map((committee) => (
+                <SelectItem key={committee} value={committee}>
+                  {committee}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -118,19 +118,19 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
         </div>
         
         <div className="grid gap-2">
-          <Label htmlFor="mca">MCA</Label>
+          <Label htmlFor="pendingDays">Pending Days</Label>
           <Select
-            value={filters.mca}
-            onValueChange={(value) => handleFilterChange("mca", value)}
+            value={filters.pendingDays}
+            onValueChange={(value) => handleFilterChange("pendingDays", value)}
           >
-            <SelectTrigger id="mca">
-              <SelectValue placeholder="All MCAs" />
+            <SelectTrigger id="pendingDays">
+              <SelectValue placeholder="All Pending Days" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All MCAs</SelectItem>
-              {mcas.map((mca) => (
-                <SelectItem key={mca} value={mca}>
-                  {mca}
+              <SelectItem value="">All Pending Days</SelectItem>
+              {pendingDaysOptions.map((days) => (
+                <SelectItem key={days} value={days.toString()}>
+                  {days} days
                 </SelectItem>
               ))}
             </SelectContent>

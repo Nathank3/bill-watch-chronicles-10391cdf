@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
 
 interface BillFormProps {
   initialBill?: Bill;
@@ -18,54 +19,48 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
 
   const [formData, setFormData] = useState({
     title: initialBill?.title || "",
-    mca: initialBill?.mca || "",
-    department: initialBill?.department || "",
-    presentationDate: initialBill
-      ? new Date(initialBill.presentationDate).toISOString().slice(0, 16)
-      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16) // Default to tomorrow
+    committee: initialBill?.committee || "",
+    dateCommitted: initialBill
+      ? format(initialBill.dateCommitted, "yyyy-MM-dd")
+      : format(new Date(), "yyyy-MM-dd"),
+    pendingDays: initialBill?.pendingDays || 10,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: name === "pendingDays" ? parseInt(value) || 0 : value 
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.title || !formData.mca || !formData.department || !formData.presentationDate) {
+    if (!formData.title || !formData.committee || !formData.dateCommitted || formData.pendingDays <= 0) {
       toast({
         title: "Validation Error",
-        description: "All fields are required",
+        description: "All fields are required and pending days must be greater than 0",
         variant: "destructive"
       });
       return;
     }
 
-    const presentationDate = new Date(formData.presentationDate);
-
-    if (presentationDate < new Date()) {
-      toast({
-        title: "Invalid Date",
-        description: "Presentation date must be in the future",
-        variant: "destructive"
-      });
-      return;
-    }
+    const dateCommitted = new Date(formData.dateCommitted);
 
     if (isEditing && initialBill) {
       updateBill(initialBill.id, {
         title: formData.title,
-        mca: formData.mca,
-        department: formData.department,
-        presentationDate
+        committee: formData.committee,
+        dateCommitted,
+        pendingDays: formData.pendingDays
       });
     } else {
       addBill({
         title: formData.title,
-        mca: formData.mca,
-        department: formData.department,
-        presentationDate
+        committee: formData.committee,
+        dateCommitted,
+        pendingDays: formData.pendingDays
       });
     }
 
@@ -73,9 +68,9 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
     if (!isEditing) {
       setFormData({
         title: "",
-        mca: "",
-        department: "",
-        presentationDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+        committee: "",
+        dateCommitted: format(new Date(), "yyyy-MM-dd"),
+        pendingDays: 10
       });
     }
 
@@ -95,41 +90,45 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
             name="title"
             value={formData.title}
             onChange={handleChange}
-            placeholder="Enter bill title"
+            placeholder="Enter bill title (e.g. Bill 15 - Agriculture Reform Act)"
           />
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="mca">MCA Name</Label>
+          <Label htmlFor="committee">Committee</Label>
           <Input
-            id="mca"
-            name="mca"
-            value={formData.mca}
+            id="committee"
+            name="committee"
+            value={formData.committee}
             onChange={handleChange}
-            placeholder="Enter MCA name"
+            placeholder="Enter committee name"
           />
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="department">Department</Label>
+          <Label htmlFor="dateCommitted">Date Committed</Label>
           <Input
-            id="department"
-            name="department"
-            value={formData.department}
+            id="dateCommitted"
+            name="dateCommitted"
+            type="date"
+            value={formData.dateCommitted}
             onChange={handleChange}
-            placeholder="Enter department"
           />
         </div>
 
         <div className="grid gap-2">
-          <Label htmlFor="presentationDate">Presentation Date & Time</Label>
+          <Label htmlFor="pendingDays">Pending Days</Label>
           <Input
-            id="presentationDate"
-            name="presentationDate"
-            type="datetime-local"
-            value={formData.presentationDate}
+            id="pendingDays"
+            name="pendingDays"
+            type="number"
+            min="1"
+            value={formData.pendingDays}
             onChange={handleChange}
           />
+          <p className="text-xs text-muted-foreground">
+            Due date will be calculated automatically (adjusted to next Monday if it falls on weekend)
+          </p>
         </div>
 
         <Button type="submit" className="w-full">
