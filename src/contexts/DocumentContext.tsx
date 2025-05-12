@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { toast } from "@/components/ui/toast";
+import { toast } from "@/components/ui/use-toast";
 import { addDays, isSaturday, isSunday, format } from "date-fns";
 import { useBills, Bill, BillStatus } from "./BillContext";
 
