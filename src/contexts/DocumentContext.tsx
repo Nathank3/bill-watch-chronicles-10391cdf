@@ -1,113 +1,10 @@
 
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { addDays, isSaturday, isSunday, format } from "date-fns";
-import { useBills, Bill, BillStatus } from "./BillContext";
-
-// Define document types
-export type DocumentType = "bill" | "statement" | "report" | "regulation" | "policy" | "petition";
-
-// Define document status type
-export type DocumentStatus = "pending" | "concluded";
-
-// Define document interface
-export interface Document {
-  id: string;
-  title: string;
-  committee: string;
-  dateCommitted: Date;
-  pendingDays: number;
-  presentationDate: Date;
-  status: DocumentStatus;
-  type: DocumentType;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Define document context type
-interface DocumentContextType {
-  documents: Document[];
-  pendingDocuments: (type: DocumentType) => Document[];
-  concludedDocuments: (type: DocumentType) => Document[];
-  addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => void;
-  updateDocument: (id: string, updates: Partial<Document>) => void;
-  updateDocumentStatus: (id: string, status: DocumentStatus) => void;
-  getDocumentById: (id: string) => Document | undefined;
-  searchDocuments: (query: string, type?: DocumentType) => Document[];
-  filterDocuments: (filters: {
-    type?: DocumentType;
-    year?: number;
-    committee?: string;
-    pendingDays?: number;
-    status?: DocumentStatus;
-  }) => Document[];
-}
-
-// Adjust date for weekends (move to next Monday if it falls on weekend)
-const adjustForWeekend = (date: Date): Date => {
-  const newDate = new Date(date);
-  
-  if (isSaturday(newDate)) {
-    return addDays(newDate, 2); // Move to Monday
-  } else if (isSunday(newDate)) {
-    return addDays(newDate, 1); // Move to Monday
-  }
-  
-  return newDate;
-};
-
-// Calculate presentation date based on date committed and pending days
-const calculatePresentationDate = (dateCommitted: Date, pendingDays: number): Date => {
-  const calculatedDate = addDays(new Date(dateCommitted), pendingDays);
-  return adjustForWeekend(calculatedDate);
-};
-
-// Generate mock data
-const generateMockDocuments = (): Document[] => {
-  const committees = ["Agriculture", "Education", "Finance", "Health", "Transportation"];
-  const types: DocumentType[] = ["statement", "report", "regulation", "policy", "petition"];
-  
-  const now = new Date();
-  const documents: Document[] = [];
-  
-  // Generate 5 items per type (besides bills which are handled separately)
-  types.forEach(type => {
-    for (let i = 0; i < 5; i++) {
-      const id = `${type}-${i + 1}`;
-      const committee = committees[i % committees.length];
-      const createdAt = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000);
-      const pendingDays = Math.floor(Math.random() * 20) + 5;
-      const dateCommitted = new Date(createdAt);
-      
-      let presentationDate: Date;
-      let status: DocumentStatus;
-      
-      // Distribute items across different statuses
-      if (i < 3) { // Most are pending
-        presentationDate = calculatePresentationDate(dateCommitted, pendingDays);
-        status = "pending";
-      } else { // Some are concluded
-        presentationDate = new Date(dateCommitted.getTime() - (Math.random() * 10 + 1) * 24 * 60 * 60 * 1000);
-        status = "concluded";
-      }
-      
-      documents.push({
-        id,
-        title: `${type.charAt(0).toUpperCase() + type.slice(1)} ${id} - ${committee} Reform`,
-        committee,
-        dateCommitted,
-        pendingDays,
-        presentationDate,
-        status,
-        type,
-        createdAt,
-        updatedAt: new Date(createdAt.getTime() + Math.random() * 5 * 24 * 60 * 60 * 1000)
-      });
-    }
-  });
-  
-  return documents;
-};
+import { useBills } from "./BillContext";
+import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document";
+import { calculatePresentationDate } from "@/utils/documentUtils";
+import { generateMockDocuments } from "@/utils/mockDocuments";
 
 // Create the context
 const DocumentContext = createContext<DocumentContextType>({
@@ -340,3 +237,6 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 // Custom hook for accessing document context
 export const useDocuments = () => useContext(DocumentContext);
+
+// Re-export document types for convenience
+export type { Document, DocumentType, DocumentStatus } from "@/types/document";
