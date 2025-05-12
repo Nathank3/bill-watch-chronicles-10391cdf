@@ -55,8 +55,8 @@ const AdminPage = () => {
     return <Navigate to="/login" />;
   }
 
-  const handleStatusChange = (id: string, status: BillStatus, newDate?: Date) => {
-    updateBillStatus(id, status, newDate);
+  const handleStatusChange = (id: string, status: BillStatus) => {
+    updateBillStatus(id, status);
   };
 
   return (
@@ -81,12 +81,9 @@ const AdminPage = () => {
             <BillFilter onFilterChange={setFilteredBills} />
             
             <Tabs defaultValue="all" className="mt-6">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="all">All Bills</TabsTrigger>
                 <TabsTrigger value="pending">Pending</TabsTrigger>
-                <TabsTrigger value="passed">Passed</TabsTrigger>
-                <TabsTrigger value="rejected">Rejected</TabsTrigger>
-                <TabsTrigger value="rescheduled">Rescheduled</TabsTrigger>
               </TabsList>
               
               <TabsContent value="all" className="mt-6">
@@ -122,53 +119,6 @@ const AdminPage = () => {
                   </div>
                 ) : (
                   <p className="text-center py-8 text-muted-foreground">No pending bills found</p>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="passed" className="mt-6">
-                {filteredBills.filter(b => b.status === "passed").length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {filteredBills
-                      .filter(b => b.status === "passed")
-                      .map((bill) => (
-                        <BillCard key={bill.id} bill={bill} />
-                      ))}
-                  </div>
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground">No passed bills found</p>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="rejected" className="mt-6">
-                {filteredBills.filter(b => b.status === "rejected").length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {filteredBills
-                      .filter(b => b.status === "rejected")
-                      .map((bill) => (
-                        <BillCard key={bill.id} bill={bill} />
-                      ))}
-                  </div>
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground">No rejected bills found</p>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="rescheduled" className="mt-6">
-                {filteredBills.filter(b => b.status === "rescheduled").length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {filteredBills
-                      .filter(b => b.status === "rescheduled")
-                      .map((bill) => (
-                        <BillCard
-                          key={bill.id}
-                          bill={bill}
-                          showActions={true}
-                          onStatusChange={handleStatusChange}
-                        />
-                      ))}
-                  </div>
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground">No rescheduled bills found</p>
                 )}
               </TabsContent>
             </Tabs>
