@@ -7,6 +7,9 @@ import { DocumentCard } from "@/components/DocumentCard";
 import { Navbar } from "@/components/Navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { FileDown } from "lucide-react";
+import { generatePendingDocumentsPDF } from "@/utils/pdfUtils";
 
 const PublicPage = () => {
   const { pendingBills, concludedBills } = useBills();
@@ -48,6 +51,21 @@ const PublicPage = () => {
     { value: "policy", label: "Policies" },
     { value: "petition", label: "Petitions" }
   ];
+
+  const handleDownloadPDF = () => {
+    if (documentType === "bill") {
+      generatePendingDocumentsPDF(filteredPendingBills, "Bills");
+    } else {
+      generatePendingDocumentsPDF(currentPendingDocuments, documentType.charAt(0).toUpperCase() + documentType.slice(1) + "s");
+    }
+  };
+
+  const getPendingCount = () => {
+    if (documentType === "bill") {
+      return filteredPendingBills.length;
+    }
+    return currentPendingDocuments.length;
+  };
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -94,6 +112,22 @@ const PublicPage = () => {
           </TabsList>
           
           <TabsContent value="pending" className="mt-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">
+                Pending {documentType.charAt(0).toUpperCase() + documentType.slice(1)}s
+              </h2>
+              {getPendingCount() > 0 && (
+                <Button
+                  onClick={handleDownloadPDF}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Download PDF Report
+                </Button>
+              )}
+            </div>
+            
             {documentType === "bill" ? (
               filteredPendingBills.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2">

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { BillProvider } from "./contexts/BillContext";
 import { DocumentProvider } from "./contexts/DocumentContext";
+import HomePage from "./pages/HomePage";
 import PublicPage from "./pages/PublicPage";
 import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
@@ -25,7 +26,8 @@ const App = () => (
           <BillProvider>
             <DocumentProvider>
               <Routes>
-                <Route path="/" element={<PublicPage />} />
+                <Route path="/" element={<HomePage />} />
+                <Route path="/public" element={<PublicPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/clerk" element={<ClerkPage />} />

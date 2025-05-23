@@ -19,7 +19,10 @@ export const Navbar = () => {
         <div className="flex items-center gap-4">
           {/* Navigation links */}
           <Link to="/" className="text-sm font-medium hover:text-primary">
-            Public View
+            Home
+          </Link>
+          <Link to="/public" className="text-sm font-medium hover:text-primary">
+            Documents
           </Link>
           
           {isAuthenticated ? (
