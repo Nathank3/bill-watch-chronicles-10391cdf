@@ -22,12 +22,14 @@ const AdminPage = () => {
       user: !!user, 
       session: !!session, 
       isAdmin, 
-      isLoading 
+      isLoading,
+      userRole: user?.role
     });
   }, [user, session, isAdmin, isLoading]);
 
   // Show loading state while auth state is being determined
   if (isLoading) {
+    console.log("AdminPage: Still loading auth state");
     return (
       <div className="min-h-screen bg-secondary/30">
         <Navbar />
@@ -40,20 +42,46 @@ const AdminPage = () => {
     );
   }
 
-  // If user is not authenticated or not an admin, redirect to login
-  if (!isAdmin) {
-    console.log("Not authenticated as admin, redirecting to login");
+  // If no session at all, redirect to login
+  if (!session) {
+    console.log("AdminPage: No session found, redirecting to login");
+    return <Navigate to="/login" replace />;
+  }
+
+  // If session exists but user profile not loaded yet, show loading
+  if (session && !user) {
+    console.log("AdminPage: Session exists but user profile not loaded");
+    return (
+      <div className="min-h-screen bg-secondary/30">
+        <Navbar />
+        <main className="container py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <Skeleton className="h-12 w-12 rounded-full mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading user profile...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // If user is authenticated but not an admin, show access denied
+  if (user && !isAdmin) {
+    console.log("AdminPage: User authenticated but not admin, showing access denied");
     toast({
       title: "Access denied",
       description: "You need admin privileges to access this page",
       variant: "destructive"
     });
-    return <Navigate to="/login" />;
+    return <Navigate to="/" replace />;
   }
 
   const handleStatusChange = (id: string, status: BillStatus) => {
     updateBillStatus(id, status);
   };
+
+  console.log("AdminPage: Rendering admin dashboard");
 
   return (
     <div className="min-h-screen bg-secondary/30">
