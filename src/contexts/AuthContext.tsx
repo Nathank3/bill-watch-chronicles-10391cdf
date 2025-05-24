@@ -118,7 +118,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
 
-      // Navigation happens in useEffect based on user role
       toast({
         title: "Login successful",
         description: `Welcome back!`,
@@ -163,20 +162,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     }
   };
-
-  // Redirect based on role when user state changes
-  useEffect(() => {
-    if (user && !isLoading) {
-      console.log("User role:", user.role);
-      const path = window.location.pathname;
-      
-      if (user.role === "admin" && !path.includes('/admin')) {
-        navigate("/admin");
-      } else if (user.role === "clerk" && !path.includes('/clerk')) {
-        navigate("/clerk");
-      }
-    }
-  }, [user, isLoading, navigate]);
 
   return (
     <AuthContext.Provider

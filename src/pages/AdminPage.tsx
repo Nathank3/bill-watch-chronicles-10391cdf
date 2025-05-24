@@ -24,15 +24,6 @@ const AdminPage = () => {
       isAdmin, 
       isLoading 
     });
-    
-    if (!isLoading && !user && !session) {
-      console.log("No user session detected, redirecting to login");
-      toast({
-        title: "Authentication required",
-        description: "Please log in to access the admin dashboard",
-        variant: "destructive"
-      });
-    }
   }, [user, session, isAdmin, isLoading]);
 
   // Show loading state while auth state is being determined
@@ -49,9 +40,14 @@ const AdminPage = () => {
     );
   }
 
-  // If user is not an admin, redirect to login
-  if (!user || !session || !isAdmin) {
+  // If user is not authenticated or not an admin, redirect to login
+  if (!isAdmin) {
     console.log("Not authenticated as admin, redirecting to login");
+    toast({
+      title: "Access denied",
+      description: "You need admin privileges to access this page",
+      variant: "destructive"
+    });
     return <Navigate to="/login" />;
   }
 
