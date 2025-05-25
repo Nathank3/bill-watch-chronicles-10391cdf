@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast";
 
 const HomePage = () => {
@@ -103,9 +103,9 @@ const HomePage = () => {
         throw new Error("No valid table rows found");
       }
 
-      // Create table with error handling
+      // Create table with error handling using the correct autoTable import
       try {
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: 40,
           head: [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Due Date']],
           body: validTableData,

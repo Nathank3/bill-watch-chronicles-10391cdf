@@ -2,8 +2,7 @@
 import { useState, useEffect } from "react";
 import { useDocuments, DocumentType } from "@/contexts/DocumentContext";
 import { DocumentCard } from "./DocumentCard";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { DocumentFormDialog } from "./DocumentFormDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -60,10 +59,10 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
 
       {/* Add New Document Button */}
       <div className="flex justify-end">
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add New {title.slice(0, -1)}
-        </Button>
+        <DocumentFormDialog 
+          documentType={documentType} 
+          title={title.slice(0, -1)} 
+        />
       </div>
       
       {/* Documents Tabs */}
@@ -89,10 +88,14 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-muted-foreground mb-4">No {title.toLowerCase()} have been created yet</p>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First {title.slice(0, -1)}
-                </Button>
+                <DocumentFormDialog 
+                  documentType={documentType} 
+                  title={title.slice(0, -1)}
+                >
+                  <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+                    Create Your First {title.slice(0, -1)}
+                  </button>
+                </DocumentFormDialog>
               </CardContent>
             </Card>
           )}
