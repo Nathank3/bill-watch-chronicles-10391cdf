@@ -1,168 +1,101 @@
 
-import { useState, useEffect } from "react";
-import { useBills, BillStatus } from "@/contexts/BillContext";
+import React, { useState, useEffect } from "react";
+import { useBills } from "@/contexts/BillContext";
+import { Bill } from "@/contexts/BillContext";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface BillFilterProps {
-  onFilterChange: (bills: any[]) => void;
+  onFilterChange: (filteredBills: Bill[]) => void;
 }
 
 export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
-  const { bills, filterBills, searchBills } = useBills();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({
-    year: "",
-    committee: "",
-    pendingDays: "",
-    status: ""
-  });
+  const { bills } = useBills();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
 
-  // Get unique values for filter dropdowns
-  const years = [...new Set(bills.map(bill => bill.presentationDate.getFullYear()))].sort((a, b) => b - a);
-  const committees = [...new Set(bills.map(bill => bill.committee))].sort();
-  const pendingDaysOptions = [...new Set(bills.map(bill => bill.pendingDays))].sort((a, b) => a - b);
-  const statuses: BillStatus[] = ["pending", "concluded"];
-
-  // Apply filters and search when values change
   useEffect(() => {
-    let filteredResults = bills;
-
-    // Apply filters
-    if (filters.year || filters.committee || filters.pendingDays || filters.status) {
-      filteredResults = filterBills({
-        year: filters.year ? parseInt(filters.year) : undefined,
-        committee: filters.committee || undefined,
-        pendingDays: filters.pendingDays ? parseInt(filters.pendingDays) : undefined,
-        status: filters.status as BillStatus || undefined
-      });
+    console.log("BillFilter: Filtering bills, total:", bills?.length || 0);
+    
+    if (!bills) {
+      onFilterChange([]);
+      return;
     }
 
-    // Apply search if there's a query
-    if (searchQuery.trim()) {
-      filteredResults = searchBills(searchQuery);
+    let filtered = [...bills];
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(bill => 
+        bill.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.mca?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.department?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
-    onFilterChange(filteredResults);
-  }, [filters, searchQuery, bills, filterBills, searchBills, onFilterChange]);
+    // Filter by status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(bill => bill.status === statusFilter);
+    }
 
-  const handleFilterChange = (name: string, value: string) => {
-    setFilters(prev => ({ ...prev, [name]: value }));
-  };
+    // Filter by department
+    if (departmentFilter !== "all") {
+      filtered = filtered.filter(bill => bill.department === departmentFilter);
+    }
 
-  const handleReset = () => {
-    setFilters({
-      year: "",
-      committee: "",
-      pendingDays: "",
-      status: ""
-    });
-    setSearchQuery("");
-  };
+    console.log("BillFilter: Filtered bills count:", filtered.length);
+    onFilterChange(filtered);
+  }, [bills, searchTerm, statusFilter, departmentFilter, onFilterChange]);
+
+  // Get unique departments for filter
+  const departments = bills ? [...new Set(bills.map(bill => bill.department).filter(Boolean))] : [];
 
   return (
-    <Card className="p-6 mb-6">
-      <h2 className="text-xl font-semibold mb-4">Filter Bills</h2>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="search">Search</Label>
+    <Card>
+      <CardHeader>
+        <CardTitle>Filter Bills</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
           <Input
-            id="search"
-            placeholder="Search by title or committee"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search bills by title, MCA, or department..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
-        <div className="grid gap-2">
-          <Label htmlFor="year">Year</Label>
-          <Select
-            value={filters.year}
-            onValueChange={(value) => handleFilterChange("year", value)}
-          >
-            <SelectTrigger id="year">
-              <SelectValue placeholder="All Years" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Years</SelectItem>
-              {years.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by department" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map(dept => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        
-        <div className="grid gap-2">
-          <Label htmlFor="committee">Committee</Label>
-          <Select
-            value={filters.committee}
-            onValueChange={(value) => handleFilterChange("committee", value)}
-          >
-            <SelectTrigger id="committee">
-              <SelectValue placeholder="All Committees" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Committees</SelectItem>
-              {committees.map((committee) => (
-                <SelectItem key={committee} value={committee}>
-                  {committee}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="grid gap-2">
-          <Label htmlFor="pendingDays">Pending Days</Label>
-          <Select
-            value={filters.pendingDays}
-            onValueChange={(value) => handleFilterChange("pendingDays", value)}
-          >
-            <SelectTrigger id="pendingDays">
-              <SelectValue placeholder="All Pending Days" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Pending Days</SelectItem>
-              {pendingDaysOptions.map((days) => (
-                <SelectItem key={days} value={days.toString()}>
-                  {days} days
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="grid gap-2">
-          <Label htmlFor="status">Status</Label>
-          <Select
-            value={filters.status}
-            onValueChange={(value) => handleFilterChange("status", value)}
-          >
-            <SelectTrigger id="status">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
-              {statuses.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="grid gap-2 md:col-span-2">
-          <Button variant="outline" onClick={handleReset}>
-            Reset Filters
-          </Button>
-        </div>
-      </div>
+      </CardContent>
     </Card>
   );
 };

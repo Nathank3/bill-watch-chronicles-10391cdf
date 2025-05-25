@@ -10,10 +10,13 @@ import { AdminUsers } from "@/components/AdminUsers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 const AdminPage = () => {
   const { user, session, isAdmin, isLoading } = useAuth();
-  const { updateBillStatus } = useBills();
+  const { bills, updateBillStatus } = useBills();
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
 
   useEffect(() => {
@@ -26,6 +29,14 @@ const AdminPage = () => {
       userRole: user?.role
     });
   }, [user, session, isAdmin, isLoading]);
+
+  useEffect(() => {
+    // Initialize filtered bills when bills are loaded
+    if (bills) {
+      console.log("AdminPage: Bills loaded, count:", bills.length);
+      setFilteredBills(bills);
+    }
+  }, [bills]);
 
   // Show loading state while auth state is being determined
   if (isLoading) {
@@ -81,7 +92,7 @@ const AdminPage = () => {
     updateBillStatus(id, status);
   };
 
-  console.log("AdminPage: Rendering admin dashboard");
+  console.log("AdminPage: Rendering admin dashboard, filteredBills count:", filteredBills?.length || 0);
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -102,50 +113,104 @@ const AdminPage = () => {
           </TabsList>
           
           <TabsContent value="bills" className="mt-6">
-            <BillFilter onFilterChange={setFilteredBills} />
-            
-            <Tabs defaultValue="all" className="mt-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="all">All Bills</TabsTrigger>
-                <TabsTrigger value="pending">Pending</TabsTrigger>
-              </TabsList>
+            <div className="space-y-6">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Total Bills</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{bills?.length || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Pending Bills</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {bills?.filter(b => b.status === "pending").length || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Approved Bills</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {bills?.filter(b => b.status === "approved").length || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Add New Bill Button */}
+              <div className="flex justify-end">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add New Bill
+                </Button>
+              </div>
+
+              {/* Filter Component */}
+              <BillFilter onFilterChange={setFilteredBills} />
               
-              <TabsContent value="all" className="mt-6">
-                {filteredBills.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {filteredBills.map((bill) => (
-                      <BillCard
-                        key={bill.id}
-                        bill={bill}
-                        showActions={bill.status === "pending"}
-                        onStatusChange={handleStatusChange}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground">No bills found matching your filters</p>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="pending" className="mt-6">
-                {filteredBills.filter(b => b.status === "pending").length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {filteredBills
-                      .filter(b => b.status === "pending")
-                      .map((bill) => (
+              {/* Bills Tabs */}
+              <Tabs defaultValue="all" className="mt-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="all">All Bills</TabsTrigger>
+                  <TabsTrigger value="pending">Pending</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="all" className="mt-6">
+                  {filteredBills && filteredBills.length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {filteredBills.map((bill) => (
                         <BillCard
                           key={bill.id}
                           bill={bill}
-                          showActions={true}
+                          showActions={bill.status === "pending"}
                           onStatusChange={handleStatusChange}
                         />
                       ))}
-                  </div>
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground">No pending bills found</p>
-                )}
-              </TabsContent>
-            </Tabs>
+                    </div>
+                  ) : bills && bills.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <p className="text-muted-foreground mb-4">No bills have been created yet</p>
+                        <Button>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Your First Bill
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <p className="text-center py-8 text-muted-foreground">No bills found matching your filters</p>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="pending" className="mt-6">
+                  {filteredBills?.filter(b => b.status === "pending").length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {filteredBills
+                        .filter(b => b.status === "pending")
+                        .map((bill) => (
+                          <BillCard
+                            key={bill.id}
+                            bill={bill}
+                            showActions={true}
+                            onStatusChange={handleStatusChange}
+                          />
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-center py-8 text-muted-foreground">No pending bills found</p>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
           </TabsContent>
           
           <TabsContent value="users" className="mt-6">

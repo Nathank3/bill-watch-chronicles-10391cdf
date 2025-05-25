@@ -9,10 +9,14 @@ import { Download } from "lucide-react";
 import { format } from "date-fns";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { toast } from "@/components/ui/use-toast";
 
 const HomePage = () => {
   const { pendingBills } = useBills();
   const { documents, pendingDocuments } = useDocuments();
+
+  console.log("HomePage: pendingBills count:", pendingBills?.length || 0);
+  console.log("HomePage: documents count:", documents?.length || 0);
 
   const documentTypes: { type: DocumentType, label: string }[] = [
     { type: "bill", label: "Bills" },
@@ -25,62 +29,89 @@ const HomePage = () => {
 
   const getPendingCount = (type: DocumentType) => {
     if (type === "bill") {
-      return pendingBills.length;
+      return pendingBills?.length || 0;
     }
-    return pendingDocuments(type).length;
+    return pendingDocuments(type)?.length || 0;
   };
 
   const generatePDF = (type: DocumentType) => {
-    let pendingItems;
-    let typeLabel;
+    try {
+      let pendingItems;
+      let typeLabel;
 
-    if (type === "bill") {
-      pendingItems = pendingBills;
-      typeLabel = "Bills";
-    } else {
-      pendingItems = pendingDocuments(type);
-      typeLabel = type.charAt(0).toUpperCase() + type.slice(1) + "s";
+      if (type === "bill") {
+        pendingItems = pendingBills || [];
+        typeLabel = "Bills";
+      } else {
+        pendingItems = pendingDocuments(type) || [];
+        typeLabel = type.charAt(0).toUpperCase() + type.slice(1) + "s";
+      }
+
+      console.log(`Generating PDF for ${typeLabel}, items:`, pendingItems.length);
+
+      if (pendingItems.length === 0) {
+        toast({
+          title: "No data to export",
+          description: `No pending ${typeLabel.toLowerCase()} found to export.`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Sort by pending days (least to most)
+      const sortedItems = [...pendingItems].sort((a, b) => {
+        const aDays = Math.max(0, Math.floor((a.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+        const bDays = Math.max(0, Math.floor((b.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+        return aDays - bDays;
+      });
+
+      const doc = new jsPDF();
+      const currentDate = new Date();
+      const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
+      
+      // Title
+      doc.setFontSize(16);
+      doc.text(`Report of pending ${typeLabel.toLowerCase()} as at ${formattedDate}`, 20, 20);
+
+      // Table data
+      const tableData = sortedItems.map(item => {
+        const pendingDays = Math.max(0, Math.floor((item.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+        return [
+          item.title || "N/A",
+          item.committee || "N/A",
+          item.dateCommitted ? format(item.dateCommitted, "dd/MM/yyyy") : "N/A",
+          pendingDays.toString(),
+          item.presentationDate ? format(item.presentationDate, "dd/MM/yyyy") : "N/A"
+        ];
+      });
+
+      // Create table
+      (doc as any).autoTable({
+        startY: 40,
+        head: [['Title', 'Committee', 'Date Committed', 'Pending (Days)', 'Due Date']],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [66, 139, 202] }
+      });
+
+      // Save PDF
+      const fileName = `pending-${typeLabel.toLowerCase()}-${format(currentDate, "yyyy-MM-dd")}.pdf`;
+      doc.save(fileName);
+
+      toast({
+        title: "PDF Downloaded",
+        description: `${typeLabel} report has been downloaded successfully.`,
+      });
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Download failed",
+        description: "There was an error generating the PDF. Please try again.",
+        variant: "destructive"
+      });
     }
-
-    // Sort by pending days (least to most)
-    const sortedItems = [...pendingItems].sort((a, b) => {
-      const aDays = Math.max(0, Math.floor((a.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-      const bDays = Math.max(0, Math.floor((b.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-      return aDays - bDays;
-    });
-
-    const doc = new jsPDF();
-    const currentDate = new Date();
-    const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
-    
-    // Title
-    doc.setFontSize(16);
-    doc.text(`Report of pending ${typeLabel.toLowerCase()} as at ${formattedDate}`, 20, 20);
-
-    // Table data
-    const tableData = sortedItems.map(item => {
-      const pendingDays = Math.max(0, Math.floor((item.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-      return [
-        item.title,
-        item.committee,
-        format(item.dateCommitted, "dd/MM/yyyy"),
-        pendingDays.toString(),
-        format(item.presentationDate, "dd/MM/yyyy")
-      ];
-    });
-
-    // Create table
-    (doc as any).autoTable({
-      startY: 40,
-      head: [['Title', 'Committee', 'Date Committed', 'Pending (Days)', 'Due Date']],
-      body: tableData,
-      theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [66, 139, 202] }
-    });
-
-    // Save PDF
-    doc.save(`pending-${typeLabel.toLowerCase()}-${format(currentDate, "yyyy-MM-dd")}.pdf`);
   };
 
   return (
@@ -108,7 +139,6 @@ const HomePage = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => generatePDF(type)}
-                      disabled={pendingCount === 0}
                       className="ml-2"
                     >
                       <Download className="h-4 w-4" />
