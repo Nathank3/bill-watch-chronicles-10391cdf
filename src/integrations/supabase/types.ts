@@ -11,37 +11,85 @@ export type Database = {
     Tables: {
       bills: {
         Row: {
+          committee: string
           created_at: string | null
           created_by: string
+          date_committed: string
           department: string
           id: string
           mca: string
+          pending_days: number
           presentation_date: string
           status: string
           title: string
           updated_at: string | null
         }
         Insert: {
+          committee: string
           created_at?: string | null
           created_by: string
+          date_committed: string
           department: string
           id?: string
           mca: string
+          pending_days: number
           presentation_date: string
           status?: string
           title: string
           updated_at?: string | null
         }
         Update: {
+          committee?: string
           created_at?: string | null
           created_by?: string
+          date_committed?: string
           department?: string
           id?: string
           mca?: string
+          pending_days?: number
           presentation_date?: string
           status?: string
           title?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          committee: string
+          created_at: string
+          date_committed: string
+          id: string
+          pending_days: number
+          presentation_date: string
+          status: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          committee: string
+          created_at?: string
+          date_committed: string
+          id?: string
+          pending_days: number
+          presentation_date: string
+          status?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          committee?: string
+          created_at?: string
+          date_committed?: string
+          id?: string
+          pending_days?: number
+          presentation_date?: string
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }

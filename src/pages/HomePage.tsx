@@ -74,23 +74,33 @@ const HomePage = () => {
       doc.setFontSize(16);
       doc.text(`Report of pending ${typeLabel.toLowerCase()} as at ${formattedDate}`, 20, 20);
 
-      // Validate data before creating table
+      // Validate and prepare data before creating table
       const tableData = sortedItems.map(item => {
         const now = new Date();
         const daysRemaining = Math.max(0, differenceInDays(item.presentationDate, now));
         
+        // Ensure all values are strings and handle null/undefined values
         return [
-          item.title || "N/A",
-          item.committee || "N/A",
-          item.dateCommitted ? format(item.dateCommitted, "dd/MM/yyyy") : "N/A",
-          daysRemaining.toString(),
-          item.presentationDate ? format(item.presentationDate, "dd/MM/yyyy") : "N/A"
+          String(item.title || "N/A"),
+          String(item.committee || "N/A"),
+          item.dateCommitted ? format(new Date(item.dateCommitted), "dd/MM/yyyy") : "N/A",
+          String(daysRemaining),
+          item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A"
         ];
       });
 
-      // Validate that tableData is not empty and has valid structure
-      if (!tableData || tableData.length === 0) {
+      // Double-check that tableData is valid
+      if (!tableData || tableData.length === 0 || !Array.isArray(tableData)) {
         throw new Error("No valid data to generate table");
+      }
+
+      // Validate each row has the correct number of columns
+      const validTableData = tableData.filter(row => 
+        Array.isArray(row) && row.length === 5 && row.every(cell => typeof cell === 'string')
+      );
+
+      if (validTableData.length === 0) {
+        throw new Error("No valid table rows found");
       }
 
       // Create table with error handling
@@ -98,27 +108,32 @@ const HomePage = () => {
         (doc as any).autoTable({
           startY: 40,
           head: [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Due Date']],
-          body: tableData,
+          body: validTableData,
           theme: 'grid',
           styles: { 
             fontSize: 8,
-            cellPadding: 2
+            cellPadding: 2,
+            overflow: 'linebreak',
+            cellWidth: 'wrap'
           },
           headStyles: { 
             fillColor: [66, 139, 202],
-            textColor: [255, 255, 255]
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
           },
           columnStyles: {
-            0: { cellWidth: 40 }, // Title
-            1: { cellWidth: 30 }, // Committee
+            0: { cellWidth: 45 }, // Title
+            1: { cellWidth: 35 }, // Committee
             2: { cellWidth: 25 }, // Date Committed
             3: { cellWidth: 20 }, // Days Remaining
             4: { cellWidth: 25 }  // Due Date
-          }
+          },
+          margin: { top: 40, right: 10, bottom: 10, left: 10 },
+          tableWidth: 'auto'
         });
       } catch (tableError) {
         console.error("Error creating table:", tableError);
-        throw new Error("Failed to create PDF table");
+        throw new Error(`Failed to create PDF table: ${tableError instanceof Error ? tableError.message : 'Unknown table error'}`);
       }
 
       // Save PDF
@@ -132,9 +147,10 @@ const HomePage = () => {
 
     } catch (error) {
       console.error("Error generating PDF:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: "Download failed",
-        description: `There was an error generating the PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        description: `There was an error generating the PDF: ${errorMessage}. Please try again.`,
         variant: "destructive"
       });
     }

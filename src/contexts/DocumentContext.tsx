@@ -5,6 +5,7 @@ import { useBills } from "./BillContext";
 import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document";
 import { calculatePresentationDate } from "@/utils/documentUtils";
 import { generateMockDocuments } from "@/utils/mockDocuments";
+import { addDays } from "date-fns";
 
 // Create the context
 const DocumentContext = createContext<DocumentContextType>({
@@ -14,6 +15,7 @@ const DocumentContext = createContext<DocumentContextType>({
   addDocument: () => {},
   updateDocument: () => {},
   updateDocumentStatus: () => {},
+  rescheduleDocument: () => {},
   getDocumentById: () => undefined,
   searchDocuments: () => [],
   filterDocuments: () => []
@@ -162,6 +164,30 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   };
 
+  // Reschedule document
+  const rescheduleDocument = (id: string, additionalDays: number) => {
+    setDocuments(prevDocs =>
+      prevDocs.map(doc => {
+        if (doc.id === id && doc.status === "pending") {
+          const newPresentationDate = addDays(doc.presentationDate, additionalDays);
+          
+          return {
+            ...doc,
+            presentationDate: newPresentationDate,
+            pendingDays: doc.pendingDays + additionalDays,
+            updatedAt: new Date()
+          };
+        }
+        return doc;
+      })
+    );
+    
+    toast({
+      title: "Document rescheduled",
+      description: `Document has been rescheduled by ${additionalDays} days`,
+    });
+  };
+
   // Get document by ID
   const getDocumentById = (id: string) => {
     return documents.find(doc => doc.id === id);
@@ -225,6 +251,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addDocument,
         updateDocument,
         updateDocumentStatus,
+        rescheduleDocument,
         getDocumentById,
         searchDocuments,
         filterDocuments

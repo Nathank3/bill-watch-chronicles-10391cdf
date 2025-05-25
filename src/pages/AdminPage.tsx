@@ -6,6 +6,7 @@ import { useBills, Bill, BillStatus } from "@/contexts/BillContext";
 import { BillCard } from "@/components/BillCard";
 import { BillFilter } from "@/components/BillFilter";
 import { BillFormDialog } from "@/components/BillFormDialog";
+import { DocumentManagement } from "@/components/DocumentManagement";
 import { Navbar } from "@/components/Navbar";
 import { AdminUsers } from "@/components/AdminUsers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -105,14 +106,19 @@ const AdminPage = () => {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Manage and track all legislative bills
+            Manage and track all legislative documents
           </p>
         </div>
         
-        <Tabs defaultValue="bills" className="max-w-5xl mx-auto">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="bills">Bills Management</TabsTrigger>
-            <TabsTrigger value="users">User Management</TabsTrigger>
+        <Tabs defaultValue="bills" className="max-w-6xl mx-auto">
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="bills">Bills</TabsTrigger>
+            <TabsTrigger value="statements">Statements</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="regulations">Regulations</TabsTrigger>
+            <TabsTrigger value="policies">Policies</TabsTrigger>
+            <TabsTrigger value="petitions">Petitions</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
           
           <TabsContent value="bills" className="mt-6">
@@ -214,6 +220,26 @@ const AdminPage = () => {
                 </TabsContent>
               </Tabs>
             </div>
+          </TabsContent>
+
+          <TabsContent value="statements" className="mt-6">
+            <DocumentManagement documentType="statement" title="Statements" />
+          </TabsContent>
+
+          <TabsContent value="reports" className="mt-6">
+            <DocumentManagement documentType="report" title="Reports" />
+          </TabsContent>
+
+          <TabsContent value="regulations" className="mt-6">
+            <DocumentManagement documentType="regulation" title="Regulations" />
+          </TabsContent>
+
+          <TabsContent value="policies" className="mt-6">
+            <DocumentManagement documentType="policy" title="Policies" />
+          </TabsContent>
+
+          <TabsContent value="petitions" className="mt-6">
+            <DocumentManagement documentType="petition" title="Petitions" />
           </TabsContent>
           
           <TabsContent value="users" className="mt-6">

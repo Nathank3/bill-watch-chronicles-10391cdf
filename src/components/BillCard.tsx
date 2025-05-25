@@ -4,6 +4,7 @@ import { Bill } from "@/contexts/BillContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RescheduleDialog } from "./RescheduleDialog";
 import { formatDistanceToNow, isPast, format, differenceInDays } from "date-fns";
 
 interface BillCardProps {
@@ -63,10 +64,9 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   const isActionable = isPastDeadline && bill.status === "pending";
   const canReschedule = bill.status === "pending";
 
-  const handleReschedule = () => {
+  const handleReschedule = (days: number) => {
     if (onReschedule) {
-      // Add 7 more days by default
-      onReschedule(bill.id, 7);
+      onReschedule(bill.id, days);
     }
   };
 
@@ -112,14 +112,15 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             </Button>
           )}
           {canReschedule && onReschedule && (
-            <Button 
-              size="sm"
-              variant="outline"
-              onClick={handleReschedule}
-              className="border-blue-600 text-blue-600 hover:bg-blue-50"
-            >
-              Reschedule (+7 days)
-            </Button>
+            <RescheduleDialog onReschedule={handleReschedule}>
+              <Button 
+                size="sm"
+                variant="outline"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                Reschedule
+              </Button>
+            </RescheduleDialog>
           )}
         </div>
       )}
