@@ -136,11 +136,11 @@ const AdminPage = () => {
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Approved Bills</CardTitle>
+                    <CardTitle className="text-sm font-medium">Concluded Bills</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {bills?.filter(b => b.status === "approved").length || 0}
+                      {bills?.filter(b => b.status === "concluded").length || 0}
                     </div>
                   </CardContent>
                 </Card>

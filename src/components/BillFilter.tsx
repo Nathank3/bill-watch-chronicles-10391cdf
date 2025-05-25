@@ -14,7 +14,7 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
   const { bills } = useBills();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [committeeFilter, setCommitteeFilter] = useState("all");
 
   useEffect(() => {
     console.log("BillFilter: Filtering bills, total:", bills?.length || 0);
@@ -30,8 +30,7 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
     if (searchTerm.trim()) {
       filtered = filtered.filter(bill => 
         bill.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.mca?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.department?.toLowerCase().includes(searchTerm.toLowerCase())
+        bill.committee?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -40,17 +39,17 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
       filtered = filtered.filter(bill => bill.status === statusFilter);
     }
 
-    // Filter by department
-    if (departmentFilter !== "all") {
-      filtered = filtered.filter(bill => bill.department === departmentFilter);
+    // Filter by committee
+    if (committeeFilter !== "all") {
+      filtered = filtered.filter(bill => bill.committee === committeeFilter);
     }
 
     console.log("BillFilter: Filtered bills count:", filtered.length);
     onFilterChange(filtered);
-  }, [bills, searchTerm, statusFilter, departmentFilter, onFilterChange]);
+  }, [bills, searchTerm, statusFilter, committeeFilter, onFilterChange]);
 
-  // Get unique departments for filter
-  const departments = bills ? [...new Set(bills.map(bill => bill.department).filter(Boolean))] : [];
+  // Get unique committees for filter
+  const committees = bills ? [...new Set(bills.map(bill => bill.committee).filter(Boolean))] : [];
 
   return (
     <Card>
@@ -60,7 +59,7 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
       <CardContent className="space-y-4">
         <div>
           <Input
-            placeholder="Search bills by title, MCA, or department..."
+            placeholder="Search bills by title or committee..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -75,21 +74,20 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="concluded">Concluded</SelectItem>
               </SelectContent>
             </Select>
           </div>
           
           <div>
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <Select value={committeeFilter} onValueChange={setCommitteeFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by department" />
+                <SelectValue placeholder="Filter by committee" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                {departments.map(dept => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                <SelectItem value="all">All Committees</SelectItem>
+                {committees.map(committee => (
+                  <SelectItem key={committee} value={committee}>{committee}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
