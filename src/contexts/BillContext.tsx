@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { addDays, isSaturday, isSunday, format } from "date-fns";
@@ -23,10 +22,11 @@ export interface Bill {
 interface BillContextType {
   bills: Bill[];
   pendingBills: Bill[];
-  concludedBills: Bill[]; // Changed from passedBills/rejectedBills
+  concludedBills: Bill[];
   addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => void;
   updateBill: (id: string, updates: Partial<Bill>) => void;
   updateBillStatus: (id: string, status: BillStatus) => void;
+  rescheduleBill: (id: string, additionalDays: number) => void;
   getBillById: (id: string) => Bill | undefined;
   searchBills: (query: string) => Bill[];
   filterBills: (filters: {
@@ -103,6 +103,7 @@ const BillContext = createContext<BillContextType>({
   addBill: () => {},
   updateBill: () => {},
   updateBillStatus: () => {},
+  rescheduleBill: () => {},
   getBillById: () => undefined,
   searchBills: () => [],
   filterBills: () => []
@@ -223,6 +224,31 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  // Add reschedule bill function
+  const rescheduleBill = (id: string, additionalDays: number) => {
+    setBills(prevBills =>
+      prevBills.map(bill => {
+        if (bill.id === id && bill.status === "pending") {
+          const newPresentationDate = addDays(bill.presentationDate, additionalDays);
+          const adjustedDate = adjustForWeekend(newPresentationDate);
+          
+          return {
+            ...bill,
+            presentationDate: adjustedDate,
+            pendingDays: bill.pendingDays + additionalDays,
+            updatedAt: new Date()
+          };
+        }
+        return bill;
+      })
+    );
+    
+    toast({
+      title: "Bill rescheduled",
+      description: `Bill has been rescheduled by ${additionalDays} days`,
+    });
+  };
+
   // Get bill by ID
   const getBillById = (id: string) => {
     return bills.find(bill => bill.id === id);
@@ -279,6 +305,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addBill,
         updateBill,
         updateBillStatus,
+        rescheduleBill,
         getBillById,
         searchBills,
         filterBills

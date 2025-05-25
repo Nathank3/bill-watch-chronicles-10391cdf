@@ -3,17 +3,20 @@ import { useEffect, useState } from "react";
 import { Bill } from "@/contexts/BillContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow, isPast, format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { formatDistanceToNow, isPast, format, differenceInDays } from "date-fns";
 
 interface BillCardProps {
   bill: Bill;
   showActions?: boolean;
   onStatusChange?: (id: string, status: "pending" | "concluded") => void;
+  onReschedule?: (id: string, newDays: number) => void;
 }
 
-export const BillCard = ({ bill, showActions = false, onStatusChange }: BillCardProps) => {
+export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedule }: BillCardProps) => {
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
+  const [actualPendingDays, setActualPendingDays] = useState<number>(0);
 
   // Update countdown in real-time
   useEffect(() => {
@@ -21,6 +24,10 @@ export const BillCard = ({ bill, showActions = false, onStatusChange }: BillCard
       const now = new Date();
       const isPastDate = isPast(bill.presentationDate);
       setIsPastDeadline(isPastDate);
+      
+      // Calculate actual pending days remaining
+      const daysRemaining = differenceInDays(bill.presentationDate, now);
+      setActualPendingDays(Math.max(0, daysRemaining));
       
       if (isPastDate) {
         setTimeLeft("Deadline passed");
@@ -50,15 +57,23 @@ export const BillCard = ({ bill, showActions = false, onStatusChange }: BillCard
   };
 
   const formatDate = (date: Date): string => {
-    return format(date, "dd/MM/yyyy"); // Day/Month/Year format
+    return format(date, "dd/MM/yyyy");
   };
 
   const isActionable = isPastDeadline && bill.status === "pending";
+  const canReschedule = bill.status === "pending";
+
+  const handleReschedule = () => {
+    if (onReschedule) {
+      // Add 7 more days by default
+      onReschedule(bill.id, 7);
+    }
+  };
 
   return (
     <Card className={`bill-card bill-${bill.status} p-4`}>
       <div className="flex justify-between items-start">
-        <div>
+        <div className="flex-1">
           <h3 className="font-medium text-lg">{bill.title}</h3>
           <p className="text-sm text-muted-foreground">
             Committee: {bill.committee}
@@ -68,7 +83,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange }: BillCard
               <span className="font-medium">Date Committed:</span> {formatDate(bill.dateCommitted)}
             </p>
             <p className="text-sm">
-              <span className="font-medium">Pending Days:</span> {bill.pendingDays} days
+              <span className="font-medium">Days Remaining:</span> {actualPendingDays} days
             </p>
             <p className="text-sm">
               <span className="font-medium">Date Due:</span> {formatDate(bill.presentationDate)}
@@ -85,14 +100,27 @@ export const BillCard = ({ bill, showActions = false, onStatusChange }: BillCard
         </div>
       </div>
 
-      {showActions && isActionable && onStatusChange && (
+      {showActions && bill.status === "pending" && (
         <div className="mt-4 flex flex-wrap gap-2">
-          <Badge 
-            className="bg-bill-passed cursor-pointer hover:opacity-90" 
-            onClick={() => onStatusChange(bill.id, "concluded")}
-          >
-            Mark as Concluded
-          </Badge>
+          {isActionable && onStatusChange && (
+            <Button 
+              size="sm"
+              onClick={() => onStatusChange(bill.id, "concluded")}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Mark as Concluded
+            </Button>
+          )}
+          {canReschedule && onReschedule && (
+            <Button 
+              size="sm"
+              variant="outline"
+              onClick={handleReschedule}
+              className="border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
+              Reschedule (+7 days)
+            </Button>
+          )}
         </div>
       )}
     </Card>

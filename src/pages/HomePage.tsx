@@ -6,7 +6,7 @@ import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast";
@@ -58,10 +58,11 @@ const HomePage = () => {
         return;
       }
 
-      // Sort by pending days (least to most)
+      // Sort by days remaining (least to most)
       const sortedItems = [...pendingItems].sort((a, b) => {
-        const aDays = Math.max(0, Math.floor((a.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
-        const bDays = Math.max(0, Math.floor((b.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+        const now = new Date();
+        const aDays = Math.max(0, differenceInDays(a.presentationDate, now));
+        const bDays = Math.max(0, differenceInDays(b.presentationDate, now));
         return aDays - bDays;
       });
 
@@ -73,27 +74,52 @@ const HomePage = () => {
       doc.setFontSize(16);
       doc.text(`Report of pending ${typeLabel.toLowerCase()} as at ${formattedDate}`, 20, 20);
 
-      // Table data
+      // Validate data before creating table
       const tableData = sortedItems.map(item => {
-        const pendingDays = Math.max(0, Math.floor((item.presentationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+        const now = new Date();
+        const daysRemaining = Math.max(0, differenceInDays(item.presentationDate, now));
+        
         return [
           item.title || "N/A",
           item.committee || "N/A",
           item.dateCommitted ? format(item.dateCommitted, "dd/MM/yyyy") : "N/A",
-          pendingDays.toString(),
+          daysRemaining.toString(),
           item.presentationDate ? format(item.presentationDate, "dd/MM/yyyy") : "N/A"
         ];
       });
 
-      // Create table
-      (doc as any).autoTable({
-        startY: 40,
-        head: [['Title', 'Committee', 'Date Committed', 'Pending (Days)', 'Due Date']],
-        body: tableData,
-        theme: 'grid',
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
+      // Validate that tableData is not empty and has valid structure
+      if (!tableData || tableData.length === 0) {
+        throw new Error("No valid data to generate table");
+      }
+
+      // Create table with error handling
+      try {
+        (doc as any).autoTable({
+          startY: 40,
+          head: [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Due Date']],
+          body: tableData,
+          theme: 'grid',
+          styles: { 
+            fontSize: 8,
+            cellPadding: 2
+          },
+          headStyles: { 
+            fillColor: [66, 139, 202],
+            textColor: [255, 255, 255]
+          },
+          columnStyles: {
+            0: { cellWidth: 40 }, // Title
+            1: { cellWidth: 30 }, // Committee
+            2: { cellWidth: 25 }, // Date Committed
+            3: { cellWidth: 20 }, // Days Remaining
+            4: { cellWidth: 25 }  // Due Date
+          }
+        });
+      } catch (tableError) {
+        console.error("Error creating table:", tableError);
+        throw new Error("Failed to create PDF table");
+      }
 
       // Save PDF
       const fileName = `pending-${typeLabel.toLowerCase()}-${format(currentDate, "yyyy-MM-dd")}.pdf`;
@@ -108,7 +134,7 @@ const HomePage = () => {
       console.error("Error generating PDF:", error);
       toast({
         title: "Download failed",
-        description: "There was an error generating the PDF. Please try again.",
+        description: `There was an error generating the PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
         variant: "destructive"
       });
     }
@@ -140,6 +166,7 @@ const HomePage = () => {
                       size="sm"
                       onClick={() => generatePDF(type)}
                       className="ml-2"
+                      disabled={pendingCount === 0}
                     >
                       <Download className="h-4 w-4" />
                     </Button>

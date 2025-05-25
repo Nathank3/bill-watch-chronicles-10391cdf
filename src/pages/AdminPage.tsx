@@ -5,18 +5,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBills, Bill, BillStatus } from "@/contexts/BillContext";
 import { BillCard } from "@/components/BillCard";
 import { BillFilter } from "@/components/BillFilter";
+import { BillFormDialog } from "@/components/BillFormDialog";
 import { Navbar } from "@/components/Navbar";
 import { AdminUsers } from "@/components/AdminUsers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 
 const AdminPage = () => {
   const { user, session, isAdmin, isLoading } = useAuth();
-  const { bills, updateBillStatus } = useBills();
+  const { bills, updateBillStatus, rescheduleBill } = useBills();
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
 
   useEffect(() => {
@@ -92,6 +91,10 @@ const AdminPage = () => {
     updateBillStatus(id, status);
   };
 
+  const handleReschedule = (id: string, additionalDays: number) => {
+    rescheduleBill(id, additionalDays);
+  };
+
   console.log("AdminPage: Rendering admin dashboard, filteredBills count:", filteredBills?.length || 0);
 
   return (
@@ -148,10 +151,7 @@ const AdminPage = () => {
 
               {/* Add New Bill Button */}
               <div className="flex justify-end">
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add New Bill
-                </Button>
+                <BillFormDialog />
               </div>
 
               {/* Filter Component */}
@@ -171,8 +171,9 @@ const AdminPage = () => {
                         <BillCard
                           key={bill.id}
                           bill={bill}
-                          showActions={bill.status === "pending"}
+                          showActions={true}
                           onStatusChange={handleStatusChange}
+                          onReschedule={handleReschedule}
                         />
                       ))}
                     </div>
@@ -180,10 +181,11 @@ const AdminPage = () => {
                     <Card>
                       <CardContent className="p-6 text-center">
                         <p className="text-muted-foreground mb-4">No bills have been created yet</p>
-                        <Button>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create Your First Bill
-                        </Button>
+                        <BillFormDialog>
+                          <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+                            Create Your First Bill
+                          </button>
+                        </BillFormDialog>
                       </CardContent>
                     </Card>
                   ) : (
@@ -202,6 +204,7 @@ const AdminPage = () => {
                             bill={bill}
                             showActions={true}
                             onStatusChange={handleStatusChange}
+                            onReschedule={handleReschedule}
                           />
                         ))}
                     </div>
