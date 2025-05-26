@@ -4,9 +4,8 @@ import { useDocuments, DocumentType } from "@/contexts/DocumentContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { format } from "date-fns";
 
 interface DocumentFormProps {
   documentType: DocumentType;
@@ -18,41 +17,36 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
   const [formData, setFormData] = useState({
     title: "",
     committee: "",
+    dateCommitted: format(new Date(), "yyyy-MM-dd"),
     pendingDays: 14,
   });
 
-  const committees = [
-    "Agriculture Committee",
-    "Education Committee", 
-    "Finance Committee",
-    "Health Committee",
-    "Transportation Committee",
-    "Justice Committee",
-    "Environment Committee",
-    "Trade Committee",
-    "Energy Committee",
-    "Security Committee"
-  ];
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: name === "pendingDays" ? parseInt(value) || 0 : value 
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.title.trim() || !formData.committee) {
+    if (!formData.title.trim() || !formData.committee.trim() || !formData.dateCommitted || formData.pendingDays <= 0) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description: "All fields are required and pending days must be greater than 0",
         variant: "destructive"
       });
       return;
     }
 
-    const now = new Date();
-    const dateCommitted = now;
+    const dateCommitted = new Date(formData.dateCommitted);
 
     try {
       addDocument({
         title: formData.title.trim(),
-        committee: formData.committee,
+        committee: formData.committee.trim(),
         dateCommitted,
         pendingDays: formData.pendingDays,
         type: documentType
@@ -69,6 +63,7 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
       setFormData({
         title: "",
         committee: "",
+        dateCommitted: format(new Date(), "yyyy-MM-dd"),
         pendingDays: 14,
       });
     } catch (error) {
@@ -81,15 +76,18 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
     }
   };
 
+  const documentTypeLabel = documentType.charAt(0).toUpperCase() + documentType.slice(1);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-4">
         <div>
-          <Label htmlFor="title">Title *</Label>
+          <Label htmlFor="title">{documentTypeLabel} Title *</Label>
           <Input
             id="title"
+            name="title"
             value={formData.title}
-            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+            onChange={handleChange}
             placeholder={`Enter ${documentType} title`}
             required
           />
@@ -97,35 +95,42 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
 
         <div>
           <Label htmlFor="committee">Committee *</Label>
-          <Select 
-            value={formData.committee} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, committee: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select committee" />
-            </SelectTrigger>
-            <SelectContent>
-              {committees.map((committee) => (
-                <SelectItem key={committee} value={committee}>
-                  {committee}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            id="committee"
+            name="committee"
+            value={formData.committee}
+            onChange={handleChange}
+            placeholder="Enter committee name"
+            required
+          />
         </div>
 
         <div>
-          <Label htmlFor="pendingDays">Pending Days</Label>
+          <Label htmlFor="dateCommitted">Date Committed *</Label>
+          <Input
+            id="dateCommitted"
+            name="dateCommitted"
+            type="date"
+            value={formData.dateCommitted}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="pendingDays">Pending Days *</Label>
           <Input
             id="pendingDays"
+            name="pendingDays"
             type="number"
             min="1"
             max="365"
             value={formData.pendingDays}
-            onChange={(e) => setFormData(prev => ({ ...prev, pendingDays: parseInt(e.target.value) || 14 }))}
+            onChange={handleChange}
+            required
           />
           <p className="text-sm text-muted-foreground mt-1">
-            Number of days until presentation (1-365)
+            Due date will be calculated automatically (1-365 days)
           </p>
         </div>
       </div>
@@ -135,7 +140,7 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
           Cancel
         </Button>
         <Button type="submit">
-          Create {documentType.charAt(0).toUpperCase() + documentType.slice(1)}
+          Create {documentTypeLabel}
         </Button>
       </div>
     </form>

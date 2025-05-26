@@ -1,9 +1,23 @@
 
 import { useState, useEffect } from "react";
-import { Document } from "@/contexts/DocumentContext";
+import { Document, useDocuments } from "@/contexts/DocumentContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { RescheduleDialog } from "./RescheduleDialog";
 import { formatDistanceToNow, isPast, format } from "date-fns";
+import { Calendar, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface DocumentCardProps {
   document: Document;
@@ -12,6 +26,7 @@ interface DocumentCardProps {
 }
 
 export const DocumentCard = ({ document, showActions = false, onStatusChange }: DocumentCardProps) => {
+  const { rescheduleDocument, updateDocument } = useDocuments();
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
 
@@ -38,6 +53,21 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     return () => clearInterval(interval);
   }, [document.presentationDate]);
 
+  const handleReschedule = (additionalDays: number) => {
+    rescheduleDocument(document.id, additionalDays);
+  };
+
+  const handleDelete = () => {
+    try {
+      // Update the document status to mark it as deleted/removed
+      updateDocument(document.id, { status: "concluded" });
+      // In a real implementation, you might want to actually delete or have a "deleted" status
+      console.log(`Document ${document.id} marked for deletion`);
+    } catch (error) {
+      console.error("Error deleting document:", error);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -50,18 +80,16 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
   };
 
   const formatDate = (date: Date): string => {
-    return format(date, "dd/MM/yyyy"); // Day/Month/Year format
+    return format(date, "dd/MM/yyyy");
   };
 
   const isActionable = isPastDeadline && document.status === "pending";
-  
-  // Capitalize first letter of document type
   const documentType = document.type.charAt(0).toUpperCase() + document.type.slice(1);
 
   return (
     <Card className={`document-card document-${document.status} p-4`}>
       <div className="flex justify-between items-start">
-        <div>
+        <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="outline">{documentType}</Badge>
             <h3 className="font-medium text-lg">{document.title}</h3>
@@ -91,14 +119,48 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
         </div>
       </div>
 
-      {showActions && isActionable && onStatusChange && (
+      {showActions && (
         <div className="mt-4 flex flex-wrap gap-2">
-          <Badge 
-            className="bg-bill-passed cursor-pointer hover:opacity-90" 
-            onClick={() => onStatusChange(document.id, "concluded")}
-          >
-            Mark as Concluded
-          </Badge>
+          {isActionable && onStatusChange && (
+            <Badge 
+              className="bg-bill-passed cursor-pointer hover:opacity-90" 
+              onClick={() => onStatusChange(document.id, "concluded")}
+            >
+              Mark as Concluded
+            </Badge>
+          )}
+          
+          {document.status === "pending" && (
+            <RescheduleDialog onReschedule={handleReschedule}>
+              <Button variant="outline" size="sm">
+                <Calendar className="h-4 w-4 mr-1" />
+                Reschedule
+              </Button>
+            </RescheduleDialog>
+          )}
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the {documentType.toLowerCase()} "{document.title}".
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </Card>

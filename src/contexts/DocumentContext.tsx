@@ -14,6 +14,7 @@ const DocumentContext = createContext<DocumentContextType>({
   concludedDocuments: () => [],
   addDocument: () => {},
   updateDocument: () => {},
+  deleteDocument: () => {},
   updateDocumentStatus: () => {},
   rescheduleDocument: () => {},
   getDocumentById: () => undefined,

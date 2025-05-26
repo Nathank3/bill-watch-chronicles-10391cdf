@@ -37,6 +37,7 @@ export interface DocumentContextType {
   concludedDocuments: (type: DocumentType) => Document[];
   addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => void;
   updateDocument: (id: string, updates: Partial<Document>) => void;
+  deleteDocument: (id: string) => void;
   updateDocumentStatus: (id: string, status: DocumentStatus) => void;
   rescheduleDocument: (id: string, additionalDays: number) => void;
   getDocumentById: (id: string) => Document | undefined;

@@ -1,23 +1,34 @@
-
-import { useEffect, useState } from "react";
-import { Bill } from "@/contexts/BillContext";
+import { useState, useEffect } from "react";
+import { Bill, useBills } from "@/contexts/BillContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RescheduleDialog } from "./RescheduleDialog";
-import { formatDistanceToNow, isPast, format, differenceInDays } from "date-fns";
+import { formatDistanceToNow, isPast, format } from "date-fns";
+import { Calendar, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface BillCardProps {
   bill: Bill;
   showActions?: boolean;
   onStatusChange?: (id: string, status: "pending" | "concluded") => void;
-  onReschedule?: (id: string, newDays: number) => void;
+  onReschedule?: (id: string, additionalDays: number) => void;
 }
 
 export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedule }: BillCardProps) => {
+  const { deleteBill } = useBills();
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
-  const [actualPendingDays, setActualPendingDays] = useState<number>(0);
 
   // Update countdown in real-time
   useEffect(() => {
@@ -25,10 +36,6 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
       const now = new Date();
       const isPastDate = isPast(bill.presentationDate);
       setIsPastDeadline(isPastDate);
-      
-      // Calculate actual pending days remaining
-      const daysRemaining = differenceInDays(bill.presentationDate, now);
-      setActualPendingDays(Math.max(0, daysRemaining));
       
       if (isPastDate) {
         setTimeLeft("Deadline passed");
@@ -46,6 +53,16 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
     return () => clearInterval(interval);
   }, [bill.presentationDate]);
 
+  const handleReschedule = (additionalDays: number) => {
+    if (onReschedule) {
+      onReschedule(bill.id, additionalDays);
+    }
+  };
+
+  const handleDelete = () => {
+    deleteBill(bill.id);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
@@ -62,19 +79,15 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   };
 
   const isActionable = isPastDeadline && bill.status === "pending";
-  const canReschedule = bill.status === "pending";
-
-  const handleReschedule = (days: number) => {
-    if (onReschedule) {
-      onReschedule(bill.id, days);
-    }
-  };
 
   return (
     <Card className={`bill-card bill-${bill.status} p-4`}>
       <div className="flex justify-between items-start">
-        <div className="flex-1">
-          <h3 className="font-medium text-lg">{bill.title}</h3>
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Badge variant="outline">Bill</Badge>
+            <h3 className="font-medium text-lg">{bill.title}</h3>
+          </div>
           <p className="text-sm text-muted-foreground">
             Committee: {bill.committee}
           </p>
@@ -83,7 +96,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
               <span className="font-medium">Date Committed:</span> {formatDate(bill.dateCommitted)}
             </p>
             <p className="text-sm">
-              <span className="font-medium">Days Remaining:</span> {actualPendingDays} days
+              <span className="font-medium">Pending Days:</span> {bill.pendingDays} days
             </p>
             <p className="text-sm">
               <span className="font-medium">Date Due:</span> {formatDate(bill.presentationDate)}
@@ -100,28 +113,48 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
         </div>
       </div>
 
-      {showActions && bill.status === "pending" && (
+      {showActions && (
         <div className="mt-4 flex flex-wrap gap-2">
           {isActionable && onStatusChange && (
-            <Button 
-              size="sm"
+            <Badge 
+              className="bg-bill-passed cursor-pointer hover:opacity-90" 
               onClick={() => onStatusChange(bill.id, "concluded")}
-              className="bg-green-600 hover:bg-green-700"
             >
               Mark as Concluded
-            </Button>
+            </Badge>
           )}
-          {canReschedule && onReschedule && (
+          
+          {bill.status === "pending" && (
             <RescheduleDialog onReschedule={handleReschedule}>
-              <Button 
-                size="sm"
-                variant="outline"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50"
-              >
+              <Button variant="outline" size="sm">
+                <Calendar className="h-4 w-4 mr-1" />
                 Reschedule
               </Button>
             </RescheduleDialog>
           )}
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the bill "{bill.title}".
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       )}
     </Card>
