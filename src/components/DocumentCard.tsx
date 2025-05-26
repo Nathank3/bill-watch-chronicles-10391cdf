@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Document, useDocuments } from "@/contexts/DocumentContext";
 import { Card } from "@/components/ui/card";
@@ -26,7 +25,7 @@ interface DocumentCardProps {
 }
 
 export const DocumentCard = ({ document, showActions = false, onStatusChange }: DocumentCardProps) => {
-  const { rescheduleDocument, updateDocument } = useDocuments();
+  const { rescheduleDocument, deleteDocument } = useDocuments();
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
 
@@ -58,14 +57,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
   };
 
   const handleDelete = () => {
-    try {
-      // Update the document status to mark it as deleted/removed
-      updateDocument(document.id, { status: "concluded" });
-      // In a real implementation, you might want to actually delete or have a "deleted" status
-      console.log(`Document ${document.id} marked for deletion`);
-    } catch (error) {
-      console.error("Error deleting document:", error);
-    }
+    deleteDocument(document.id);
   };
 
   const getStatusBadge = (status: string) => {
