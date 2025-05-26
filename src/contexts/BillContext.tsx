@@ -27,6 +27,7 @@ interface BillContextType {
   updateBill: (id: string, updates: Partial<Bill>) => void;
   updateBillStatus: (id: string, status: BillStatus) => void;
   rescheduleBill: (id: string, additionalDays: number) => void;
+  deleteBill: (id: string) => void;
   getBillById: (id: string) => Bill | undefined;
   searchBills: (query: string) => Bill[];
   filterBills: (filters: {
@@ -104,6 +105,7 @@ const BillContext = createContext<BillContextType>({
   updateBill: () => {},
   updateBillStatus: () => {},
   rescheduleBill: () => {},
+  deleteBill: () => {},
   getBillById: () => undefined,
   searchBills: () => [],
   filterBills: () => []
@@ -249,6 +251,16 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  // Delete bill function
+  const deleteBill = (id: string) => {
+    setBills(prevBills => prevBills.filter(bill => bill.id !== id));
+    
+    toast({
+      title: "Bill deleted",
+      description: "Bill has been successfully deleted",
+    });
+  };
+
   // Get bill by ID
   const getBillById = (id: string) => {
     return bills.find(bill => bill.id === id);
@@ -306,6 +318,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateBill,
         updateBillStatus,
         rescheduleBill,
+        deleteBill,
         getBillById,
         searchBills,
         filterBills

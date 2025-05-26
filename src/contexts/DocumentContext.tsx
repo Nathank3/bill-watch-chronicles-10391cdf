@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useBills } from "./BillContext";
@@ -139,6 +138,16 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   };
 
+  // Delete document function
+  const deleteDocument = (id: string) => {
+    setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== id));
+    
+    toast({
+      title: "Document deleted",
+      description: "Document has been successfully deleted",
+    });
+  };
+
   // Update document status
   const updateDocumentStatus = (id: string, status: DocumentStatus) => {
     setDocuments(prevDocs =>
@@ -251,6 +260,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         concludedDocuments,
         addDocument,
         updateDocument,
+        deleteDocument,
         updateDocumentStatus,
         rescheduleDocument,
         getDocumentById,
