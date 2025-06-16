@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { LucideGavel } from "@/components/icons/LucideGavel";
+import { ForgotPasswordForm } from "@/components/ForgotPasswordForm";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -30,6 +32,14 @@ const LoginPage = () => {
       setIsLoading(false);
     }
   };
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-secondary/30 px-4">
+        <ForgotPasswordForm onBack={() => setShowForgotPassword(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary/30 px-4">
@@ -73,6 +83,15 @@ const LoginPage = () => {
 
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Logging in..." : "Login"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="link"
+            className="w-full"
+            onClick={() => setShowForgotPassword(true)}
+          >
+            Forgot Password?
           </Button>
         </form>
 

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { UsersTable } from "./user/UsersTable";
+import { AdminUserManagement } from "./AdminUserManagement";
 import { validateRole } from "@/utils/roleUtils";
 
 type UserInfo = {
@@ -99,21 +100,25 @@ export function AdminUsers() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Manage Users</CardTitle>
-        <CardDescription>
-          Assign admin or clerk roles to users
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <UsersTable 
-          users={users} 
-          loading={loading} 
-          updatingUserId={updating} 
-          onRoleUpdated={handleRoleUpdate} 
-        />
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <AdminUserManagement />
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Manage Users</CardTitle>
+          <CardDescription>
+            Assign admin or clerk roles to users
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UsersTable 
+            users={users} 
+            loading={loading} 
+            updatingUserId={updating} 
+            onRoleUpdated={handleRoleUpdate} 
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

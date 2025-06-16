@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Document, useDocuments } from "@/contexts/DocumentContext";
 import { Card } from "@/components/ui/card";
@@ -93,9 +94,11 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             <p className="text-sm">
               <span className="font-medium">Date Committed:</span> {formatDate(document.dateCommitted)}
             </p>
-            <p className="text-sm">
-              <span className="font-medium">Pending Days:</span> {document.pendingDays} days
-            </p>
+            {document.status === "pending" && (
+              <p className="text-sm">
+                <span className="font-medium">Pending Days:</span> {document.pendingDays} days
+              </p>
+            )}
             <p className="text-sm">
               <span className="font-medium">Date Due:</span> {formatDate(document.presentationDate)}
             </p>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Bill, useBills } from "@/contexts/BillContext";
 import { Card } from "@/components/ui/card";
@@ -26,7 +27,7 @@ interface BillCardProps {
 }
 
 export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedule }: BillCardProps) => {
-  const { deleteBill } = useBills();
+  const { rescheduleBill, deleteBill } = useBills();
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
 
@@ -56,6 +57,8 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   const handleReschedule = (additionalDays: number) => {
     if (onReschedule) {
       onReschedule(bill.id, additionalDays);
+    } else {
+      rescheduleBill(bill.id, additionalDays);
     }
   };
 
@@ -83,11 +86,8 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   return (
     <Card className={`bill-card bill-${bill.status} p-4`}>
       <div className="flex justify-between items-start">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Badge variant="outline">Bill</Badge>
-            <h3 className="font-medium text-lg">{bill.title}</h3>
-          </div>
+        <div className="flex-1">
+          <h3 className="font-medium text-lg mb-1">{bill.title}</h3>
           <p className="text-sm text-muted-foreground">
             Committee: {bill.committee}
           </p>
@@ -95,9 +95,11 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             <p className="text-sm">
               <span className="font-medium">Date Committed:</span> {formatDate(bill.dateCommitted)}
             </p>
-            <p className="text-sm">
-              <span className="font-medium">Pending Days:</span> {bill.pendingDays} days
-            </p>
+            {bill.status === "pending" && (
+              <p className="text-sm">
+                <span className="font-medium">Pending Days:</span> {bill.pendingDays} days
+              </p>
+            )}
             <p className="text-sm">
               <span className="font-medium">Date Due:</span> {formatDate(bill.presentationDate)}
             </p>
