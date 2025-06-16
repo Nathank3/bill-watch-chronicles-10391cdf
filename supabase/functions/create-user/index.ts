@@ -55,6 +55,16 @@ serve(async (req) => {
     });
 
     if (authError) {
+      // Handle specific error cases
+      if (authError.message.includes("already been registered") || authError.message.includes("email_exists")) {
+        return new Response(
+          JSON.stringify({ error: "A user with this email address already exists. Please use a different email address." }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
       throw authError;
     }
 
@@ -92,8 +102,22 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error creating user:", error);
+    
+    // Provide more user-friendly error messages
+    let errorMessage = "An unexpected error occurred while creating the user";
+    
+    if (error.message.includes("already been registered") || error.message.includes("email_exists")) {
+      errorMessage = "A user with this email address already exists. Please use a different email address.";
+    } else if (error.message.includes("Missing required fields")) {
+      errorMessage = "Please fill in all required fields";
+    } else if (error.message.includes("Invalid role")) {
+      errorMessage = "Invalid user role specified";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },

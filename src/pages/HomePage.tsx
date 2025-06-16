@@ -70,9 +70,13 @@ const HomePage = () => {
       const currentDate = new Date();
       const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
       
-      // Title
+      // Title positioning and alignment - align with table start position
+      const titleStartX = 10; // Same as table margin left
+      const titleY = 20;
+      
       doc.setFontSize(16);
-      doc.text(`Report of pending ${typeLabel.toLowerCase()} as at ${formattedDate}`, 20, 20);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Report of pending ${typeLabel.toLowerCase()} as at ${formattedDate}`, titleStartX, titleY);
 
       // Validate and prepare data before creating table
       const tableData = sortedItems.map(item => {
@@ -103,10 +107,10 @@ const HomePage = () => {
         throw new Error("No valid table rows found");
       }
 
-      // Create table with error handling using the correct autoTable import
+      // Create table with improved spacing and alignment
       try {
         autoTable(doc, {
-          startY: 40,
+          startY: 35, // Increased space between title and table for better professional look
           head: [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Due Date']],
           body: validTableData,
           theme: 'grid',
@@ -128,7 +132,7 @@ const HomePage = () => {
             3: { cellWidth: 20 }, // Days Remaining
             4: { cellWidth: 25 }  // Due Date
           },
-          margin: { top: 40, right: 10, bottom: 10, left: 10 },
+          margin: { top: 35, right: 10, bottom: 10, left: 10 }, // Align table with title
           tableWidth: 'auto'
         });
       } catch (tableError) {
