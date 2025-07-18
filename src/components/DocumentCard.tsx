@@ -40,7 +40,8 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
       if (isPastDate) {
         setTimeLeft("Deadline passed");
       } else {
-        setTimeLeft(formatDistanceToNow(document.presentationDate, { addSuffix: true }));
+        const distance = formatDistanceToNow(document.presentationDate, { addSuffix: true });
+        setTimeLeft(distance);
       }
     };
 
@@ -78,6 +79,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
 
   const isActionable = isPastDeadline && document.status === "pending";
   const documentType = document.type.charAt(0).toUpperCase() + document.type.slice(1);
+  const shouldShowCountdown = document.status === "pending" && document.pendingDays > 0;
 
   return (
     <Card className={`document-card document-${document.status} p-4`}>
@@ -105,8 +107,8 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           </div>
           <div className="flex items-center gap-2 mt-2">
             {getStatusBadge(document.status)}
-            {document.status === "pending" && (
-              <span className={`countdown ${isPastDeadline ? "countdown-urgent" : ""}`}>
+            {shouldShowCountdown && (
+              <span className={`countdown text-sm ${isPastDeadline ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
                 {timeLeft}
               </span>
             )}

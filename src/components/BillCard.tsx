@@ -41,7 +41,8 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
       if (isPastDate) {
         setTimeLeft("Deadline passed");
       } else {
-        setTimeLeft(formatDistanceToNow(bill.presentationDate, { addSuffix: true }));
+        const distance = formatDistanceToNow(bill.presentationDate, { addSuffix: true });
+        setTimeLeft(distance);
       }
     };
 
@@ -82,6 +83,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   };
 
   const isActionable = isPastDeadline && bill.status === "pending";
+  const shouldShowCountdown = bill.status === "pending" && bill.pendingDays > 0;
 
   return (
     <Card className={`bill-card bill-${bill.status} p-4`}>
@@ -106,8 +108,8 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           </div>
           <div className="flex items-center gap-2 mt-2">
             {getStatusBadge(bill.status)}
-            {bill.status === "pending" && (
-              <span className={`countdown ${isPastDeadline ? "countdown-urgent" : ""}`}>
+            {shouldShowCountdown && (
+              <span className={`countdown text-sm ${isPastDeadline ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
                 {timeLeft}
               </span>
             )}
