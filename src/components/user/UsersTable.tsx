@@ -24,13 +24,17 @@ interface UsersTableProps {
   loading: boolean;
   updatingUserId: string | null;
   onRoleUpdated: (userId: string, newRole: string) => void;
+  onUserDeleted: (userId: string) => void;
+  deletingUserId: string | null;
 }
 
 export const UsersTable = ({ 
   users, 
   loading, 
   updatingUserId,
-  onRoleUpdated 
+  onRoleUpdated,
+  onUserDeleted,
+  deletingUserId
 }: UsersTableProps) => {
   if (loading) {
     return <UserListSkeleton />;
@@ -65,6 +69,8 @@ export const UsersTable = ({
               user={user} 
               isUpdating={updatingUserId === user.id}
               onRoleUpdated={onRoleUpdated}
+              onUserDeleted={onUserDeleted}
+              isDeleting={deletingUserId === user.id}
             />
           ))
         )}
