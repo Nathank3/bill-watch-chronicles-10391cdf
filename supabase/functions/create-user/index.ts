@@ -35,13 +35,30 @@ serve(async (req) => {
 
     const { email, password, username, role }: CreateUserRequest = await req.json();
 
-    // Validate input
+    // Enhanced input validation
     if (!email || !password || !username || !role) {
       throw new Error("Missing required fields");
     }
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error("Invalid email format");
+    }
+
+    // Validate role
     if (!["admin", "clerk", "public"].includes(role)) {
       throw new Error("Invalid role");
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      throw new Error("Password must be at least 8 characters long");
+    }
+
+    // Validate username (no empty strings, reasonable length)
+    if (username.trim().length === 0 || username.length > 50) {
+      throw new Error("Username must be between 1 and 50 characters");
     }
 
     // Create user in auth

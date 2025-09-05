@@ -36,6 +36,23 @@ serve(async (req) => {
     // Parse the request body
     const { userId, role } = await req.json();
 
+    // Input validation
+    if (!userId || !role) {
+      return new Response(JSON.stringify({ error: 'userId and role are required' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400
+      });
+    }
+
+    // Validate role is one of the allowed values
+    const allowedRoles = ['admin', 'clerk', 'public'];
+    if (!allowedRoles.includes(role)) {
+      return new Response(JSON.stringify({ error: 'Invalid role. Must be admin, clerk, or public' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400
+      });
+    }
+
     // Check if the current user is an admin
     const {
       data: { user },
