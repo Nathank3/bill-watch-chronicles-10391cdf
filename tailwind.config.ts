@@ -64,7 +64,7 @@ export default {
           ring: "hsl(var(--sidebar-ring))"
         },
         bill: {
-          pending: "#F59E0B",
+          pending: "#3B82F6",
           passed: "#10B981",
           rejected: "#EF4444",
           rescheduled: "#6366F1"
