@@ -7,10 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+    PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
@@ -20,9 +20,12 @@ export type Database = {
           created_at: string | null
           created_by: string
           date_committed: string
+          date_laid: string | null
+          days_allocated: number | null
           department: string
           id: string
           mca: string
+          overdue_days: number | null
           pending_days: number
           presentation_date: string
           status: string
@@ -34,9 +37,12 @@ export type Database = {
           created_at?: string | null
           created_by: string
           date_committed: string
+          date_laid?: string | null
+          days_allocated?: number | null
           department: string
           id?: string
           mca: string
+          overdue_days?: number | null
           pending_days: number
           presentation_date: string
           status?: string
@@ -48,9 +54,12 @@ export type Database = {
           created_at?: string | null
           created_by?: string
           date_committed?: string
+          date_laid?: string | null
+          days_allocated?: number | null
           department?: string
           id?: string
           mca?: string
+          overdue_days?: number | null
           pending_days?: number
           presentation_date?: string
           status?: string
@@ -59,12 +68,36 @@ export type Database = {
         }
         Relationships: []
       }
+      committees: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           committee: string
           created_at: string
           date_committed: string
+          date_laid: string | null
+          days_allocated: number | null
           id: string
+          overdue_days: number | null
           pending_days: number
           presentation_date: string
           status: string
@@ -76,7 +109,10 @@ export type Database = {
           committee: string
           created_at?: string
           date_committed: string
+          date_laid?: string | null
+          days_allocated?: number | null
           id?: string
+          overdue_days?: number | null
           pending_days: number
           presentation_date: string
           status?: string
@@ -88,7 +124,10 @@ export type Database = {
           committee?: string
           created_at?: string
           date_committed?: string
+          date_laid?: string | null
+          days_allocated?: number | null
           id?: string
+          overdue_days?: number | null
           pending_days?: number
           presentation_date?: string
           status?: string
