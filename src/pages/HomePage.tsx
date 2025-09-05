@@ -91,8 +91,25 @@ const HomePage = () => {
       // Validate and prepare data before creating table
       const tableData = sortedItems.map(item => {
         const now = new Date();
-        const daysRemaining = differenceInDays(item.presentationDate, now);
-        const displayDays = daysRemaining < 0 ? `${Math.abs(daysRemaining)} overdue` : String(Math.max(0, daysRemaining));
+        const actualDaysRemaining = differenceInDays(item.presentationDate, now);
+        
+        // For rescheduled bills (status overdue but future presentation date), show pending days
+        // For truly overdue bills, show overdue days
+        let displayDays;
+        let isOverdue = false;
+        
+        if (item.status === "overdue" && actualDaysRemaining >= 0) {
+          // This is a rescheduled bill - show the pending days
+          displayDays = String(item.pendingDays || actualDaysRemaining);
+          isOverdue = true;
+        } else if (actualDaysRemaining < 0) {
+          // This is truly overdue
+          displayDays = `${Math.abs(actualDaysRemaining)} overdue`;
+          isOverdue = true;
+        } else {
+          // Regular pending bill
+          displayDays = String(Math.max(0, actualDaysRemaining));
+        }
         
         // Ensure all values are strings and handle null/undefined values
         return [
@@ -101,7 +118,7 @@ const HomePage = () => {
           item.dateCommitted ? format(new Date(item.dateCommitted), "dd/MM/yyyy") : "N/A",
           displayDays,
           item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A",
-          daysRemaining < 0 ? 'overdue' : 'normal' // Add flag for styling
+          isOverdue ? 'overdue' : 'normal' // Add flag for styling
         ];
       });
 
@@ -147,10 +164,17 @@ const HomePage = () => {
           margin: { top: 35, right: 10, bottom: 10, left: 10 }, // Align table with title
           tableWidth: 'auto',
           didParseCell: function(data) {
-            // Color overdue days in red
-            if (data.column.index === 3 && data.cell.text[0] && data.cell.text[0].includes('overdue')) {
-              data.cell.styles.textColor = [255, 0, 0]; // Red color for overdue
-              data.cell.styles.fontStyle = 'bold';
+            // Color overdue days in red (both rescheduled and truly overdue)
+            if (data.column.index === 3 && data.cell.text[0]) {
+              const cellText = data.cell.text[0];
+              const rowIndex = data.row.index;
+              const originalItem = sortedItems[rowIndex];
+              
+              // Check if this is an overdue/rescheduled item
+              if (originalItem && (originalItem.status === "overdue" || cellText.includes('overdue'))) {
+                data.cell.styles.textColor = [255, 0, 0]; // Red color for overdue/rescheduled
+                data.cell.styles.fontStyle = 'bold';
+              }
             }
           }
         });
