@@ -42,24 +42,8 @@ interface BillContextType {
   }) => Bill[];
 }
 
-// Adjust date for weekends (move to next Monday if it falls on weekend)
-const adjustForWeekend = (date: Date): Date => {
-  const newDate = new Date(date);
-  
-  if (isSaturday(newDate)) {
-    return addDays(newDate, 2); // Move to Monday
-  } else if (isSunday(newDate)) {
-    return addDays(newDate, 1); // Move to Monday
-  }
-  
-  return newDate;
-};
-
-// Calculate presentation date based on date committed and pending days
-const calculatePresentationDate = (dateCommitted: Date, pendingDays: number): Date => {
-  const calculatedDate = addDays(new Date(dateCommitted), pendingDays);
-  return adjustForWeekend(calculatedDate);
-};
+// Import the sitting day utilities
+import { adjustForSittingDay, calculatePresentationDate, adjustForWeekend } from "@/utils/documentUtils";
 
 // Generate mock data
 const generateMockBills = (): Bill[] => {
@@ -236,7 +220,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prevBills.map(bill => {
         if (bill.id === id && bill.status === "pending") {
           const newPresentationDate = addDays(bill.presentationDate, additionalDays);
-          const adjustedDate = adjustForWeekend(newPresentationDate);
+          const adjustedDate = adjustForSittingDay(newPresentationDate);
           
           return {
             ...bill,

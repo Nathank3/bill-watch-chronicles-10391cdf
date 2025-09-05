@@ -38,10 +38,11 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
       const isPastDate = isPast(bill.presentationDate);
       setIsPastDeadline(isPastDate);
       
-      if (bill.status === "concluded" || bill.status === "overdue") {
+      if (bill.status === "concluded") {
         setTimeLeft("");
-      } else if (isPastDate) {
-        setTimeLeft("Overdue");
+      } else if (isPastDate || bill.status === "overdue") {
+        const distance = formatDistanceToNow(bill.presentationDate, { addSuffix: true });
+        setTimeLeft(distance);
       } else {
         const distance = formatDistanceToNow(bill.presentationDate, { addSuffix: true });
         setTimeLeft(distance);
