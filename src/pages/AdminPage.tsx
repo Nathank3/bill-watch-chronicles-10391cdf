@@ -9,6 +9,7 @@ import { BillFormDialog } from "@/components/BillFormDialog";
 import { DocumentManagement } from "@/components/DocumentManagement";
 import { Navbar } from "@/components/Navbar";
 import { AdminUsers } from "@/components/AdminUsers";
+import { CommitteeManagement } from "@/components/CommitteeManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
@@ -111,13 +112,14 @@ const AdminPage = () => {
         </div>
         
         <Tabs defaultValue="bills" className="max-w-6xl mx-auto">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="bills">Bills</TabsTrigger>
             <TabsTrigger value="statements">Statements</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="regulations">Regulations</TabsTrigger>
             <TabsTrigger value="policies">Policies</TabsTrigger>
             <TabsTrigger value="petitions">Petitions</TabsTrigger>
+            <TabsTrigger value="committees">Committees</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
           
@@ -240,6 +242,10 @@ const AdminPage = () => {
 
           <TabsContent value="petitions" className="mt-6">
             <DocumentManagement documentType="petition" title="Petitions" />
+          </TabsContent>
+
+          <TabsContent value="committees" className="mt-6">
+            <CommitteeManagement />
           </TabsContent>
           
           <TabsContent value="users" className="mt-6">

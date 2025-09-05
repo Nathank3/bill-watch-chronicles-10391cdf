@@ -5,7 +5,7 @@ import { BillStatus } from "@/contexts/BillContext";
 export type DocumentType = "bill" | "statement" | "report" | "regulation" | "policy" | "petition";
 
 // Define document status type
-export type DocumentStatus = "pending" | "concluded";
+export type DocumentStatus = "pending" | "concluded" | "overdue";
 
 // Define document interface
 export interface Document {

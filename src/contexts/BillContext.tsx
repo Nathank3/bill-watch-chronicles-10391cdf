@@ -2,8 +2,8 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { addDays, isSaturday, isSunday, format } from "date-fns";
 
-// Define bill status type - Only pending and concluded
-export type BillStatus = "pending" | "concluded";
+// Define bill status type - Including overdue status
+export type BillStatus = "pending" | "concluded" | "overdue";
 
 // Define bill interface
 export interface Bill {
@@ -11,11 +11,15 @@ export interface Bill {
   title: string;
   committee: string; // Changed from 'department'
   dateCommitted: Date; // Added dateCommitted field
-  pendingDays: number; // Added pendingDays field
+  pendingDays: number; // This is now days allocated
   presentationDate: Date; // This becomes the "date due"
   status: BillStatus;
   createdAt: Date;
   updatedAt: Date;
+  // New fields for enhanced tracking
+  days_allocated?: number;
+  overdue_days?: number;
+  date_laid?: string;
 }
 
 // Define bill context type
