@@ -55,9 +55,9 @@ const PublicPage = () => {
       
       <main className="container py-8">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold">Legislative Document Tracker</h1>
+          <h1 className="text-3xl font-bold">Makueni County Assembly Business</h1>
           <p className="text-muted-foreground mt-2">
-            Track pending documents and view concluded legislation
+            Track pending business and view concluded business
           </p>
         </div>
         
@@ -156,6 +156,14 @@ const PublicPage = () => {
           </TabsContent>
         </Tabs>
       </main>
+      
+      <footer className="bg-gray-100 py-4 mt-8">
+        <div className="container text-center">
+          <p className="text-sm text-gray-600">
+            © 2025 All Rights Reserved By County Assembly of Makueni
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };

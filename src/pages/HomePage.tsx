@@ -209,9 +209,9 @@ const HomePage = () => {
       
       <main className="container py-8">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold">Legislative Document Tracker</h1>
+          <h1 className="text-3xl font-bold">Makueni County Assembly Business</h1>
           <p className="text-muted-foreground mt-2">
-            Overview of pending documents and reports
+            Overview of pending business
           </p>
         </div>
 

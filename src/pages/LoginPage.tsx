@@ -46,9 +46,9 @@ const LoginPage = () => {
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="flex justify-center">
-            <LucideGavel className="h-12 w-12 text-primary" />
+            <img src="/lovable-uploads/4e53edd2-c5d5-441a-8e85-dd6d8a88c97d.png" alt="County Assembly of Makueni" className="h-12 w-auto" />
           </div>
-          <h1 className="text-2xl font-bold mt-4">Bill Tracker System</h1>
+          <h1 className="text-2xl font-bold mt-4">Makueni County Assembly</h1>
           <p className="text-muted-foreground mt-1">Login to your account</p>
         </div>
 
@@ -108,6 +108,14 @@ const LoginPage = () => {
           Back to Public View
         </Button>
       </Card>
+      
+      <footer className="absolute bottom-0 left-0 right-0 bg-gray-100 py-4">
+        <div className="container text-center">
+          <p className="text-sm text-gray-600">
+            © 2025 All Rights Reserved By County Assembly of Makueni
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
