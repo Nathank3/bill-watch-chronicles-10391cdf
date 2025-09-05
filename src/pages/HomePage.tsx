@@ -58,11 +58,21 @@ const HomePage = () => {
         return;
       }
 
-      // Sort by days remaining (least to most)
+      // Sort by priority: overdue/rescheduled first, then by days remaining (least to most)
       const sortedItems = [...pendingItems].sort((a, b) => {
         const now = new Date();
-        const aDays = Math.max(0, differenceInDays(a.presentationDate, now));
-        const bDays = Math.max(0, differenceInDays(b.presentationDate, now));
+        const aDays = differenceInDays(a.presentationDate, now);
+        const bDays = differenceInDays(b.presentationDate, now);
+        
+        // Check if items are overdue or rescheduled
+        const aIsOverdue = a.status === "overdue" || aDays < 0;
+        const bIsOverdue = b.status === "overdue" || bDays < 0;
+        
+        // Prioritize overdue/rescheduled items
+        if (aIsOverdue && !bIsOverdue) return -1;
+        if (!aIsOverdue && bIsOverdue) return 1;
+        
+        // Within same priority group, sort by days remaining
         return aDays - bDays;
       });
 
@@ -81,15 +91,17 @@ const HomePage = () => {
       // Validate and prepare data before creating table
       const tableData = sortedItems.map(item => {
         const now = new Date();
-        const daysRemaining = Math.max(0, differenceInDays(item.presentationDate, now));
+        const daysRemaining = differenceInDays(item.presentationDate, now);
+        const displayDays = daysRemaining < 0 ? `${Math.abs(daysRemaining)} overdue` : String(Math.max(0, daysRemaining));
         
         // Ensure all values are strings and handle null/undefined values
         return [
           String(item.title || "N/A"),
           String(item.committee || "N/A"),
           item.dateCommitted ? format(new Date(item.dateCommitted), "dd/MM/yyyy") : "N/A",
-          String(daysRemaining),
-          item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A"
+          displayDays,
+          item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A",
+          daysRemaining < 0 ? 'overdue' : 'normal' // Add flag for styling
         ];
       });
 
@@ -98,8 +110,8 @@ const HomePage = () => {
         throw new Error("No valid data to generate table");
       }
 
-      // Validate each row has the correct number of columns
-      const validTableData = tableData.filter(row => 
+      // Validate each row has the correct number of columns (remove style flag for table)
+      const validTableData = tableData.map(row => row.slice(0, 5)).filter(row => 
         Array.isArray(row) && row.length === 5 && row.every(cell => typeof cell === 'string')
       );
 
@@ -133,7 +145,14 @@ const HomePage = () => {
             4: { cellWidth: 25 }  // Due Date
           },
           margin: { top: 35, right: 10, bottom: 10, left: 10 }, // Align table with title
-          tableWidth: 'auto'
+          tableWidth: 'auto',
+          didParseCell: function(data) {
+            // Color overdue days in red
+            if (data.column.index === 3 && data.cell.text[0] && data.cell.text[0].includes('overdue')) {
+              data.cell.styles.textColor = [255, 0, 0]; // Red color for overdue
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
         });
       } catch (tableError) {
         console.error("Error creating table:", tableError);

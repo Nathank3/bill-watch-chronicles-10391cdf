@@ -167,7 +167,7 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
             onChange={handleChange}
           />
           <p className="text-xs text-muted-foreground">
-            Due date will be calculated automatically (adjusted to next business day if it falls on weekend)
+            Due date will be calculated automatically (adjusted to next sitting day if it falls on non sitting days i.e Thursday, Friday, Saturday and Sunday)
           </p>
         </div>
 
