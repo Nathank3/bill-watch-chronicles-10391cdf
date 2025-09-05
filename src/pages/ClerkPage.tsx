@@ -1,86 +1,101 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBills, Bill } from "@/contexts/BillContext";
-import { useDocuments, DocumentType } from "@/contexts/DocumentContext";
+import { useBills, Bill, BillStatus } from "@/contexts/BillContext";
 import { BillCard } from "@/components/BillCard";
-import { DocumentCard } from "@/components/DocumentCard";
-import { BillForm } from "@/components/BillForm";
-import { DocumentForm } from "@/components/DocumentForm";
+import { BillFilter } from "@/components/BillFilter";
+import { BillFormDialog } from "@/components/BillFormDialog";
+import { DocumentManagement } from "@/components/DocumentManagement";
 import { Navbar } from "@/components/Navbar";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger, DialogHeader } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { isPast } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const ClerkPage = () => {
-  const { isClerk } = useAuth();
-  const { pendingBills, updateBillStatus } = useBills();
-  const { documents, updateDocumentStatus } = useDocuments();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [editingBill, setEditingBill] = useState<Bill | null>(null);
-  const [isBillFormDialogOpen, setIsBillFormDialogOpen] = useState(false);
-  const [isDocumentFormDialogOpen, setIsDocumentFormDialogOpen] = useState(false);
-  const [selectedDocumentType, setSelectedDocumentType] = useState<DocumentType>("statement");
-  
-  // If user is not a clerk, redirect to login
-  if (!isClerk) {
-    return <Navigate to="/login" />;
+  const { user, session, isClerk, isLoading } = useAuth();
+  const { bills, updateBillStatus, rescheduleBill } = useBills();
+  const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
+
+  useEffect(() => {
+    // Debug auth state
+    console.log("ClerkPage auth state:", { 
+      user: !!user, 
+      session: !!session, 
+      isClerk, 
+      isLoading,
+      userRole: user?.role
+    });
+  }, [user, session, isClerk, isLoading]);
+
+  useEffect(() => {
+    // Initialize filtered bills when bills are loaded
+    if (bills) {
+      console.log("ClerkPage: Bills loaded, count:", bills.length);
+      setFilteredBills(bills);
+    }
+  }, [bills]);
+
+  // Show loading state while auth state is being determined
+  if (isLoading) {
+    console.log("ClerkPage: Still loading auth state");
+    return (
+      <div className="min-h-screen bg-secondary/30">
+        <Navbar />
+        <main className="container py-8">
+          <div className="flex justify-center items-center h-64">
+            <Skeleton className="h-12 w-12 rounded-full" />
+          </div>
+        </main>
+      </div>
+    );
   }
 
-  // Filter pending bills based on search query
-  const filteredPendingBills = pendingBills.filter(bill =>
-    bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bill.committee.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // If no session at all, redirect to login
+  if (!session) {
+    console.log("ClerkPage: No session found, redirecting to login");
+    return <Navigate to="/login" replace />;
+  }
 
-  // Filter documents by type and search query
-  const getFilteredDocuments = (type: DocumentType) => {
-    return documents
-      .filter(doc => doc.type === type)
-      .filter(doc =>
-        doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.committee.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-  };
+  // If session exists but user profile not loaded yet, show loading
+  if (session && !user) {
+    console.log("ClerkPage: Session exists but user profile not loaded");
+    return (
+      <div className="min-h-screen bg-secondary/30">
+        <Navbar />
+        <main className="container py-8">
+          <div className="flex justify-center items-center h-64">
+            <div className="text-center">
+              <Skeleton className="h-12 w-12 rounded-full mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading user profile...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
-  const getPendingDocuments = (type: DocumentType) => {
-    return getFilteredDocuments(type).filter(doc => doc.status === "pending");
-  };
+  // If user is authenticated but not a clerk, show access denied
+  if (user && !isClerk) {
+    console.log("ClerkPage: User authenticated but not clerk, showing access denied");
+    toast({
+      title: "Access denied",
+      description: "You need clerk privileges to access this page",
+      variant: "destructive"
+    });
+    return <Navigate to="/" replace />;
+  }
 
-  const handleEditBill = (bill: Bill) => {
-    setEditingBill(bill);
-    setIsBillFormDialogOpen(true);
-  };
-
-  const handleBillFormSuccess = () => {
-    setEditingBill(null);
-    setIsBillFormDialogOpen(false);
-  };
-
-  const handleDocumentFormSuccess = () => {
-    setIsDocumentFormDialogOpen(false);
-  };
-
-  const handleBillStatusChange = (id: string, status: "pending" | "concluded") => {
+  const handleStatusChange = (id: string, status: BillStatus) => {
     updateBillStatus(id, status);
   };
 
-  const handleDocumentStatusChange = (id: string, status: "pending" | "concluded") => {
-    updateDocumentStatus(id, status);
+  const handleReschedule = (id: string, additionalDays: number) => {
+    rescheduleBill(id, additionalDays);
   };
 
-  const documentTypes: { value: DocumentType; label: string }[] = [
-    { value: "statement", label: "Statement" },
-    { value: "report", label: "Report" },
-    { value: "regulation", label: "Regulation" },
-    { value: "policy", label: "Policy" },
-    { value: "petition", label: "Petition" }
-  ];
+  console.log("ClerkPage: Rendering clerk dashboard, filteredBills count:", filteredBills?.length || 0);
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -90,162 +105,141 @@ const ClerkPage = () => {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Clerk Dashboard</h1>
           <p className="text-muted-foreground mt-2">
-            Add and manage legislative bills and documents
+            Manage and track all legislative documents
           </p>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-4">
-          <div className="md:col-span-1">
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Actions</h2>
-              
-              {/* Add New Bill */}
-              <Dialog open={isBillFormDialogOpen} onOpenChange={setIsBillFormDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full mb-4">Add New Bill</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[550px]">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {editingBill ? "Edit Bill" : "Add New Bill"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <BillForm 
-                    initialBill={editingBill || undefined} 
-                    onSuccess={handleBillFormSuccess} 
-                  />
-                </DialogContent>
-              </Dialog>
-              
-              {/* Add New Document */}
-              <div className="space-y-2">
-                <Select
-                  value={selectedDocumentType}
-                  onValueChange={(value: DocumentType) => setSelectedDocumentType(value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select document type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {documentTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Dialog open={isDocumentFormDialogOpen} onOpenChange={setIsDocumentFormDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full">
-                      Add New {documentTypes.find(t => t.value === selectedDocumentType)?.label}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[550px]">
-                    <DialogHeader>
-                      <DialogTitle>
-                        Add New {documentTypes.find(t => t.value === selectedDocumentType)?.label}
-                      </DialogTitle>
-                    </DialogHeader>
-                    <DocumentForm 
-                      documentType={selectedDocumentType}
-                      onSuccess={handleDocumentFormSuccess} 
-                    />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </Card>
-          </div>
+        <Tabs defaultValue="bills" className="max-w-6xl mx-auto">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="bills">Bills</TabsTrigger>
+            <TabsTrigger value="statements">Statements</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="regulations">Regulations</TabsTrigger>
+            <TabsTrigger value="policies">Policies</TabsTrigger>
+            <TabsTrigger value="petitions">Petitions</TabsTrigger>
+          </TabsList>
           
-          <div className="md:col-span-3">
-            <Card className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Manage Documents</h2>
-                <Input
-                  placeholder="Search documents..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="max-w-xs"
-                />
+          <TabsContent value="bills" className="mt-6">
+            <div className="space-y-6">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Total Bills</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{bills?.length || 0}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Pending Bills</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {bills?.filter(b => b.status === "pending").length || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Concluded Bills</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {bills?.filter(b => b.status === "concluded").length || 0}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
+
+              {/* Add New Bill Button */}
+              <div className="flex justify-end">
+                <BillFormDialog />
+              </div>
+
+              {/* Filter Component */}
+              <BillFilter onFilterChange={setFilteredBills} />
               
-              <Tabs defaultValue="bills">
-                <TabsList className="grid w-full grid-cols-6">
-                  <TabsTrigger value="bills">Bills</TabsTrigger>
-                  <TabsTrigger value="statements">Statements</TabsTrigger>
-                  <TabsTrigger value="reports">Reports</TabsTrigger>
-                  <TabsTrigger value="regulations">Regulations</TabsTrigger>
-                  <TabsTrigger value="policies">Policies</TabsTrigger>
-                  <TabsTrigger value="petitions">Petitions</TabsTrigger>
+              {/* Bills Tabs */}
+              <Tabs defaultValue="all" className="mt-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="all">All Bills</TabsTrigger>
+                  <TabsTrigger value="pending">Pending</TabsTrigger>
                 </TabsList>
                 
-                {/* Bills Tab */}
-                <TabsContent value="bills" className="mt-4">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">
-                      Bills ({filteredPendingBills.length} pending)
-                    </h3>
-                    {filteredPendingBills.length > 0 ? (
-                      <div className="space-y-4">
-                        {filteredPendingBills.map((bill) => (
-                          <div key={bill.id} className="flex items-center gap-4">
-                            <div className="flex-1">
-                              <BillCard 
-                                bill={bill} 
-                                showActions={true}
-                                onStatusChange={handleBillStatusChange}
-                              />
-                            </div>
-                            <Button
-                              variant="outline"
-                              onClick={() => handleEditBill(bill)}
-                            >
-                              Edit
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-center py-8 text-muted-foreground">
-                        {searchQuery ? "No bills match your search" : "No pending bills at this time"}
-                      </p>
-                    )}
-                  </div>
+                <TabsContent value="all" className="mt-6">
+                  {filteredBills && filteredBills.length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {filteredBills.map((bill) => (
+                        <BillCard
+                          key={bill.id}
+                          bill={bill}
+                          showActions={true}
+                          onStatusChange={handleStatusChange}
+                          onReschedule={handleReschedule}
+                        />
+                      ))}
+                    </div>
+                  ) : bills && bills.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <p className="text-muted-foreground mb-4">No bills have been created yet</p>
+                        <BillFormDialog>
+                          <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+                            Create Your First Bill
+                          </button>
+                        </BillFormDialog>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <p className="text-center py-8 text-muted-foreground">No bills found matching your filters</p>
+                  )}
                 </TabsContent>
                 
-                {/* Document Tabs */}
-                {documentTypes.map((docType) => (
-                  <TabsContent key={docType.value} value={`${docType.value}s`} className="mt-4">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">
-                        {docType.label}s ({getPendingDocuments(docType.value).length} pending)
-                      </h3>
-                      {getFilteredDocuments(docType.value).length > 0 ? (
-                        <div className="space-y-4">
-                          {getFilteredDocuments(docType.value).map((doc) => (
-                            <div key={doc.id} className="flex items-center gap-4">
-                              <div className="flex-1">
-                                <DocumentCard 
-                                  document={doc} 
-                                  showActions={true}
-                                  onStatusChange={handleDocumentStatusChange}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-center py-8 text-muted-foreground">
-                          {searchQuery ? `No ${docType.label.toLowerCase()}s match your search` : `No ${docType.label.toLowerCase()}s at this time`}
-                        </p>
-                      )}
+                <TabsContent value="pending" className="mt-6">
+                  {filteredBills?.filter(b => b.status === "pending").length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {filteredBills
+                        .filter(b => b.status === "pending")
+                        .map((bill) => (
+                          <BillCard
+                            key={bill.id}
+                            bill={bill}
+                            showActions={true}
+                            onStatusChange={handleStatusChange}
+                            onReschedule={handleReschedule}
+                          />
+                        ))}
                     </div>
-                  </TabsContent>
-                ))}
+                  ) : (
+                    <p className="text-center py-8 text-muted-foreground">No pending bills found</p>
+                  )}
+                </TabsContent>
               </Tabs>
-            </Card>
-          </div>
-        </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="statements" className="mt-6">
+            <DocumentManagement documentType="statement" title="Statements" />
+          </TabsContent>
+
+          <TabsContent value="reports" className="mt-6">
+            <DocumentManagement documentType="report" title="Reports" />
+          </TabsContent>
+
+          <TabsContent value="regulations" className="mt-6">
+            <DocumentManagement documentType="regulation" title="Regulations" />
+          </TabsContent>
+
+          <TabsContent value="policies" className="mt-6">
+            <DocumentManagement documentType="policy" title="Policies" />
+          </TabsContent>
+
+          <TabsContent value="petitions" className="mt-6">
+            <DocumentManagement documentType="petition" title="Petitions" />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
