@@ -13,7 +13,7 @@ export const Navbar = () => {
       <div className="container flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <LucideGavel className="h-6 w-6 text-primary" />
-          <span className="font-bold text-xl">Parliament Business Tracker</span>
+          <span className="font-bold text-xl">Bill Tracker</span>
         </Link>
         
         <div className="flex items-center gap-4">
@@ -22,8 +22,8 @@ export const Navbar = () => {
             Home
           </Link>
           
-          <Link to="/business" className="text-sm font-medium hover:text-primary">
-            Business Tracker
+          <Link to="/documents" className="text-sm font-medium hover:text-primary">
+            Documents
           </Link>
           
           {isAuthenticated ? (

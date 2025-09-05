@@ -5,7 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-import { BusinessProvider } from "./contexts/BusinessContext";
+import { BillProvider } from "./contexts/BillContext";
+import { DocumentProvider } from "./contexts/DocumentContext";
 import HomePage from "./pages/HomePage";
 import PublicPage from "./pages/PublicPage";
 import LoginPage from "./pages/LoginPage";
@@ -22,16 +23,18 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <BusinessProvider>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/business" element={<PublicPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/clerk" element={<ClerkPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BusinessProvider>
+          <BillProvider>
+            <DocumentProvider>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/documents" element={<PublicPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/clerk" element={<ClerkPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </DocumentProvider>
+          </BillProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

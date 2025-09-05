@@ -68,18 +68,6 @@ export default {
           passed: "#10B981",
           rejected: "#EF4444",
           rescheduled: "#6366F1"
-        },
-        nav: {
-          blue: "hsl(var(--nav-blue))",
-          green: "hsl(var(--nav-green))",
-          lightGreen: "hsl(var(--nav-light-green))",
-          deepYellow: "hsl(var(--nav-deep-yellow))"
-        },
-        status: {
-          pending: "hsl(var(--status-pending))",
-          passed: "hsl(var(--status-passed))",
-          overdue: "hsl(var(--status-overdue))",
-          urgent: "hsl(var(--status-urgent))"
         }
       },
       borderRadius: {
