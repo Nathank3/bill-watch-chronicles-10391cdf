@@ -250,6 +250,14 @@ const HomePage = () => {
           })}
         </div>
       </main>
+      
+      <footer className="bg-gray-100 py-4 mt-8">
+        <div className="container text-center">
+          <p className="text-sm text-gray-600">
+            © 2025 All Rights Reserved By County Assembly of Makueni
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };
