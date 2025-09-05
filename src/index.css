@@ -35,6 +35,18 @@
 
     --radius: 0.5rem;
 
+    /* New color scheme for navigation */
+    --nav-blue: 215 100% 50%;
+    --nav-green: 142 69% 58%;
+    --nav-light-green: 142 69% 85%;
+    --nav-deep-yellow: 48 96% 53%;
+    
+    /* Status colors */
+    --status-pending: 220 13% 91%;
+    --status-passed: 142 76% 36%;
+    --status-overdue: 215 100% 50%;
+    --status-urgent: 48 96% 53%;
+    
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 222.2 84% 4.9%;
     --sidebar-primary: 215 100% 50%;
