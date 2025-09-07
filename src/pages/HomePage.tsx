@@ -10,6 +10,7 @@ import { format, differenceInDays } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast";
+import makueniHeader from "@/assets/makueni-header.png";
 
 const HomePage = () => {
   const { pendingBills } = useBills();
@@ -76,18 +77,6 @@ const HomePage = () => {
         return aDays - bDays;
       });
 
-      const doc = new jsPDF();
-      const currentDate = new Date();
-      const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
-      
-      // Title positioning and alignment - align with table start position
-      const titleStartX = 10; // Same as table margin left
-      const titleY = 20;
-      
-      doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Report of pending ${typeLabel.toLowerCase()} as at ${formattedDate}`, titleStartX, titleY);
-
       // Validate and prepare data before creating table
       const tableData = sortedItems.map(item => {
         const now = new Date();
@@ -96,19 +85,20 @@ const HomePage = () => {
         // For rescheduled bills (status overdue but future presentation date), show pending days
         // For truly overdue bills, show overdue days
         let displayDays;
-        let isOverdue = false;
+        let statusText;
         
         if (item.status === "overdue" && actualDaysRemaining >= 0) {
           // This is a rescheduled bill - show the pending days
           displayDays = String(item.pendingDays || actualDaysRemaining);
-          isOverdue = true;
+          statusText = "Overdue";
         } else if (actualDaysRemaining < 0) {
           // This is truly overdue
-          displayDays = `${Math.abs(actualDaysRemaining)} overdue`;
-          isOverdue = true;
+          displayDays = String(Math.abs(actualDaysRemaining));
+          statusText = "Overdue";
         } else {
           // Regular pending bill
           displayDays = String(Math.max(0, actualDaysRemaining));
+          statusText = "Pending";
         }
         
         // Ensure all values are strings and handle null/undefined values
@@ -117,8 +107,8 @@ const HomePage = () => {
           String(item.committee || "N/A"),
           item.dateCommitted ? format(new Date(item.dateCommitted), "dd/MM/yyyy") : "N/A",
           displayDays,
-          item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A",
-          isOverdue ? 'overdue' : 'normal' // Add flag for styling
+          statusText,
+          item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A"
         ];
       });
 
@@ -127,20 +117,50 @@ const HomePage = () => {
         throw new Error("No valid data to generate table");
       }
 
-      // Validate each row has the correct number of columns (remove style flag for table)
-      const validTableData = tableData.map(row => row.slice(0, 5)).filter(row => 
-        Array.isArray(row) && row.length === 5 && row.every(cell => typeof cell === 'string')
+      // Validate each row has the correct number of columns
+      const validTableData = tableData.filter(row => 
+        Array.isArray(row) && row.length === 6 && row.every(cell => typeof cell === 'string')
       );
 
       if (validTableData.length === 0) {
         throw new Error("No valid table rows found");
       }
 
+      const doc = new jsPDF();
+      const currentDate = new Date();
+      const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
+      
+      // Simple approach: try to add header image with fallback
+      let startY = 35; // Default start position
+      
+      try {
+        // Add header image inline
+        doc.addImage(makueniHeader, 'PNG', 10, 10, 190, 30);
+        
+        // Add blue divider line below the image
+        const dividerY = 45;
+        doc.setDrawColor(59, 130, 246); // Blue color
+        doc.setLineWidth(2);
+        doc.line(10, dividerY, 200, dividerY);
+        
+        // Update start position for title
+        startY = 65;
+      } catch (imgError) {
+        console.log("Could not load header image, continuing without it");
+        startY = 35;
+      }
+
+      // Title positioning
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Makueni County Assembly Pending ${typeLabel} as at ${formattedDate}`, 10, startY);
+
       // Create table with improved spacing and alignment
       try {
         autoTable(doc, {
-          startY: 35, // Increased space between title and table for better professional look
-          head: [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Due Date']],
+          startY: startY + 15,
+          head: [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']],
           body: validTableData,
           theme: 'grid',
           styles: { 
@@ -155,24 +175,28 @@ const HomePage = () => {
             fontStyle: 'bold'
           },
           columnStyles: {
-            0: { cellWidth: 45 }, // Title
-            1: { cellWidth: 35 }, // Committee
+            0: { cellWidth: 40 }, // Title
+            1: { cellWidth: 30 }, // Committee
             2: { cellWidth: 25 }, // Date Committed
-            3: { cellWidth: 20 }, // Days Remaining
-            4: { cellWidth: 25 }  // Due Date
+            3: { cellWidth: 18 }, // Days Remaining
+            4: { cellWidth: 18 }, // Status
+            5: { cellWidth: 25 }  // Due Date
           },
-          margin: { top: 35, right: 10, bottom: 10, left: 10 }, // Align table with title
+          margin: { top: 35, right: 10, bottom: 10, left: 10 },
           tableWidth: 'auto',
           didParseCell: function(data) {
-            // Color overdue days in red (both rescheduled and truly overdue)
+            // Color overdue status in red
+            if (data.column.index === 4 && data.cell.text[0] === "Overdue") {
+              data.cell.styles.textColor = [255, 0, 0]; // Red color for overdue status
+              data.cell.styles.fontStyle = 'bold';
+            }
+            // Color overdue days in red too
             if (data.column.index === 3 && data.cell.text[0]) {
-              const cellText = data.cell.text[0];
               const rowIndex = data.row.index;
               const originalItem = sortedItems[rowIndex];
               
-              // Check if this is an overdue/rescheduled item
-              if (originalItem && (originalItem.status === "overdue" || cellText.includes('overdue'))) {
-                data.cell.styles.textColor = [255, 0, 0]; // Red color for overdue/rescheduled
+              if (originalItem && originalItem.status === "overdue") {
+                data.cell.styles.textColor = [255, 0, 0];
                 data.cell.styles.fontStyle = 'bold';
               }
             }
