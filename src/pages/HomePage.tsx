@@ -134,17 +134,44 @@ const HomePage = () => {
       let startY = 35; // Default start position
       
       try {
-        // Add header image inline
-        doc.addImage(makueniHeader, 'PNG', 10, 10, 190, 30);
+        // Calculate image dimensions to maintain aspect ratio and fit within page
+        const pageWidth = 190; // Available width (210mm - 20mm margins)
+        const maxImageHeight = 25; // Maximum height we want for the header
+        
+        // Create a temporary image to get natural dimensions
+        const img = new Image();
+        img.src = makueniHeader;
+        
+        // Calculate scaled dimensions maintaining aspect ratio
+        let imageWidth = pageWidth;
+        let imageHeight = maxImageHeight;
+        
+        // If we can get the natural dimensions, calculate proper scaling
+        if (img.naturalWidth && img.naturalHeight) {
+          const aspectRatio = img.naturalWidth / img.naturalHeight;
+          
+          // Scale to fit within our constraints
+          if (pageWidth / aspectRatio <= maxImageHeight) {
+            imageHeight = pageWidth / aspectRatio;
+          } else {
+            imageWidth = maxImageHeight * aspectRatio;
+          }
+        }
+        
+        // Center the image horizontally
+        const imageX = (210 - imageWidth) / 2;
+        
+        // Add header image with calculated dimensions
+        doc.addImage(makueniHeader, 'PNG', imageX, 10, imageWidth, imageHeight);
         
         // Add blue divider line below the image
-        const dividerY = 45;
+        const dividerY = 10 + imageHeight + 5;
         doc.setDrawColor(59, 130, 246); // Blue color
         doc.setLineWidth(2);
         doc.line(10, dividerY, 200, dividerY);
         
         // Update start position for title
-        startY = 65;
+        startY = dividerY + 15;
       } catch (imgError) {
         console.log("Could not load header image, continuing without it");
         startY = 35;
@@ -175,12 +202,12 @@ const HomePage = () => {
             fontStyle: 'bold'
           },
           columnStyles: {
-            0: { cellWidth: 40 }, // Title
-            1: { cellWidth: 30 }, // Committee
-            2: { cellWidth: 25 }, // Date Committed
-            3: { cellWidth: 18 }, // Days Remaining
-            4: { cellWidth: 18 }, // Status
-            5: { cellWidth: 25 }  // Due Date
+            0: { cellWidth: 40, cellPadding: 3 }, // Title - increased padding for better wrapping
+            1: { cellWidth: 30, cellPadding: 3 }, // Committee
+            2: { cellWidth: 25, cellPadding: 3 }, // Date Committed
+            3: { cellWidth: 18, cellPadding: 3 }, // Days Remaining
+            4: { cellWidth: 18, cellPadding: 3 }, // Status
+            5: { cellWidth: 25, cellPadding: 3 }  // Due Date
           },
           margin: { top: 35, right: 10, bottom: 10, left: 10 },
           tableWidth: 'auto',
