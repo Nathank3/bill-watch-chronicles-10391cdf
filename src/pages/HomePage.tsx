@@ -10,8 +10,6 @@ import { format, differenceInDays } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast";
-import makueniHeader from "@/assets/makueni-header.png";
-
 const HomePage = () => {
   const { pendingBills } = useBills();
   const { documents, pendingDocuments } = useDocuments();
@@ -19,7 +17,8 @@ const HomePage = () => {
   console.log("HomePage: pendingBills count:", pendingBills?.length || 0);
   console.log("HomePage: documents count:", documents?.length || 0);
 
-  const documentTypes: { type: DocumentType, label: string }[] = [
+  const documentTypes: { type: DocumentType | "business", label: string }[] = [
+    { type: "business", label: "Business" },
     { type: "bill", label: "Bills" },
     { type: "statement", label: "Statements" },
     { type: "report", label: "Reports" },
@@ -28,19 +27,41 @@ const HomePage = () => {
     { type: "petition", label: "Petitions" }
   ];
 
-  const getPendingCount = (type: DocumentType) => {
+  const getPendingCount = (type: DocumentType | "business") => {
+    if (type === "business") {
+      // Sum all pending items
+      return (pendingBills?.length || 0) + 
+             (pendingDocuments("statement")?.length || 0) +
+             (pendingDocuments("report")?.length || 0) +
+             (pendingDocuments("regulation")?.length || 0) +
+             (pendingDocuments("policy")?.length || 0) +
+             (pendingDocuments("petition")?.length || 0);
+    }
     if (type === "bill") {
       return pendingBills?.length || 0;
     }
     return pendingDocuments(type)?.length || 0;
   };
 
-  const generatePDF = (type: DocumentType) => {
+  const generatePDF = (type: DocumentType | "business") => {
     try {
-      let pendingItems;
-      let typeLabel;
+      let pendingItems: any[];
+      let typeLabel: string;
+      let includeTypeColumn = false;
 
-      if (type === "bill") {
+      if (type === "business") {
+        // Collect all pending items from all types
+        const allBills = (pendingBills || []).map(item => ({ ...item, itemType: "Bill" }));
+        const allStatements = (pendingDocuments("statement") || []).map(item => ({ ...item, itemType: "Statement" }));
+        const allReports = (pendingDocuments("report") || []).map(item => ({ ...item, itemType: "Report" }));
+        const allRegulations = (pendingDocuments("regulation") || []).map(item => ({ ...item, itemType: "Regulation" }));
+        const allPolicies = (pendingDocuments("policy") || []).map(item => ({ ...item, itemType: "Policy" }));
+        const allPetitions = (pendingDocuments("petition") || []).map(item => ({ ...item, itemType: "Petition" }));
+        
+        pendingItems = [...allBills, ...allStatements, ...allReports, ...allRegulations, ...allPolicies, ...allPetitions];
+        typeLabel = "Business";
+        includeTypeColumn = true;
+      } else if (type === "bill") {
         pendingItems = pendingBills || [];
         typeLabel = "Bills";
       } else {
@@ -102,7 +123,7 @@ const HomePage = () => {
         }
         
         // Ensure all values are strings and handle null/undefined values
-        return [
+        const row = [
           String(item.title || "N/A"),
           String(item.committee || "N/A"),
           item.dateCommitted ? format(new Date(item.dateCommitted), "dd/MM/yyyy") : "N/A",
@@ -110,6 +131,13 @@ const HomePage = () => {
           statusText,
           item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A"
         ];
+        
+        // Add type column for business report
+        if (includeTypeColumn) {
+          row.push(String(item.itemType || "N/A"));
+        }
+        
+        return row;
       });
 
       // Double-check that tableData is valid
@@ -118,8 +146,9 @@ const HomePage = () => {
       }
 
       // Validate each row has the correct number of columns
+      const expectedColumns = includeTypeColumn ? 7 : 6;
       const validTableData = tableData.filter(row => 
-        Array.isArray(row) && row.length === 6 && row.every(cell => typeof cell === 'string')
+        Array.isArray(row) && row.length === expectedColumns && row.every(cell => typeof cell === 'string')
       );
 
       if (validTableData.length === 0) {
@@ -130,52 +159,8 @@ const HomePage = () => {
       const currentDate = new Date();
       const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
       
-      // Simple approach: try to add header image with fallback
-      let startY = 35; // Default start position
-      
-      try {
-        // Calculate image dimensions to maintain aspect ratio and fit within page
-        const pageWidth = 190; // Available width (210mm - 20mm margins)
-        const maxImageHeight = 25; // Maximum height we want for the header
-        
-        // Create a temporary image to get natural dimensions
-        const img = new Image();
-        img.src = makueniHeader;
-        
-        // Calculate scaled dimensions maintaining aspect ratio
-        let imageWidth = pageWidth;
-        let imageHeight = maxImageHeight;
-        
-        // If we can get the natural dimensions, calculate proper scaling
-        if (img.naturalWidth && img.naturalHeight) {
-          const aspectRatio = img.naturalWidth / img.naturalHeight;
-          
-          // Scale to fit within our constraints
-          if (pageWidth / aspectRatio <= maxImageHeight) {
-            imageHeight = pageWidth / aspectRatio;
-          } else {
-            imageWidth = maxImageHeight * aspectRatio;
-          }
-        }
-        
-        // Center the image horizontally
-        const imageX = (210 - imageWidth) / 2;
-        
-        // Add header image with calculated dimensions
-        doc.addImage(makueniHeader, 'PNG', imageX, 10, imageWidth, imageHeight);
-        
-        // Add blue divider line below the image
-        const dividerY = 10 + imageHeight + 5;
-        doc.setDrawColor(59, 130, 246); // Blue color
-        doc.setLineWidth(2);
-        doc.line(10, dividerY, 200, dividerY);
-        
-        // Update start position for title
-        startY = dividerY + 15;
-      } catch (imgError) {
-        console.log("Could not load header image, continuing without it");
-        startY = 35;
-      }
+      // Start position for title (no header image)
+      const startY = 20;
 
       // Title positioning
       doc.setFontSize(16);
@@ -185,31 +170,29 @@ const HomePage = () => {
 
       // Create table with improved spacing and alignment
       try {
+        const headers = includeTypeColumn 
+          ? [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date', 'Type']]
+          : [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
+        
         autoTable(doc, {
           startY: startY + 15,
-          head: [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']],
+          head: headers,
           body: validTableData,
           theme: 'grid',
           styles: { 
             fontSize: 8,
-            cellPadding: 2,
+            cellPadding: 3,
             overflow: 'linebreak',
-            cellWidth: 'wrap'
+            cellWidth: 'wrap',
+            halign: 'left'
           },
           headStyles: { 
             fillColor: [66, 139, 202],
             textColor: [255, 255, 255],
-            fontStyle: 'bold'
+            fontStyle: 'bold',
+            halign: 'left'
           },
-          columnStyles: {
-            0: { cellWidth: 40, cellPadding: 3 }, // Title - increased padding for better wrapping
-            1: { cellWidth: 30, cellPadding: 3 }, // Committee
-            2: { cellWidth: 25, cellPadding: 3 }, // Date Committed
-            3: { cellWidth: 18, cellPadding: 3 }, // Days Remaining
-            4: { cellWidth: 18, cellPadding: 3 }, // Status
-            5: { cellWidth: 25, cellPadding: 3 }  // Due Date
-          },
-          margin: { top: 35, right: 10, bottom: 10, left: 10 },
+          margin: { top: 20, right: 10, bottom: 10, left: 10 },
           tableWidth: 'auto',
           didParseCell: function(data) {
             // Color overdue status in red
