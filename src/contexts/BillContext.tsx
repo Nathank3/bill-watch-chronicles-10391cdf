@@ -136,9 +136,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [bills]);
 
-  // Filtered bills by status
+  // Filtered bills by status - include both pending and overdue
   const pendingBills = bills
-    .filter(bill => bill.status === "pending")
+    .filter(bill => bill.status === "pending" || bill.status === "overdue")
     .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime()); // Sort by date (soonest first)
 
   const concludedBills = bills
@@ -236,7 +236,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
             presentationDate: adjustedDate,
             pendingDays: bill.pendingDays + additionalDays,
             daysAllocated: bill.daysAllocated + additionalDays,
-            currentCountdown: additionalDays,
+            // currentCountdown should reflect the new days until presentation
+            currentCountdown: bill.currentCountdown + additionalDays,
             extensionsCount: bill.extensionsCount + 1,
             status: "overdue" as BillStatus,
             updatedAt: new Date()

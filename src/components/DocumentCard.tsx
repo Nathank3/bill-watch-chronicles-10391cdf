@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { RescheduleDialog } from "./RescheduleDialog";
 import { formatDistanceToNow, isPast, format } from "date-fns";
 import { Calendar, Trash2 } from "lucide-react";
+import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,17 +29,20 @@ interface DocumentCardProps {
 export const DocumentCard = ({ document, showActions = false, onStatusChange }: DocumentCardProps) => {
   const { rescheduleDocument, deleteDocument } = useDocuments();
   const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
+  const [currentCountdown, setCurrentCountdown] = useState<number>(0);
+  const [isOverdue, setIsOverdue] = useState<boolean>(false);
 
   // Update countdown in real-time
   useEffect(() => {
     const updateCountdown = () => {
-      const now = new Date();
-      const isPastDate = isPast(document.presentationDate);
-      setIsPastDeadline(isPastDate);
+      const countdown = calculateCurrentCountdown(document.presentationDate);
+      const overdue = isItemOverdue(document.presentationDate, document.extensionsCount);
       
-      if (isPastDate) {
-        setTimeLeft("Deadline passed");
+      setCurrentCountdown(countdown);
+      setIsOverdue(overdue);
+      
+      if (document.status === "concluded") {
+        setTimeLeft("");
       } else {
         const distance = formatDistanceToNow(document.presentationDate, { addSuffix: true });
         setTimeLeft(distance);
@@ -52,7 +56,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     const interval = setInterval(updateCountdown, 60000);
     
     return () => clearInterval(interval);
-  }, [document.presentationDate]);
+  }, [document.presentationDate, document.status, document.extensionsCount]);
 
   const handleReschedule = (additionalDays: number) => {
     rescheduleDocument(document.id, additionalDays);
@@ -66,6 +70,8 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     switch (status) {
       case "pending":
         return <Badge className="bg-bill-pending">Pending</Badge>;
+      case "overdue":
+        return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
       case "concluded":
         return <Badge className="bg-bill-passed">Concluded</Badge>;
       default:
@@ -77,9 +83,9 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     return format(date, "dd/MM/yyyy");
   };
 
-  const isActionable = isPastDeadline && document.status === "pending";
+  const isActionable = isOverdue || document.status === "overdue";
   const documentType = document.type.charAt(0).toUpperCase() + document.type.slice(1);
-  const shouldShowCountdown = document.status === "pending" && document.pendingDays > 0;
+  const shouldShowCountdown = (document.status === "pending" || document.status === "overdue") && document.pendingDays > 0;
 
   return (
     <Card className={`document-card document-${document.status} p-4`}>
@@ -101,8 +107,8 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
                 <p className="text-sm">
                   <span className="font-medium">Days Allocated:</span> {document.daysAllocated} days
                 </p>
-                <p className="text-sm">
-                  <span className="font-medium">Current Countdown:</span> {document.currentCountdown} days
+                <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
+                  <span className="font-medium">Days Remaining:</span> {currentCountdown} days
                 </p>
               </>
             )}
@@ -118,7 +124,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           <div className="flex items-center gap-2 mt-2">
             {getStatusBadge(document.status)}
             {shouldShowCountdown && (
-              <span className={`countdown text-sm ${isPastDeadline ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
+              <span className={`countdown text-sm ${isOverdue ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
                 {timeLeft}
               </span>
             )}
@@ -137,7 +143,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             </Badge>
           )}
           
-          {document.status === "pending" && (
+          {(document.status === "pending" || document.status === "overdue") && (
             <RescheduleDialog onReschedule={handleReschedule}>
               <Button variant="outline" size="sm">
                 <Calendar className="h-4 w-4 mr-1" />

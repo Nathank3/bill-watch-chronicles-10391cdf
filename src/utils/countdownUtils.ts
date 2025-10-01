@@ -1,0 +1,38 @@
+import { differenceInDays } from "date-fns";
+
+/**
+ * Calculate current countdown days for an item based on its presentation date
+ * Returns negative number if overdue
+ */
+export const calculateCurrentCountdown = (presentationDate: Date): number => {
+  const now = new Date();
+  const days = differenceInDays(presentationDate, now);
+  return days;
+};
+
+/**
+ * Determine if an item is overdue based on presentation date or extension count
+ */
+export const isItemOverdue = (presentationDate: Date, extensionsCount: number): boolean => {
+  const countdown = calculateCurrentCountdown(presentationDate);
+  return countdown < 0 || extensionsCount > 0;
+};
+
+/**
+ * Get appropriate status based on current state
+ */
+export const determineItemStatus = (
+  currentStatus: string,
+  presentationDate: Date,
+  extensionsCount: number
+): "pending" | "concluded" | "overdue" => {
+  if (currentStatus === "concluded") {
+    return "concluded";
+  }
+  
+  if (isItemOverdue(presentationDate, extensionsCount)) {
+    return "overdue";
+  }
+  
+  return "pending";
+};

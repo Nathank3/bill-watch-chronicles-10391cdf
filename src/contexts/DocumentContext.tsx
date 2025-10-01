@@ -87,9 +87,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [documents]);
 
-  // Filtered documents by type and status
+  // Filtered documents by type and status - include both pending and overdue
   const pendingDocuments = (type: DocumentType) => documents
-    .filter(doc => doc.type === type && doc.status === "pending")
+    .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue"))
     .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime());
 
   const concludedDocuments = (type: DocumentType) => documents
@@ -196,7 +196,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             presentationDate: newPresentationDate,
             pendingDays: doc.pendingDays + additionalDays,
             daysAllocated: doc.daysAllocated + additionalDays,
-            currentCountdown: additionalDays,
+            // currentCountdown should reflect the new days until presentation
+            currentCountdown: doc.currentCountdown + additionalDays,
             extensionsCount: doc.extensionsCount + 1,
             status: "overdue" as DocumentStatus,
             updatedAt: new Date()

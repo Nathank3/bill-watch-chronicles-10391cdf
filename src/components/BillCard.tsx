@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { RescheduleDialog } from "./RescheduleDialog";
 import { formatDistanceToNow, isPast, format } from "date-fns";
 import { Calendar, Trash2 } from "lucide-react";
+import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,20 +30,20 @@ interface BillCardProps {
 export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedule }: BillCardProps) => {
   const { rescheduleBill, deleteBill } = useBills();
   const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isPastDeadline, setIsPastDeadline] = useState<boolean>(false);
+  const [currentCountdown, setCurrentCountdown] = useState<number>(0);
+  const [isOverdue, setIsOverdue] = useState<boolean>(false);
 
   // Update countdown in real-time
   useEffect(() => {
     const updateCountdown = () => {
-      const now = new Date();
-      const isPastDate = isPast(bill.presentationDate);
-      setIsPastDeadline(isPastDate);
+      const countdown = calculateCurrentCountdown(bill.presentationDate);
+      const overdue = isItemOverdue(bill.presentationDate, bill.extensionsCount);
+      
+      setCurrentCountdown(countdown);
+      setIsOverdue(overdue);
       
       if (bill.status === "concluded") {
         setTimeLeft("");
-      } else if (isPastDate || bill.status === "overdue") {
-        const distance = formatDistanceToNow(bill.presentationDate, { addSuffix: true });
-        setTimeLeft(distance);
       } else {
         const distance = formatDistanceToNow(bill.presentationDate, { addSuffix: true });
         setTimeLeft(distance);
@@ -56,7 +57,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
     const interval = setInterval(updateCountdown, 60000);
     
     return () => clearInterval(interval);
-  }, [bill.presentationDate, bill.status]);
+  }, [bill.presentationDate, bill.status, bill.extensionsCount]);
 
   const handleReschedule = (additionalDays: number) => {
     if (onReschedule) {
@@ -87,7 +88,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
     return format(date, "dd/MM/yyyy");
   };
 
-  const isActionable = (isPastDeadline && bill.status === "pending") || bill.status === "overdue";
+  const isActionable = isOverdue || bill.status === "overdue";
   const shouldShowCountdown = (bill.status === "pending" || bill.status === "overdue") && timeLeft;
 
   return (
@@ -107,8 +108,8 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
                 <p className="text-sm">
                   <span className="font-medium">Days Allocated:</span> {bill.daysAllocated} days
                 </p>
-                <p className="text-sm">
-                  <span className="font-medium">Current Countdown:</span> {bill.currentCountdown} days
+                <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
+                  <span className="font-medium">Days Remaining:</span> {currentCountdown} days
                 </p>
               </>
             )}
@@ -125,7 +126,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             {getStatusBadge(bill.status)}
             {shouldShowCountdown && (
               <span className={`countdown text-sm ${
-                bill.status === "overdue" || isPastDeadline 
+                isOverdue
                   ? "countdown-urgent text-destructive font-medium" 
                   : "text-muted-foreground"
               }`}>

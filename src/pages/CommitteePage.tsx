@@ -11,6 +11,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
 
 const CommitteePage = () => {
   const { committeeId } = useParams();
@@ -133,8 +134,10 @@ const CommitteePage = () => {
       });
 
       const tableData = sortedItems.map(item => {
-        const displayDays = String(item.currentCountdown || 0);
-        const statusText = item.extensionsCount > 0 ? "Overdue" : "Pending";
+        const countdown = calculateCurrentCountdown(item.presentationDate);
+        const displayDays = String(countdown);
+        const itemIsOverdue = isItemOverdue(item.presentationDate, item.extensionsCount);
+        const statusText = itemIsOverdue ? "Overdue" : "Pending";
         
         const row = [
           String(item.title || "N/A"),
@@ -218,7 +221,7 @@ const CommitteePage = () => {
               const rowIndex = data.row.index;
               const originalItem = sortedItems[rowIndex];
               
-              if (originalItem && originalItem.status === "overdue") {
+              if (originalItem && isItemOverdue(originalItem.presentationDate, originalItem.extensionsCount)) {
                 data.cell.styles.textColor = [255, 0, 0];
                 data.cell.styles.fontStyle = 'bold';
               }

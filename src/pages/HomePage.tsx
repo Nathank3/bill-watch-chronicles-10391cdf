@@ -10,6 +10,7 @@ import { format, differenceInDays } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast";
+import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
 const HomePage = () => {
   const { pendingBills } = useBills();
   const { documents, pendingDocuments } = useDocuments();
@@ -100,11 +101,13 @@ const HomePage = () => {
 
       // Validate and prepare data before creating table
       const tableData = sortedItems.map(item => {
-        // Use currentCountdown field for display (always decreasing)
-        const displayDays = String(item.currentCountdown || 0);
+        // Calculate current countdown dynamically
+        const countdown = calculateCurrentCountdown(item.presentationDate);
+        const displayDays = String(countdown);
         
-        // Status is "Overdue" if extensionsCount > 0, otherwise "Pending"
-        const statusText = item.extensionsCount > 0 ? "Overdue" : "Pending";
+        // Status is "Overdue" if item has passed date or been extended
+        const itemIsOverdue = isItemOverdue(item.presentationDate, item.extensionsCount);
+        const statusText = itemIsOverdue ? "Overdue" : "Pending";
         
         // Ensure all values are strings and handle null/undefined values
         const row = [
@@ -203,7 +206,7 @@ const HomePage = () => {
               const rowIndex = data.row.index;
               const originalItem = sortedItems[rowIndex];
               
-              if (originalItem && originalItem.status === "overdue") {
+              if (originalItem && isItemOverdue(originalItem.presentationDate, originalItem.extensionsCount)) {
                 data.cell.styles.textColor = [255, 0, 0];
                 data.cell.styles.fontStyle = 'bold';
               }
