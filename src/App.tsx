@@ -12,6 +12,7 @@ import PublicPage from "./pages/PublicPage";
 import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 import ClerkPage from "./pages/ClerkPage";
+import CommitteePage from "./pages/CommitteePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
             <DocumentProvider>
               <Routes>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/committee/:committeeId" element={<CommitteePage />} />
                 <Route path="/documents" element={<PublicPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/admin" element={<AdminPage />} />

@@ -68,14 +68,15 @@ export const Navbar = () => {
                     <div className="p-2">
                       {committees.length > 0 ? (
                         committees.map((committee) => (
-                          <div
+                          <Link
                             key={committee.id}
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer"
+                            to={`/committee/${committee.id}`}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                           >
                             <div className="text-sm font-medium leading-none">
                               {committee.name}
                             </div>
-                          </div>
+                          </Link>
                         ))
                       ) : (
                         <div className="p-3 text-sm text-muted-foreground">
