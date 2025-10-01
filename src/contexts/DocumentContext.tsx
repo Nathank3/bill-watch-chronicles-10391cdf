@@ -5,6 +5,7 @@ import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/t
 import { calculatePresentationDate } from "@/utils/documentUtils";
 import { generateMockDocuments } from "@/utils/mockDocuments";
 import { addDays } from "date-fns";
+import { migrateLocalStorageData } from "@/utils/dataMigration";
 
 // Create the context
 const DocumentContext = createContext<DocumentContextType>({
@@ -28,6 +29,13 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Initialize with mock data
   useEffect(() => {
+    // Migration is run in BillContext, but check here too for safety
+    const migrated = localStorage.getItem("data_migrated_v1");
+    if (!migrated) {
+      migrateLocalStorageData();
+      localStorage.setItem("data_migrated_v1", "true");
+    }
+    
     const storedDocuments = localStorage.getItem("documents");
     if (storedDocuments) {
       // Parse stored documents and convert date strings back to Date objects
@@ -39,7 +47,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updatedAt: new Date(doc.updatedAt),
         // Ensure new fields exist with defaults for backward compatibility
         daysAllocated: doc.daysAllocated || doc.pendingDays || 0,
-        currentCountdown: doc.currentCountdown || doc.pendingDays || 0,
+        currentCountdown: doc.currentCountdown !== undefined ? doc.currentCountdown : doc.pendingDays || 0,
         extensionsCount: doc.extensionsCount || 0
       }));
       setDocuments(parsedDocuments);

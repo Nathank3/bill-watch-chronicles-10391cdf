@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { addDays, isSaturday, isSunday, format } from "date-fns";
+import { migrateLocalStorageData } from "@/utils/dataMigration";
 
 // Define bill status type - Including overdue status
 export type BillStatus = "pending" | "concluded" | "overdue";
@@ -107,6 +108,13 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize with mock data
   useEffect(() => {
+    // Run migration once on first load
+    const migrated = localStorage.getItem("data_migrated_v1");
+    if (!migrated) {
+      migrateLocalStorageData();
+      localStorage.setItem("data_migrated_v1", "true");
+    }
+    
     const storedBills = localStorage.getItem("bills");
     if (storedBills) {
       // Parse stored bills and convert date strings back to Date objects
@@ -118,7 +126,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updatedAt: new Date(bill.updatedAt),
         // Ensure new fields exist with defaults for backward compatibility
         daysAllocated: bill.daysAllocated || bill.pendingDays || 0,
-        currentCountdown: bill.currentCountdown || bill.pendingDays || 0,
+        currentCountdown: bill.currentCountdown !== undefined ? bill.currentCountdown : bill.pendingDays || 0,
         extensionsCount: bill.extensionsCount || 0
       }));
       setBills(parsedBills);
