@@ -19,10 +19,12 @@ export type Database = {
           committee: string
           created_at: string | null
           created_by: string
+          current_countdown: number
           date_committed: string
           date_laid: string | null
           days_allocated: number
           department: string
+          extensions_count: number
           id: string
           mca: string
           overdue_days: number | null
@@ -36,10 +38,12 @@ export type Database = {
           committee: string
           created_at?: string | null
           created_by: string
+          current_countdown: number
           date_committed: string
           date_laid?: string | null
           days_allocated: number
           department: string
+          extensions_count?: number
           id?: string
           mca: string
           overdue_days?: number | null
@@ -53,10 +57,12 @@ export type Database = {
           committee?: string
           created_at?: string | null
           created_by?: string
+          current_countdown?: number
           date_committed?: string
           date_laid?: string | null
           days_allocated?: number
           department?: string
+          extensions_count?: number
           id?: string
           mca?: string
           overdue_days?: number | null
@@ -93,9 +99,11 @@ export type Database = {
         Row: {
           committee: string
           created_at: string
+          current_countdown: number
           date_committed: string
           date_laid: string | null
           days_allocated: number | null
+          extensions_count: number
           id: string
           overdue_days: number | null
           pending_days: number
@@ -108,9 +116,11 @@ export type Database = {
         Insert: {
           committee: string
           created_at?: string
+          current_countdown: number
           date_committed: string
           date_laid?: string | null
           days_allocated?: number | null
+          extensions_count?: number
           id?: string
           overdue_days?: number | null
           pending_days: number
@@ -123,9 +133,11 @@ export type Database = {
         Update: {
           committee?: string
           created_at?: string
+          current_countdown?: number
           date_committed?: string
           date_laid?: string | null
           days_allocated?: number | null
+          extensions_count?: number
           id?: string
           overdue_days?: number | null
           pending_days?: number

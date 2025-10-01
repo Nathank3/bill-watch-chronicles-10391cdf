@@ -100,27 +100,11 @@ const HomePage = () => {
 
       // Validate and prepare data before creating table
       const tableData = sortedItems.map(item => {
-        const now = new Date();
-        const actualDaysRemaining = differenceInDays(item.presentationDate, now);
+        // Use currentCountdown field for display (always decreasing)
+        const displayDays = String(item.currentCountdown || 0);
         
-        // For rescheduled bills (status overdue but future presentation date), show pending days
-        // For truly overdue bills, show overdue days
-        let displayDays;
-        let statusText;
-        
-        if (item.status === "overdue" && actualDaysRemaining >= 0) {
-          // This is a rescheduled bill - show the pending days
-          displayDays = String(item.pendingDays || actualDaysRemaining);
-          statusText = "Overdue";
-        } else if (actualDaysRemaining < 0) {
-          // This is truly overdue
-          displayDays = String(Math.abs(actualDaysRemaining));
-          statusText = "Overdue";
-        } else {
-          // Regular pending bill
-          displayDays = String(Math.max(0, actualDaysRemaining));
-          statusText = "Pending";
-        }
+        // Status is "Overdue" if extensionsCount > 0, otherwise "Pending"
+        const statusText = item.extensionsCount > 0 ? "Overdue" : "Pending";
         
         // Ensure all values are strings and handle null/undefined values
         const row = [
@@ -162,11 +146,16 @@ const HomePage = () => {
       // Start position for title (no header image)
       const startY = 20;
 
-      // Title positioning
+      // Title positioning with text wrapping
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
-      doc.text(`Makueni County Assembly Pending ${typeLabel} as at ${formattedDate}`, 10, startY);
+      
+      // Split text to fit page width
+      const titleText = `Makueni County Assembly Pending ${typeLabel} as at ${formattedDate}`;
+      const maxWidth = doc.internal.pageSize.getWidth() - 20; // 10px margin on each side
+      const splitTitle = doc.splitTextToSize(titleText, maxWidth);
+      doc.text(splitTitle, 10, startY);
 
       // Create table with improved spacing and alignment
       try {
@@ -174,8 +163,11 @@ const HomePage = () => {
           ? [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date', 'Type']]
           : [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
         
+        // Calculate dynamic startY based on title height
+        const titleHeight = splitTitle.length * 7; // Approximate line height
+        
         autoTable(doc, {
-          startY: startY + 15,
+          startY: startY + titleHeight + 5,
           head: headers,
           body: validTableData,
           theme: 'grid',
@@ -183,8 +175,9 @@ const HomePage = () => {
             fontSize: 8,
             cellPadding: 3,
             overflow: 'linebreak',
-            cellWidth: 'wrap',
-            halign: 'left'
+            cellWidth: 'auto',
+            halign: 'left',
+            valign: 'middle'
           },
           headStyles: { 
             fillColor: [66, 139, 202],
@@ -195,6 +188,11 @@ const HomePage = () => {
           margin: { top: 20, right: 10, bottom: 10, left: 10 },
           tableWidth: 'auto',
           didParseCell: function(data) {
+            // Wrap long text in Title column (index 0)
+            if (data.column.index === 0) {
+              data.cell.styles.cellWidth = 'wrap';
+            }
+            
             // Color overdue status in red
             if (data.column.index === 4 && data.cell.text[0] === "Overdue") {
               data.cell.styles.textColor = [255, 0, 0]; // Red color for overdue status

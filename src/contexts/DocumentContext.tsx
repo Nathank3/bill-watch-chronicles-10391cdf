@@ -36,7 +36,11 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         presentationDate: new Date(doc.presentationDate),
         dateCommitted: new Date(doc.dateCommitted),
         createdAt: new Date(doc.createdAt),
-        updatedAt: new Date(doc.updatedAt)
+        updatedAt: new Date(doc.updatedAt),
+        // Ensure new fields exist with defaults for backward compatibility
+        daysAllocated: doc.daysAllocated || doc.pendingDays || 0,
+        currentCountdown: doc.currentCountdown || doc.pendingDays || 0,
+        extensionsCount: doc.extensionsCount || 0
       }));
       setDocuments(parsedDocuments);
     } else {
@@ -59,7 +63,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         status: bill.status,
         type: "bill",
         createdAt: bill.createdAt,
-        updatedAt: bill.updatedAt
+        updatedAt: bill.updatedAt,
+        daysAllocated: bill.daysAllocated,
+        currentCountdown: bill.currentCountdown,
+        extensionsCount: bill.extensionsCount
       }));
       
       // Update document storage with bills
@@ -90,7 +97,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
   // Add new document
-  const addDocument = (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => {
+  const addDocument = (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
     const now = new Date();
     const presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
     
@@ -100,7 +107,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       status: "pending",
       presentationDate,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      daysAllocated: docData.pendingDays,
+      currentCountdown: docData.pendingDays,
+      extensionsCount: 0
     };
 
     setDocuments(prevDocs => [...prevDocs, newDocument]);
@@ -178,13 +188,17 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const rescheduleDocument = (id: string, additionalDays: number) => {
     setDocuments(prevDocs =>
       prevDocs.map(doc => {
-        if (doc.id === id && doc.status === "pending") {
+        if (doc.id === id) {
           const newPresentationDate = addDays(doc.presentationDate, additionalDays);
           
           return {
             ...doc,
             presentationDate: newPresentationDate,
             pendingDays: doc.pendingDays + additionalDays,
+            daysAllocated: doc.daysAllocated + additionalDays,
+            currentCountdown: additionalDays,
+            extensionsCount: doc.extensionsCount + 1,
+            status: "overdue" as DocumentStatus,
             updatedAt: new Date()
           };
         }

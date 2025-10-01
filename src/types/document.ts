@@ -19,6 +19,9 @@ export interface Document {
   type: DocumentType;
   createdAt: Date;
   updatedAt: Date;
+  daysAllocated: number; // Total cumulative days in the house
+  currentCountdown: number; // Current countdown value (always decreasing)
+  extensionsCount: number; // Number of times extended
 }
 
 // Define document filters interface
@@ -35,7 +38,7 @@ export interface DocumentContextType {
   documents: Document[];
   pendingDocuments: (type: DocumentType) => Document[];
   concludedDocuments: (type: DocumentType) => Document[];
-  addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => void;
+  addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => void;
   updateDocument: (id: string, updates: Partial<Document>) => void;
   deleteDocument: (id: string) => void;
   updateDocumentStatus: (id: string, status: DocumentStatus) => void;

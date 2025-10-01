@@ -103,18 +103,18 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
               <span className="font-medium">Date Committed:</span> {formatDate(bill.dateCommitted)}
             </p>
             {(bill.status === "pending" || bill.status === "overdue") && (
-              <p className="text-sm">
-                <span className="font-medium">Days Allocated:</span> {bill.pendingDays} days
-              </p>
+              <>
+                <p className="text-sm">
+                  <span className="font-medium">Days Allocated:</span> {bill.daysAllocated} days
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Current Countdown:</span> {bill.currentCountdown} days
+                </p>
+              </>
             )}
-            {bill.status === "overdue" && (
-              <p className="text-sm text-destructive">
-                <span className="font-medium">Overdue Days:</span> {bill.overdue_days || 0} days
-              </p>
-            )}
-            {bill.status === "concluded" && bill.date_laid && (
-              <p className="text-sm text-green-600">
-                <span className="font-medium">Date Laid:</span> {formatDate(new Date(bill.date_laid))}
+            {bill.extensionsCount > 0 && (
+              <p className="text-sm text-amber-600">
+                <span className="font-medium">Extensions:</span> {bill.extensionsCount} time(s)
               </p>
             )}
             <p className="text-sm">

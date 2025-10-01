@@ -41,7 +41,10 @@ export const generateMockDocuments = (): Document[] => {
         status,
         type,
         createdAt,
-        updatedAt: new Date(createdAt.getTime() + Math.random() * 5 * 24 * 60 * 60 * 1000)
+        updatedAt: new Date(createdAt.getTime() + Math.random() * 5 * 24 * 60 * 60 * 1000),
+        daysAllocated: pendingDays,
+        currentCountdown: pendingDays,
+        extensionsCount: 0
       });
     }
   });

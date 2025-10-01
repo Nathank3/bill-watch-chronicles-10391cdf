@@ -9,17 +9,16 @@ export type BillStatus = "pending" | "concluded" | "overdue";
 export interface Bill {
   id: string;
   title: string;
-  committee: string; // Changed from 'department'
-  dateCommitted: Date; // Added dateCommitted field
-  pendingDays: number; // This is now days allocated
-  presentationDate: Date; // This becomes the "date due"
+  committee: string;
+  dateCommitted: Date;
+  pendingDays: number;
+  presentationDate: Date;
   status: BillStatus;
   createdAt: Date;
   updatedAt: Date;
-  // New fields for enhanced tracking
-  days_allocated?: number;
-  overdue_days?: number;
-  date_laid?: string;
+  daysAllocated: number; // Total cumulative days in the house
+  currentCountdown: number; // Current countdown value (always decreasing)
+  extensionsCount: number; // Number of times extended
 }
 
 // Define bill context type
@@ -27,7 +26,7 @@ interface BillContextType {
   bills: Bill[];
   pendingBills: Bill[];
   concludedBills: Bill[];
-  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => void;
+  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => void;
   updateBill: (id: string, updates: Partial<Bill>) => void;
   updateBillStatus: (id: string, status: BillStatus) => void;
   rescheduleBill: (id: string, additionalDays: number) => void;
@@ -79,7 +78,10 @@ const generateMockBills = (): Bill[] => {
       presentationDate,
       status,
       createdAt,
-      updatedAt: new Date(createdAt.getTime() + Math.random() * 5 * 24 * 60 * 60 * 1000) // 0-5 days after creation
+      updatedAt: new Date(createdAt.getTime() + Math.random() * 5 * 24 * 60 * 60 * 1000),
+      daysAllocated: pendingDays,
+      currentCountdown: pendingDays,
+      extensionsCount: 0
     };
   });
 };
@@ -111,9 +113,13 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const parsedBills = JSON.parse(storedBills).map((bill: any) => ({
         ...bill,
         presentationDate: new Date(bill.presentationDate),
-        dateCommitted: new Date(bill.dateCommitted || bill.createdAt), // Fallback for older data
+        dateCommitted: new Date(bill.dateCommitted || bill.createdAt),
         createdAt: new Date(bill.createdAt),
-        updatedAt: new Date(bill.updatedAt)
+        updatedAt: new Date(bill.updatedAt),
+        // Ensure new fields exist with defaults for backward compatibility
+        daysAllocated: bill.daysAllocated || bill.pendingDays || 0,
+        currentCountdown: bill.currentCountdown || bill.pendingDays || 0,
+        extensionsCount: bill.extensionsCount || 0
       }));
       setBills(parsedBills);
     } else {
@@ -140,7 +146,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()); // Sort by update date (newest first)
 
   // Add new bill
-  const addBill = (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate">) => {
+  const addBill = (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
     const now = new Date();
     const presentationDate = calculatePresentationDate(billData.dateCommitted, billData.pendingDays);
     
@@ -150,7 +156,10 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: "pending",
       presentationDate,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      daysAllocated: billData.pendingDays,
+      currentCountdown: billData.pendingDays,
+      extensionsCount: 0
     };
 
     setBills(prevBills => [...prevBills, newBill]);
@@ -218,7 +227,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const rescheduleBill = (id: string, additionalDays: number) => {
     setBills(prevBills =>
       prevBills.map(bill => {
-        if (bill.id === id && bill.status === "pending") {
+        if (bill.id === id) {
           const newPresentationDate = addDays(bill.presentationDate, additionalDays);
           const adjustedDate = adjustForSittingDay(newPresentationDate);
           
@@ -226,6 +235,10 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...bill,
             presentationDate: adjustedDate,
             pendingDays: bill.pendingDays + additionalDays,
+            daysAllocated: bill.daysAllocated + additionalDays,
+            currentCountdown: additionalDays,
+            extensionsCount: bill.extensionsCount + 1,
+            status: "overdue" as BillStatus,
             updatedAt: new Date()
           };
         }

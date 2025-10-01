@@ -96,9 +96,19 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             <p className="text-sm">
               <span className="font-medium">Date Committed:</span> {formatDate(document.dateCommitted)}
             </p>
-            {document.status === "pending" && (
-              <p className="text-sm">
-                <span className="font-medium">Pending Days:</span> {document.pendingDays} days
+            {(document.status === "pending" || document.status === "overdue") && (
+              <>
+                <p className="text-sm">
+                  <span className="font-medium">Days Allocated:</span> {document.daysAllocated} days
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Current Countdown:</span> {document.currentCountdown} days
+                </p>
+              </>
+            )}
+            {document.extensionsCount > 0 && (
+              <p className="text-sm text-amber-600">
+                <span className="font-medium">Extensions:</span> {document.extensionsCount} time(s)
               </p>
             )}
             <p className="text-sm">
