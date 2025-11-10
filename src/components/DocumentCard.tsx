@@ -108,7 +108,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
                   <span className="font-medium">Days Allocated:</span> {document.daysAllocated} days
                 </p>
                 <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
-                  <span className="font-medium">Days Remaining:</span> {currentCountdown} days
+                  <span className="font-medium">Days Remaining:</span> {Math.abs(currentCountdown)} days
                 </p>
               </>
             )}

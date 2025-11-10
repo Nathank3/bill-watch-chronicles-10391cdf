@@ -103,7 +103,7 @@ const HomePage = () => {
       const tableData = sortedItems.map(item => {
         // Calculate current countdown dynamically
         const countdown = calculateCurrentCountdown(item.presentationDate);
-        const displayDays = String(countdown);
+        const displayDays = String(Math.abs(countdown));
         
         // Status is "Overdue" if item has passed date or been extended
         const itemIsOverdue = isItemOverdue(item.presentationDate, item.extensionsCount);

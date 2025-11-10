@@ -109,7 +109,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
                   <span className="font-medium">Days Allocated:</span> {bill.daysAllocated} days
                 </p>
                 <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
-                  <span className="font-medium">Days Remaining:</span> {currentCountdown} days
+                  <span className="font-medium">Days Remaining:</span> {Math.abs(currentCountdown)} days
                 </p>
               </>
             )}

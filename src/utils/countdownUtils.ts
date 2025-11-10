@@ -19,6 +19,15 @@ export const isItemOverdue = (presentationDate: Date, extensionsCount: number): 
 };
 
 /**
+ * Get display countdown (absolute value for showing to users)
+ * Returns positive number even if overdue
+ */
+export const getDisplayCountdown = (presentationDate: Date): number => {
+  const countdown = calculateCurrentCountdown(presentationDate);
+  return Math.abs(countdown);
+};
+
+/**
  * Get appropriate status based on current state
  */
 export const determineItemStatus = (

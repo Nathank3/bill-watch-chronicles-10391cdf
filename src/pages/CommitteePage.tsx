@@ -135,7 +135,7 @@ const CommitteePage = () => {
 
       const tableData = sortedItems.map(item => {
         const countdown = calculateCurrentCountdown(item.presentationDate);
-        const displayDays = String(countdown);
+        const displayDays = String(Math.abs(countdown));
         const itemIsOverdue = isItemOverdue(item.presentationDate, item.extensionsCount);
         const statusText = itemIsOverdue ? "Overdue" : "Pending";
         
