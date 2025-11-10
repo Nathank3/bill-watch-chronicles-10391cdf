@@ -118,6 +118,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
 
+      // Navigate to home page immediately after successful login
+      navigate("/");
+
       toast({
         title: "Login successful",
         description: `Welcome back!`,
