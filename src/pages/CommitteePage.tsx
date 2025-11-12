@@ -207,7 +207,7 @@ const CommitteePage = () => {
             };
         
         autoTable(doc, {
-          startY: startY + titleHeight + 1,
+          startY: startY + titleHeight - 2,
           head: headers,
           body: validTableData,
           theme: 'grid',
@@ -224,7 +224,7 @@ const CommitteePage = () => {
             halign: 'left'
           },
           columnStyles: columnStylesConfig,
-          margin: { top: 20, right: 15, bottom: 10, left: 10 },
+          margin: { top: 20, right: 20, bottom: 10, left: 10 },
           tableWidth: 'wrap',
           didParseCell: function(data) {
             if (data.column.index === 4 && data.cell.text[0] === "Overdue") {
