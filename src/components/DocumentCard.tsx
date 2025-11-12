@@ -66,17 +66,17 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     deleteDocument(document.id);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Badge className="bg-bill-pending">Pending</Badge>;
-      case "overdue":
-        return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
-      case "concluded":
-        return <Badge className="bg-bill-passed">Concluded</Badge>;
-      default:
-        return null;
+  const getStatusBadge = () => {
+    if (document.status === "concluded") {
+      return <Badge className="bg-bill-passed">Concluded</Badge>;
     }
+    
+    // Use real-time overdue calculation
+    if (isOverdue) {
+      return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
+    }
+    
+    return <Badge className="bg-bill-pending">Pending</Badge>;
   };
 
   const formatDate = (date: Date): string => {
@@ -91,9 +91,9 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     <Card className={`document-card document-${document.status} p-4`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <Badge variant="outline">{documentType}</Badge>
-            <h3 className="font-medium text-lg">{document.title}</h3>
+          <div className="flex items-start gap-2 mb-1 flex-wrap">
+            <Badge variant="outline" className="shrink-0">{documentType}</Badge>
+            <h3 className="font-medium text-lg break-words flex-1 min-w-0">{document.title}</h3>
           </div>
           <p className="text-sm text-muted-foreground">
             Committee: {document.committee}
@@ -108,7 +108,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
                   <span className="font-medium">Days Allocated:</span> {document.daysAllocated} days
                 </p>
                 <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
-                  <span className="font-medium">Days Remaining:</span> {Math.abs(currentCountdown)} days
+                  <span className="font-medium">{isOverdue ? "Days Overdue" : "Days Remaining"}:</span> {Math.abs(currentCountdown)} days
                 </p>
               </>
             )}
@@ -122,7 +122,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             </p>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            {getStatusBadge(document.status)}
+            {getStatusBadge()}
             {shouldShowCountdown && (
               <span className={`countdown text-sm ${isOverdue ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
                 {timeLeft}

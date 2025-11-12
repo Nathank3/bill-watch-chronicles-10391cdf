@@ -190,7 +190,7 @@ const HomePage = () => {
             };
         
         autoTable(doc, {
-          startY: startY + titleHeight + 5,
+          startY: startY + titleHeight + 2,
           head: headers,
           body: validTableData,
           theme: 'grid',
