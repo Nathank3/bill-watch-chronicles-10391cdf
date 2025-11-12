@@ -172,21 +172,21 @@ const HomePage = () => {
         // Define column styles - wrap text columns, fixed width for date/number columns
         const columnStylesConfig = includeTypeColumn 
           ? {
-              0: { overflow: 'linebreak' as const, cellWidth: 'wrap' as const },  // Title - allow wrapping
-              1: { overflow: 'linebreak' as const, cellWidth: 'wrap' as const },  // Committee - allow wrapping
-              2: { cellWidth: 25, minCellWidth: 25, overflow: 'hidden' as const }, // Date Committed - no wrap
-              3: { cellWidth: 20, minCellWidth: 20, overflow: 'hidden' as const }, // Days Remaining - no wrap
-              4: { cellWidth: 20, minCellWidth: 20, overflow: 'hidden' as const }, // Status - no wrap
-              5: { cellWidth: 25, minCellWidth: 25, overflow: 'hidden' as const }, // Due Date - no wrap
-              6: { cellWidth: 20, minCellWidth: 20, overflow: 'hidden' as const }  // Type - no wrap
+              0: { overflow: 'linebreak' as const, cellWidth: 60 },  // Title - allow wrapping with max width
+              1: { overflow: 'linebreak' as const, cellWidth: 30 },  // Committee - allow wrapping
+              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed - no wrap
+              3: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Days Remaining - no wrap
+              4: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Status - no wrap
+              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Due Date - no wrap
+              6: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }  // Type - no wrap
             }
           : {
-              0: { overflow: 'linebreak' as const, cellWidth: 'wrap' as const },  // Title - allow wrapping
-              1: { overflow: 'linebreak' as const, cellWidth: 'wrap' as const },  // Committee - allow wrapping
-              2: { cellWidth: 25, minCellWidth: 25, overflow: 'hidden' as const }, // Date Committed - no wrap
-              3: { cellWidth: 20, minCellWidth: 20, overflow: 'hidden' as const }, // Days Remaining - no wrap
-              4: { cellWidth: 20, minCellWidth: 20, overflow: 'hidden' as const }, // Status - no wrap
-              5: { cellWidth: 25, minCellWidth: 25, overflow: 'hidden' as const }  // Due Date - no wrap
+              0: { overflow: 'linebreak' as const, cellWidth: 70 },  // Title - allow wrapping with max width
+              1: { overflow: 'linebreak' as const, cellWidth: 35 },  // Committee - allow wrapping
+              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed - no wrap
+              3: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Days Remaining - no wrap
+              4: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Status - no wrap
+              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date - no wrap
             };
         
         autoTable(doc, {
@@ -197,7 +197,6 @@ const HomePage = () => {
           styles: { 
             fontSize: 8,
             cellPadding: 3,
-            cellWidth: 'auto',
             halign: 'left',
             valign: 'middle'
           },
@@ -209,13 +208,8 @@ const HomePage = () => {
           },
           columnStyles: columnStylesConfig,
           margin: { top: 20, right: 10, bottom: 10, left: 10 },
-          tableWidth: 'auto',
+          tableWidth: 'wrap',
           didParseCell: function(data) {
-            // Wrap long text in Title column (index 0)
-            if (data.column.index === 0) {
-              data.cell.styles.cellWidth = 'wrap';
-            }
-            
             // Color overdue status in red
             if (data.column.index === 4 && data.cell.text[0] === "Overdue") {
               data.cell.styles.textColor = [255, 0, 0]; // Red color for overdue status
