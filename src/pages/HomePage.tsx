@@ -190,7 +190,7 @@ const HomePage = () => {
             };
         
         autoTable(doc, {
-          startY: startY + titleHeight + 2,
+          startY: startY + titleHeight + 1,
           head: headers,
           body: validTableData,
           theme: 'grid',
@@ -207,7 +207,7 @@ const HomePage = () => {
             halign: 'left'
           },
           columnStyles: columnStylesConfig,
-          margin: { top: 20, right: 10, bottom: 10, left: 10 },
+          margin: { top: 20, right: 15, bottom: 10, left: 10 },
           tableWidth: 'wrap',
           didParseCell: function(data) {
             // Color overdue status in red
