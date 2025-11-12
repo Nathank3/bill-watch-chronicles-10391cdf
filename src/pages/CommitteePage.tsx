@@ -186,6 +186,24 @@ const CommitteePage = () => {
         
         const titleHeight = splitTitle.length * 7;
         
+        // Define column styles to prevent mid-word and date wrapping
+        const columnStylesConfig = includeTypeColumn 
+          ? {
+              1: { cellWidth: 30 },                  // Committee
+              2: { cellWidth: 25, minCellWidth: 25 }, // Date Committed - no wrap
+              3: { cellWidth: 20, minCellWidth: 20 }, // Days Remaining - no wrap
+              4: { cellWidth: 20, minCellWidth: 20 }, // Status - no wrap
+              5: { cellWidth: 25, minCellWidth: 25 }, // Due Date - no wrap
+              6: { cellWidth: 20, minCellWidth: 20 }  // Type - no wrap
+            }
+          : {
+              1: { cellWidth: 30 },                  // Committee
+              2: { cellWidth: 25, minCellWidth: 25 }, // Date Committed - no wrap
+              3: { cellWidth: 20, minCellWidth: 20 }, // Days Remaining - no wrap
+              4: { cellWidth: 20, minCellWidth: 20 }, // Status - no wrap
+              5: { cellWidth: 25, minCellWidth: 25 }  // Due Date - no wrap
+            };
+        
         autoTable(doc, {
           startY: startY + titleHeight + 5,
           head: headers,
@@ -194,7 +212,7 @@ const CommitteePage = () => {
           styles: { 
             fontSize: 8,
             cellPadding: 3,
-            overflow: 'linebreak',
+            overflow: 'ellipsize',
             cellWidth: 'auto',
             halign: 'left',
             valign: 'middle'
@@ -205,6 +223,7 @@ const CommitteePage = () => {
             fontStyle: 'bold',
             halign: 'left'
           },
+          columnStyles: columnStylesConfig,
           margin: { top: 20, right: 10, bottom: 10, left: 10 },
           tableWidth: 'auto',
           didParseCell: function(data) {
