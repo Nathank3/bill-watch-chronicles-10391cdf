@@ -117,31 +117,35 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const storedBills = localStorage.getItem("bills");
     if (storedBills) {
-      // Parse stored bills and convert date strings back to Date objects
-      const parsedBills = JSON.parse(storedBills).map((bill: any) => ({
-        ...bill,
-        presentationDate: new Date(bill.presentationDate),
-        dateCommitted: new Date(bill.dateCommitted || bill.createdAt),
-        createdAt: new Date(bill.createdAt),
-        updatedAt: new Date(bill.updatedAt),
-        // Ensure new fields exist with defaults for backward compatibility
-        daysAllocated: bill.daysAllocated || bill.pendingDays || 0,
-        currentCountdown: bill.currentCountdown !== undefined ? bill.currentCountdown : bill.pendingDays || 0,
-        extensionsCount: bill.extensionsCount || 0
-      }));
-      setBills(parsedBills);
+      try {
+        // Parse stored bills and convert date strings back to Date objects
+        const parsedBills = JSON.parse(storedBills).map((bill: any) => ({
+          ...bill,
+          presentationDate: new Date(bill.presentationDate),
+          dateCommitted: new Date(bill.dateCommitted || bill.createdAt),
+          createdAt: new Date(bill.createdAt),
+          updatedAt: new Date(bill.updatedAt),
+          // Ensure new fields exist with defaults for backward compatibility
+          daysAllocated: bill.daysAllocated || bill.pendingDays || 0,
+          currentCountdown: bill.currentCountdown !== undefined ? bill.currentCountdown : bill.pendingDays || 0,
+          extensionsCount: bill.extensionsCount || 0
+        }));
+        setBills(parsedBills);
+      } catch (error) {
+        console.error("Error parsing stored bills:", error);
+        setBills([]);
+      }
     } else {
-      const mockBills = generateMockBills();
-      setBills(mockBills);
-      localStorage.setItem("bills", JSON.stringify(mockBills));
+      // Initialize with empty array instead of mock data
+      setBills([]);
+      localStorage.setItem("bills", JSON.stringify([]));
     }
   }, []);
 
   // Save bills to local storage whenever they change
   useEffect(() => {
-    if (bills.length > 0) {
-      localStorage.setItem("bills", JSON.stringify(bills));
-    }
+    // Always save bills, even if empty array
+    localStorage.setItem("bills", JSON.stringify(bills));
   }, [bills]);
 
   // Filtered bills by status - include both pending and overdue
