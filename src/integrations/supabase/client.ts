@@ -3,14 +3,14 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://otcorcourwbfvqhtfbcv.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90Y29yY291cndiZnZxaHRmYmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwMTQwOTUsImV4cCI6MjA2MTU5MDA5NX0.eixbyVoH4s4qnMist9g3aLWb1IsUPAekMAphavP0Buo";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://otcorcourwbfvqhtfbcv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90Y29yY291cndiZnZxaHRmYmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwMTQwOTUsImV4cCI6MjA2MTU5MDA5NX0.eixbyVoH4s4qnMist9g3aLWb1IsUPAekMAphavP0Buo";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(
-  SUPABASE_URL, 
+  SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
@@ -24,7 +24,7 @@ export const supabase = createClient<Database>(
 // Add a debug helper to check auth status
 export const checkAuthStatus = async () => {
   const { data, error } = await supabase.auth.getSession();
-  console.log("Auth status:", { 
+  console.log("Auth status:", {
     hasSession: !!data.session,
     error: error?.message
   });
