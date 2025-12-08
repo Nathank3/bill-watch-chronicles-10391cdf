@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from "react";
-import { useDocuments, DocumentType } from "@/contexts/DocumentContext";
+import { useDocuments, DocumentType, Document } from "@/contexts/DocumentContext";
 import { DocumentCard } from "./DocumentCard";
 import { DocumentFormDialog } from "./DocumentFormDialog";
+import { DocumentFilter } from "./DocumentFilter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -12,20 +13,41 @@ interface DocumentManagementProps {
 }
 
 export const DocumentManagement = ({ documentType, title }: DocumentManagementProps) => {
-  const { documents, pendingDocuments, concludedDocuments, updateDocumentStatus } = useDocuments();
-  const [filteredDocuments, setFilteredDocuments] = useState(documents.filter(doc => doc.type === documentType));
+  const { documents, updateDocumentStatus } = useDocuments();
 
+  // Base documents of the specific type
+  const [baseDocuments, setBaseDocuments] = useState<Document[]>([]);
+
+  // Documents after being filtered by the DocumentFilter component
+  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
+
+  // Update base documents when global documents change or type changes
   useEffect(() => {
-    setFilteredDocuments(documents.filter(doc => doc.type === documentType));
+    const typeDocs = documents.filter(doc => doc.type === documentType);
+    setBaseDocuments(typeDocs);
+    // Initialize filtered documents with type documents initially
+    // The Filter component will run its effect and update this shortly after,
+    // but this prevents a flash of empty content
+    setFilteredDocuments(typeDocs);
   }, [documents, documentType]);
 
   const handleStatusChange = (id: string, status: "pending" | "concluded") => {
     updateDocumentStatus(id, status);
   };
 
-  const pendingDocs = pendingDocuments(documentType);
-  const concludedDocs = concludedDocuments(documentType);
-  const totalDocs = filteredDocuments.length;
+  const handleFilterChange = (filtered: Document[]) => {
+    setFilteredDocuments(filtered);
+  };
+
+  // Derive counts from the *base* documents (unfiltered stats)
+  const totalBaseDocs = baseDocuments.length;
+  const pendingBaseDocs = baseDocuments.filter(d => d.status === "pending" || d.status === "overdue").length;
+  const concludedBaseDocs = baseDocuments.filter(d => d.status === "concluded").length;
+
+  // Filtered lists for the view
+  const pendingDocs = filteredDocuments.filter(
+    doc => doc.status === "pending" || doc.status === "overdue"
+  );
 
   return (
     <div className="space-y-6">
@@ -36,7 +58,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
             <CardTitle className="text-sm font-medium">Total {title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalDocs}</div>
+            <div className="text-2xl font-bold">{totalBaseDocs}</div>
           </CardContent>
         </Card>
         <Card>
@@ -44,7 +66,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
             <CardTitle className="text-sm font-medium">Pending {title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingDocs.length}</div>
+            <div className="text-2xl font-bold">{pendingBaseDocs}</div>
           </CardContent>
         </Card>
         <Card>
@@ -52,26 +74,33 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
             <CardTitle className="text-sm font-medium">Concluded {title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{concludedDocs.length}</div>
+            <div className="text-2xl font-bold">{concludedBaseDocs}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Add New Document Button */}
       <div className="flex justify-end">
-        <DocumentFormDialog 
-          documentType={documentType} 
-          title={title.slice(0, -1)} 
+        <DocumentFormDialog
+          documentType={documentType}
+          title={title.slice(0, -1)}
         />
       </div>
-      
+
+      {/* Filter Component */}
+      <DocumentFilter
+        documents={baseDocuments}
+        onFilterChange={handleFilterChange}
+        title={title}
+      />
+
       {/* Documents Tabs */}
       <Tabs defaultValue="all" className="mt-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="all">All {title}</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="all" className="mt-6">
           {filteredDocuments && filteredDocuments.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
@@ -87,20 +116,22 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
           ) : (
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground mb-4">No {title.toLowerCase()} have been created yet</p>
-                <DocumentFormDialog 
-                  documentType={documentType} 
-                  title={title.slice(0, -1)}
-                >
-                  <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-                    Create Your First {title.slice(0, -1)}
-                  </button>
-                </DocumentFormDialog>
+                <p className="text-muted-foreground mb-4">No {title.toLowerCase()} found matching your criteria</p>
+                {baseDocuments.length === 0 && (
+                  <DocumentFormDialog
+                    documentType={documentType}
+                    title={title.slice(0, -1)}
+                  >
+                    <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+                      Create Your First {title.slice(0, -1)}
+                    </button>
+                  </DocumentFormDialog>
+                )}
               </CardContent>
             </Card>
           )}
         </TabsContent>
-        
+
         <TabsContent value="pending" className="mt-6">
           {pendingDocs.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">

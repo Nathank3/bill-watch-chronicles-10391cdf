@@ -2,30 +2,58 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useBills } from "./BillContext";
 import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document";
-import { calculatePresentationDate } from "@/utils/documentUtils";
-import { generateMockDocuments } from "@/utils/mockDocuments";
-import { addDays } from "date-fns";
+import { calculatePresentationDate, adjustForSittingDay } from "@/utils/documentUtils";
+import { format } from "date-fns";
 import { migrateLocalStorageData } from "@/utils/dataMigration";
+import { useNotifications } from "./NotificationContext";
 
 // Create the context
 const DocumentContext = createContext<DocumentContextType>({
   documents: [],
   pendingDocuments: () => [],
   concludedDocuments: () => [],
-  addDocument: () => {},
-  updateDocument: () => {},
-  deleteDocument: () => {},
-  updateDocumentStatus: () => {},
-  rescheduleDocument: () => {},
+  addDocument: () => { },
+  updateDocument: () => { },
+  deleteDocument: () => { },
+  updateDocumentStatus: () => { },
+  rescheduleDocument: () => { },
   getDocumentById: () => undefined,
   searchDocuments: () => [],
-  filterDocuments: () => []
+  filterDocuments: () => [],
+  getDocumentsByType: () => []
 });
+
+// Custom hook for checking and freezing documents
+const useFreezeCheck = (documents: Document[], updateDocumentStatus: (id: string, status: DocumentStatus) => void, addNotification: (n: any) => void) => {
+  useEffect(() => {
+    const checkFreezeStatus = () => {
+      documents.forEach(doc => {
+        if ((doc.status === "pending" || doc.status === "overdue") && doc.currentCountdown <= 0) {
+          updateDocumentStatus(doc.id, "frozen");
+
+          addNotification({
+            type: "action_required",
+            title: "Document Frozen",
+            message: `"${doc.title}" has been frozen due to expired deadline.`,
+            businessId: doc.id,
+            businessType: "document",
+            businessTitle: doc.title
+          });
+        }
+      });
+    };
+
+    checkFreezeStatus();
+    const interval = setInterval(checkFreezeStatus, 60000);
+    return () => clearInterval(interval);
+  }, [documents, updateDocumentStatus, addNotification]);
+};
 
 // Document provider component
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const { bills } = useBills();
+  const { addNotification } = useNotifications();
 
   // Initialize with mock data
   useEffect(() => {
@@ -35,26 +63,30 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       migrateLocalStorageData();
       localStorage.setItem("data_migrated_v1", "true");
     }
-    
+
     const storedDocuments = localStorage.getItem("documents");
     if (storedDocuments) {
-      // Parse stored documents and convert date strings back to Date objects
-      const parsedDocuments = JSON.parse(storedDocuments).map((doc: any) => ({
-        ...doc,
-        presentationDate: new Date(doc.presentationDate),
-        dateCommitted: new Date(doc.dateCommitted),
-        createdAt: new Date(doc.createdAt),
-        updatedAt: new Date(doc.updatedAt),
-        // Ensure new fields exist with defaults for backward compatibility
-        daysAllocated: doc.daysAllocated || doc.pendingDays || 0,
-        currentCountdown: doc.currentCountdown !== undefined ? doc.currentCountdown : doc.pendingDays || 0,
-        extensionsCount: doc.extensionsCount || 0
-      }));
-      setDocuments(parsedDocuments);
+      try {
+        // Parse stored documents and convert date strings back to Date objects
+        const parsedDocuments = JSON.parse(storedDocuments).map((doc: any) => ({
+          ...doc,
+          presentationDate: new Date(doc.presentationDate),
+          dateCommitted: new Date(doc.dateCommitted),
+          createdAt: new Date(doc.createdAt),
+          updatedAt: new Date(doc.updatedAt),
+          // Ensure new fields exist with defaults for backward compatibility
+          daysAllocated: doc.daysAllocated || doc.pendingDays || 0,
+          currentCountdown: doc.currentCountdown !== undefined ? doc.currentCountdown : doc.pendingDays || 0,
+          extensionsCount: doc.extensionsCount || 0
+        }));
+        setDocuments(parsedDocuments);
+      } catch (error) {
+        console.error("Error parsing stored documents:", error);
+        setDocuments([]);
+      }
     } else {
-      const mockDocuments = generateMockDocuments();
-      setDocuments(mockDocuments);
-      localStorage.setItem("documents", JSON.stringify(mockDocuments));
+      setDocuments([]);
+      localStorage.setItem("documents", JSON.stringify([]));
     }
   }, []);
 
@@ -76,7 +108,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         currentCountdown: bill.currentCountdown,
         extensionsCount: bill.extensionsCount
       }));
-      
+
       // Update document storage with bills
       setDocuments(prevDocuments => {
         // Remove existing bill documents
@@ -95,9 +127,46 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [documents]);
 
-  // Filtered documents by type and status - include both pending and overdue
+  // Hook up freeze checker
+  useEffect(() => {
+    const checkFreezeStatus = () => {
+      documents.forEach(doc => {
+        if ((doc.status === "pending" || doc.status === "overdue") && doc.currentCountdown <= 0) {
+          setDocuments(prevDocs =>
+            prevDocs.map(d => {
+              if (d.id === doc.id) {
+                return { ...d, status: "frozen", updatedAt: new Date() };
+              }
+              return d;
+            })
+          );
+
+          addNotification({
+            type: "action_required",
+            title: "Document Frozen",
+            message: `"${doc.title}" has been frozen due to expired deadline.`,
+            businessId: doc.id,
+            businessType: "document",
+            businessTitle: doc.title
+          });
+
+          toast({
+            title: "Document Frozen",
+            description: `"${doc.title}" is now frozen.`,
+            variant: "destructive"
+          });
+        }
+      });
+    };
+    checkFreezeStatus();
+  }, [documents, addNotification]);
+
+  // Helper functions to filter docs by type
+  const getDocumentsByType = (type: DocumentType) => documents.filter(doc => doc.type === type);
+
+  // Filtered documents by type and status - include both pending, overdue AND frozen
   const pendingDocuments = (type: DocumentType) => documents
-    .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue"))
+    .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue" || doc.status === "frozen"))
     .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime());
 
   const concludedDocuments = (type: DocumentType) => documents
@@ -108,7 +177,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addDocument = (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
     const now = new Date();
     const presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
-    
+
     const newDocument: Document = {
       id: `${docData.type}-${documents.length + 1}`,
       ...docData,
@@ -122,7 +191,16 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     setDocuments(prevDocs => [...prevDocs, newDocument]);
-    
+
+    addNotification({
+      type: "business_created",
+      title: "Document Created",
+      message: `New ${newDocument.type} "${newDocument.title}" has been created.`,
+      businessId: newDocument.id,
+      businessType: "document",
+      businessTitle: newDocument.title
+    });
+
     toast({
       title: "Document added",
       description: `"${docData.title}" has been successfully added`,
@@ -135,7 +213,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       prevDocs.map(doc => {
         if (doc.id === id) {
           const updated = { ...doc, ...updates, updatedAt: new Date() };
-          
+
           // Recalculate presentation date if needed
           if ((updates.dateCommitted || updates.pendingDays) && doc.status === "pending") {
             updated.presentationDate = calculatePresentationDate(
@@ -143,13 +221,13 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               updates.pendingDays || doc.pendingDays
             );
           }
-          
+
           return updated;
         }
         return doc;
       })
     );
-    
+
     toast({
       title: "Document updated",
       description: `Document has been successfully updated`,
@@ -159,7 +237,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Delete document function
   const deleteDocument = (id: string) => {
     setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== id));
-    
+
     toast({
       title: "Document deleted",
       description: "Document has been successfully deleted",
@@ -180,32 +258,38 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return doc;
       })
     );
-    
+
     const statusMessages = {
       pending: "Document has been marked as pending",
       concluded: "Document has been marked as concluded",
+      overdue: "Document has been marked as overdue",
+      frozen: "Document has been marked as frozen",
     };
-    
+
     toast({
       title: "Status updated",
-      description: statusMessages[status],
+      description: statusMessages[status] || "Status updated",
     });
   };
 
   // Reschedule document
-  const rescheduleDocument = (id: string, additionalDays: number) => {
+  const rescheduleDocument = (id: string, newDate: Date) => {
     setDocuments(prevDocs =>
       prevDocs.map(doc => {
         if (doc.id === id) {
-          const newPresentationDate = addDays(doc.presentationDate, additionalDays);
-          
+          // Adjust the new date for sitting days
+          const adjustedDate = adjustForSittingDay(newDate);
+
+          // Calculate new pending days relative to now
+          const now = new Date();
+          const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
           return {
             ...doc,
-            presentationDate: newPresentationDate,
-            pendingDays: doc.pendingDays + additionalDays,
-            daysAllocated: doc.daysAllocated + additionalDays,
-            // currentCountdown should reflect the new days until presentation
-            currentCountdown: doc.currentCountdown + additionalDays,
+            presentationDate: adjustedDate,
+            pendingDays: daysDiff > 0 ? daysDiff : 0,
+            daysAllocated: doc.daysAllocated,
+            currentCountdown: daysDiff,
             extensionsCount: doc.extensionsCount + 1,
             status: "overdue" as DocumentStatus,
             updatedAt: new Date()
@@ -214,10 +298,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return doc;
       })
     );
-    
+
     toast({
       title: "Document rescheduled",
-      description: `Document has been rescheduled by ${additionalDays} days`,
+      description: `Document has been rescheduled to ${format(newDate, "PPP")}`,
     });
   };
 
@@ -233,7 +317,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       doc =>
         (!type || doc.type === type) &&
         (doc.title.toLowerCase().includes(lowercaseQuery) ||
-        doc.committee.toLowerCase().includes(lowercaseQuery))
+          doc.committee.toLowerCase().includes(lowercaseQuery))
     );
   };
 
@@ -250,7 +334,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (filters.type && doc.type !== filters.type) {
         return false;
       }
-      
+
       // Filter by year if specified
       if (filters.year && doc.presentationDate.getFullYear() !== filters.year) {
         return false;
@@ -288,7 +372,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         rescheduleDocument,
         getDocumentById,
         searchDocuments,
-        filterDocuments
+        filterDocuments,
+        getDocumentsByType
       }}
     >
       {children}

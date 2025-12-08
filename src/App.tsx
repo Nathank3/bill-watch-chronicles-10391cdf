@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { BillProvider } from "./contexts/BillContext";
 import { DocumentProvider } from "./contexts/DocumentContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import HomePage from "./pages/HomePage";
 import PublicPage from "./pages/PublicPage";
 import LoginPage from "./pages/LoginPage";
@@ -24,19 +25,21 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <BillProvider>
-            <DocumentProvider>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/committee/:committeeId" element={<CommitteePage />} />
-                <Route path="/documents" element={<PublicPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/clerk" element={<ClerkPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </DocumentProvider>
-          </BillProvider>
+          <NotificationProvider>
+            <BillProvider>
+              <DocumentProvider>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/committee/:committeeId" element={<CommitteePage />} />
+                  <Route path="/documents" element={<PublicPage />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/clerk" element={<ClerkPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </DocumentProvider>
+            </BillProvider>
+          </NotificationProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

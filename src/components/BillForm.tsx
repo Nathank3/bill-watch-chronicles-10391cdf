@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { calculatePresentationDate } from "@/utils/documentUtils";
 
 interface BillFormProps {
   initialBill?: Bill;
@@ -33,6 +35,13 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
       : format(new Date(), "yyyy-MM-dd"),
     daysAllocated: initialBill?.pendingDays || 10,
   });
+
+  // Calculate the projected date based on current form data
+  // We use current date as fallback if form date is invalid, though input type='date' restricts this
+  const dateCommittedObj = new Date(formData.dateCommitted);
+  const projectedDate = !isNaN(dateCommittedObj.getTime())
+    ? calculatePresentationDate(dateCommittedObj, formData.daysAllocated)
+    : new Date();
 
   useEffect(() => {
     fetchCommittees();
@@ -59,9 +68,9 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: name === "daysAllocated" ? parseInt(value) || 0 : value 
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === "daysAllocated" ? parseInt(value) || 0 : value
     }));
   };
 
@@ -135,7 +144,7 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
             <SelectTrigger>
               <SelectValue placeholder="Select a committee" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[200px]">
               {committees.map((committee) => (
                 <SelectItem key={committee.id} value={committee.name}>
                   {committee.name}
@@ -167,7 +176,24 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
             onChange={handleChange}
           />
           <p className="text-xs text-muted-foreground">
-            Due date will be calculated automatically (adjusted to next sitting day if it falls on non sitting days i.e Thursday, Friday, Saturday and Sunday)
+            Due date will be calculated automatically (adjusted to next sitting day)
+          </p>
+        </div>
+
+        {/* Real-time Due Date Visualizer */}
+        <div className="flex flex-col gap-3 border rounded-md p-4 bg-muted/20 items-center justify-center">
+          <Label className="font-semibold text-muted-foreground">Target Presentation Date</Label>
+          <div className="pointer-events-none bg-background rounded-md shadow-sm">
+            <Calendar
+              mode="single"
+              selected={projectedDate}
+              month={projectedDate}
+              className="rounded-md border"
+              weekStartsOn={1} // Monday start for legislative context usually
+            />
+          </div>
+          <p className="text-sm font-medium text-primary">
+            {format(projectedDate, "EEEE, MMMM do, yyyy")}
           </p>
         </div>
 
