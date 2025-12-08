@@ -1,7 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { addDays, isSaturday, isSunday, format } from "date-fns";
+import { format } from "date-fns";
 import { migrateLocalStorageData } from "@/utils/dataMigration";
+import { adjustForSittingDay, calculatePresentationDate } from "@/utils/documentUtils";
 
 // Define bill status type - Including overdue status
 export type BillStatus = "pending" | "concluded" | "overdue";
@@ -30,7 +31,7 @@ interface BillContextType {
   addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => void;
   updateBill: (id: string, updates: Partial<Bill>) => void;
   updateBillStatus: (id: string, status: BillStatus) => void;
-  rescheduleBill: (id: string, additionalDays: number) => void;
+  rescheduleBill: (id: string, newDate: Date) => void;
   deleteBill: (id: string) => void;
   getBillById: (id: string) => Bill | undefined;
   searchBills: (query: string) => Bill[];
@@ -42,61 +43,16 @@ interface BillContextType {
   }) => Bill[];
 }
 
-// Import the sitting day utilities
-import { adjustForSittingDay, calculatePresentationDate, adjustForWeekend } from "@/utils/documentUtils";
-
-// Generate mock data
-const generateMockBills = (): Bill[] => {
-  const committees = ["Agriculture", "Education", "Finance", "Health", "Transportation"];
-  
-  const now = new Date();
-  
-  return Array(15).fill(null).map((_, index) => {
-    const id = (index + 1).toString();
-    const committee = committees[index % committees.length];
-    const createdAt = new Date(now.getTime() - Math.random() * 30 * 24 * 60 * 60 * 1000); // Random date within the last 30 days
-    const pendingDays = Math.floor(Math.random() * 20) + 5; // 5-25 days
-    const dateCommitted = new Date(createdAt);
-    
-    let presentationDate: Date;
-    let status: BillStatus;
-    
-    // Distribute bills across different statuses
-    if (index < 10) { // Pending bills
-      presentationDate = calculatePresentationDate(dateCommitted, pendingDays);
-      status = "pending";
-    } else { // Concluded bills
-      presentationDate = new Date(dateCommitted.getTime() - (Math.random() * 10 + 1) * 24 * 60 * 60 * 1000); // Date in the past
-      status = "concluded";
-    }
-    
-    return {
-      id,
-      title: `Bill ${id} - ${committee} Reform Act`,
-      committee,
-      dateCommitted,
-      pendingDays,
-      presentationDate,
-      status,
-      createdAt,
-      updatedAt: new Date(createdAt.getTime() + Math.random() * 5 * 24 * 60 * 60 * 1000),
-      daysAllocated: pendingDays,
-      currentCountdown: pendingDays,
-      extensionsCount: 0
-    };
-  });
-};
-
 // Create the context
 const BillContext = createContext<BillContextType>({
   bills: [],
   pendingBills: [],
   concludedBills: [],
-  addBill: () => {},
-  updateBill: () => {},
-  updateBillStatus: () => {},
-  rescheduleBill: () => {},
-  deleteBill: () => {},
+  addBill: () => { },
+  updateBill: () => { },
+  updateBillStatus: () => { },
+  rescheduleBill: () => { },
+  deleteBill: () => { },
   getBillById: () => undefined,
   searchBills: () => [],
   filterBills: () => []
@@ -114,7 +70,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       migrateLocalStorageData();
       localStorage.setItem("data_migrated_v1", "true");
     }
-    
+
     const storedBills = localStorage.getItem("bills");
     if (storedBills) {
       try {
@@ -161,7 +117,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addBill = (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
     const now = new Date();
     const presentationDate = calculatePresentationDate(billData.dateCommitted, billData.pendingDays);
-    
+
     const newBill: Bill = {
       id: (bills.length + 1).toString(),
       ...billData,
@@ -175,7 +131,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setBills(prevBills => [...prevBills, newBill]);
-    
+
     toast({
       title: "Bill added",
       description: `"${billData.title}" has been successfully added`,
@@ -188,7 +144,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prevBills.map(bill => {
         if (bill.id === id) {
           const updated = { ...bill, ...updates, updatedAt: new Date() };
-          
+
           // Recalculate presentation date if needed
           if ((updates.dateCommitted || updates.pendingDays) && bill.status === "pending") {
             updated.presentationDate = calculatePresentationDate(
@@ -196,13 +152,13 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
               updates.pendingDays || bill.pendingDays
             );
           }
-          
+
           return updated;
         }
         return bill;
       })
     );
-    
+
     toast({
       title: "Bill updated",
       description: `Bill has been successfully updated`,
@@ -223,33 +179,37 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return bill;
       })
     );
-    
+
     const statusMessages = {
       pending: "Bill has been marked as pending",
       concluded: "Bill has been marked as concluded",
+      overdue: "Bill has been marked as overdue",
     };
-    
+
     toast({
       title: "Status updated",
-      description: statusMessages[status],
+      description: statusMessages[status] || "Status updated",
     });
   };
 
   // Add reschedule bill function
-  const rescheduleBill = (id: string, additionalDays: number) => {
+  const rescheduleBill = (id: string, newDate: Date) => {
     setBills(prevBills =>
       prevBills.map(bill => {
         if (bill.id === id) {
-          const newPresentationDate = addDays(bill.presentationDate, additionalDays);
-          const adjustedDate = adjustForSittingDay(newPresentationDate);
-          
+          // Adjust the new date for sitting days
+          const adjustedDate = adjustForSittingDay(newDate);
+
+          // Calculate new pending days relative to now
+          const now = new Date();
+          const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
           return {
             ...bill,
             presentationDate: adjustedDate,
-            pendingDays: bill.pendingDays + additionalDays,
-            daysAllocated: bill.daysAllocated + additionalDays,
-            // currentCountdown should reflect the new days until presentation
-            currentCountdown: bill.currentCountdown + additionalDays,
+            pendingDays: daysDiff > 0 ? daysDiff : 0,
+            daysAllocated: bill.daysAllocated,
+            currentCountdown: daysDiff,
             extensionsCount: bill.extensionsCount + 1,
             status: "overdue" as BillStatus,
             updatedAt: new Date()
@@ -258,17 +218,17 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return bill;
       })
     );
-    
+
     toast({
       title: "Bill rescheduled",
-      description: `Bill has been rescheduled by ${additionalDays} days`,
+      description: `Bill has been rescheduled to ${format(newDate, "PPP")}`,
     });
   };
 
   // Delete bill function
   const deleteBill = (id: string) => {
     setBills(prevBills => prevBills.filter(bill => bill.id !== id));
-    
+
     toast({
       title: "Bill deleted",
       description: "Bill has been successfully deleted",

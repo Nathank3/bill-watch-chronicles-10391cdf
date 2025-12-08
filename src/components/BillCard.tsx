@@ -24,7 +24,7 @@ interface BillCardProps {
   bill: Bill;
   showActions?: boolean;
   onStatusChange?: (id: string, status: "pending" | "concluded" | "overdue") => void;
-  onReschedule?: (id: string, additionalDays: number) => void;
+  onReschedule?: (id: string, newDate: Date) => void;
 }
 
 export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedule }: BillCardProps) => {
@@ -38,10 +38,10 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
     const updateCountdown = () => {
       const countdown = calculateCurrentCountdown(bill.presentationDate);
       const overdue = isItemOverdue(bill.presentationDate, bill.extensionsCount);
-      
+
       setCurrentCountdown(countdown);
       setIsOverdue(overdue);
-      
+
       if (bill.status === "concluded") {
         setTimeLeft("");
       } else {
@@ -52,18 +52,18 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
 
     // Update immediately
     updateCountdown();
-    
+
     // Then update every minute
     const interval = setInterval(updateCountdown, 60000);
-    
+
     return () => clearInterval(interval);
   }, [bill.presentationDate, bill.status, bill.extensionsCount]);
 
-  const handleReschedule = (additionalDays: number) => {
+  const handleReschedule = (newDate: Date) => {
     if (onReschedule) {
-      onReschedule(bill.id, additionalDays);
+      onReschedule(bill.id, newDate);
     } else {
-      rescheduleBill(bill.id, additionalDays);
+      rescheduleBill(bill.id, newDate);
     }
   };
 
@@ -125,11 +125,10 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           <div className="flex items-center gap-2 mt-2">
             {getStatusBadge(bill.status)}
             {shouldShowCountdown && (
-              <span className={`countdown text-sm ${
-                isOverdue
-                  ? "countdown-urgent text-destructive font-medium" 
-                  : "text-muted-foreground"
-              }`}>
+              <span className={`countdown text-sm ${isOverdue
+                ? "countdown-urgent text-destructive font-medium"
+                : "text-muted-foreground"
+                }`}>
                 {timeLeft}
               </span>
             )}
@@ -140,14 +139,14 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
       {showActions && (
         <div className="mt-4 flex flex-wrap gap-2">
           {isActionable && onStatusChange && (
-            <Badge 
-              className="bg-bill-passed cursor-pointer hover:opacity-90" 
+            <Badge
+              className="bg-bill-passed cursor-pointer hover:opacity-90"
               onClick={() => onStatusChange(bill.id, "concluded")}
             >
               Mark as Concluded
             </Badge>
           )}
-          
+
           {(bill.status === "pending" || bill.status === "overdue") && (
             <RescheduleDialog onReschedule={handleReschedule}>
               <Button variant="outline" size="sm">

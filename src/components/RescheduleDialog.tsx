@@ -4,23 +4,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
 
 interface RescheduleDialogProps {
-  onReschedule: (days: number) => void;
+  onReschedule: (date: Date) => void;
   children: React.ReactNode;
 }
 
 export const RescheduleDialog = ({ onReschedule, children }: RescheduleDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [days, setDays] = useState<string>("7");
+  const [date, setDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const numDays = parseInt(days);
-    if (numDays > 0 && numDays <= 365) {
-      onReschedule(numDays);
+    if (date) {
+      onReschedule(new Date(date));
       setOpen(false);
-      setDays("7");
     }
   };
 
@@ -35,19 +34,17 @@ export const RescheduleDialog = ({ onReschedule, children }: RescheduleDialogPro
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="days">Number of days to add</Label>
+            <Label htmlFor="date">New Presentation Date</Label>
             <Input
-              id="days"
-              type="number"
-              min="1"
-              max="365"
-              value={days}
-              onChange={(e) => setDays(e.target.value)}
-              placeholder="Enter number of days"
+              id="date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
               className="mt-1"
+              required
             />
             <p className="text-sm text-muted-foreground mt-1">
-              Enter between 1 and 365 days
+              Select the new date for presentation
             </p>
           </div>
           <div className="flex justify-end space-x-2">

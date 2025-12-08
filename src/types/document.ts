@@ -42,7 +42,7 @@ export interface DocumentContextType {
   updateDocument: (id: string, updates: Partial<Document>) => void;
   deleteDocument: (id: string) => void;
   updateDocumentStatus: (id: string, status: DocumentStatus) => void;
-  rescheduleDocument: (id: string, additionalDays: number) => void;
+  rescheduleDocument: (id: string, newDate: Date) => void;
   getDocumentById: (id: string) => Document | undefined;
   searchDocuments: (query: string, type?: DocumentType) => Document[];
   filterDocuments: (filters: DocumentFilters) => Document[];

@@ -2,9 +2,8 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useBills } from "./BillContext";
 import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document";
-import { calculatePresentationDate } from "@/utils/documentUtils";
-import { generateMockDocuments } from "@/utils/mockDocuments";
-import { addDays } from "date-fns";
+import { calculatePresentationDate, adjustForSittingDay } from "@/utils/documentUtils";
+import { format } from "date-fns";
 import { migrateLocalStorageData } from "@/utils/dataMigration";
 
 // Create the context
@@ -12,11 +11,11 @@ const DocumentContext = createContext<DocumentContextType>({
   documents: [],
   pendingDocuments: () => [],
   concludedDocuments: () => [],
-  addDocument: () => {},
-  updateDocument: () => {},
-  deleteDocument: () => {},
-  updateDocumentStatus: () => {},
-  rescheduleDocument: () => {},
+  addDocument: () => { },
+  updateDocument: () => { },
+  deleteDocument: () => { },
+  updateDocumentStatus: () => { },
+  rescheduleDocument: () => { },
   getDocumentById: () => undefined,
   searchDocuments: () => [],
   filterDocuments: () => []
@@ -35,7 +34,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       migrateLocalStorageData();
       localStorage.setItem("data_migrated_v1", "true");
     }
-    
+
     const storedDocuments = localStorage.getItem("documents");
     if (storedDocuments) {
       // Parse stored documents and convert date strings back to Date objects
@@ -52,9 +51,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }));
       setDocuments(parsedDocuments);
     } else {
-      const mockDocuments = generateMockDocuments();
-      setDocuments(mockDocuments);
-      localStorage.setItem("documents", JSON.stringify(mockDocuments));
+      setDocuments([]);
+      localStorage.setItem("documents", JSON.stringify([]));
     }
   }, []);
 
@@ -76,7 +74,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         currentCountdown: bill.currentCountdown,
         extensionsCount: bill.extensionsCount
       }));
-      
+
       // Update document storage with bills
       setDocuments(prevDocuments => {
         // Remove existing bill documents
@@ -108,7 +106,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const addDocument = (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
     const now = new Date();
     const presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
-    
+
     const newDocument: Document = {
       id: `${docData.type}-${documents.length + 1}`,
       ...docData,
@@ -122,7 +120,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     setDocuments(prevDocs => [...prevDocs, newDocument]);
-    
+
     toast({
       title: "Document added",
       description: `"${docData.title}" has been successfully added`,
@@ -135,7 +133,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       prevDocs.map(doc => {
         if (doc.id === id) {
           const updated = { ...doc, ...updates, updatedAt: new Date() };
-          
+
           // Recalculate presentation date if needed
           if ((updates.dateCommitted || updates.pendingDays) && doc.status === "pending") {
             updated.presentationDate = calculatePresentationDate(
@@ -143,13 +141,13 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               updates.pendingDays || doc.pendingDays
             );
           }
-          
+
           return updated;
         }
         return doc;
       })
     );
-    
+
     toast({
       title: "Document updated",
       description: `Document has been successfully updated`,
@@ -159,7 +157,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Delete document function
   const deleteDocument = (id: string) => {
     setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== id));
-    
+
     toast({
       title: "Document deleted",
       description: "Document has been successfully deleted",
@@ -180,32 +178,37 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return doc;
       })
     );
-    
+
     const statusMessages = {
       pending: "Document has been marked as pending",
       concluded: "Document has been marked as concluded",
+      overdue: "Document has been marked as overdue",
     };
-    
+
     toast({
       title: "Status updated",
-      description: statusMessages[status],
+      description: statusMessages[status] || "Status updated",
     });
   };
 
   // Reschedule document
-  const rescheduleDocument = (id: string, additionalDays: number) => {
+  const rescheduleDocument = (id: string, newDate: Date) => {
     setDocuments(prevDocs =>
       prevDocs.map(doc => {
         if (doc.id === id) {
-          const newPresentationDate = addDays(doc.presentationDate, additionalDays);
-          
+          // Adjust the new date for sitting days
+          const adjustedDate = adjustForSittingDay(newDate);
+
+          // Calculate new pending days relative to now
+          const now = new Date();
+          const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
           return {
             ...doc,
-            presentationDate: newPresentationDate,
-            pendingDays: doc.pendingDays + additionalDays,
-            daysAllocated: doc.daysAllocated + additionalDays,
-            // currentCountdown should reflect the new days until presentation
-            currentCountdown: doc.currentCountdown + additionalDays,
+            presentationDate: adjustedDate,
+            pendingDays: daysDiff > 0 ? daysDiff : 0,
+            daysAllocated: doc.daysAllocated,
+            currentCountdown: daysDiff,
             extensionsCount: doc.extensionsCount + 1,
             status: "overdue" as DocumentStatus,
             updatedAt: new Date()
@@ -214,10 +217,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return doc;
       })
     );
-    
+
     toast({
       title: "Document rescheduled",
-      description: `Document has been rescheduled by ${additionalDays} days`,
+      description: `Document has been rescheduled to ${format(newDate, "PPP")}`,
     });
   };
 
@@ -233,7 +236,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       doc =>
         (!type || doc.type === type) &&
         (doc.title.toLowerCase().includes(lowercaseQuery) ||
-        doc.committee.toLowerCase().includes(lowercaseQuery))
+          doc.committee.toLowerCase().includes(lowercaseQuery))
     );
   };
 
@@ -250,7 +253,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (filters.type && doc.type !== filters.type) {
         return false;
       }
-      
+
       // Filter by year if specified
       if (filters.year && doc.presentationDate.getFullYear() !== filters.year) {
         return false;

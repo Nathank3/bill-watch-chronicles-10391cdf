@@ -37,10 +37,10 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     const updateCountdown = () => {
       const countdown = calculateCurrentCountdown(document.presentationDate);
       const overdue = isItemOverdue(document.presentationDate, document.extensionsCount);
-      
+
       setCurrentCountdown(countdown);
       setIsOverdue(overdue);
-      
+
       if (document.status === "concluded") {
         setTimeLeft("");
       } else {
@@ -51,15 +51,16 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
 
     // Update immediately
     updateCountdown();
-    
+
     // Then update every minute
     const interval = setInterval(updateCountdown, 60000);
-    
+
     return () => clearInterval(interval);
   }, [document.presentationDate, document.status, document.extensionsCount]);
 
-  const handleReschedule = (additionalDays: number) => {
-    rescheduleDocument(document.id, additionalDays);
+
+  const handleReschedule = (newDate: Date) => {
+    rescheduleDocument(document.id, newDate);
   };
 
   const handleDelete = () => {
@@ -70,12 +71,12 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     if (document.status === "concluded") {
       return <Badge className="bg-bill-passed">Concluded</Badge>;
     }
-    
+
     // Use real-time overdue calculation
     if (isOverdue) {
       return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
     }
-    
+
     return <Badge className="bg-bill-pending">Pending</Badge>;
   };
 
@@ -135,14 +136,14 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
       {showActions && (
         <div className="mt-4 flex flex-wrap gap-2">
           {isActionable && onStatusChange && (
-            <Badge 
-              className="bg-bill-passed cursor-pointer hover:opacity-90" 
+            <Badge
+              className="bg-bill-passed cursor-pointer hover:opacity-90"
               onClick={() => onStatusChange(document.id, "concluded")}
             >
               Mark as Concluded
             </Badge>
           )}
-          
+
           {(document.status === "pending" || document.status === "overdue") && (
             <RescheduleDialog onReschedule={handleReschedule}>
               <Button variant="outline" size="sm">
