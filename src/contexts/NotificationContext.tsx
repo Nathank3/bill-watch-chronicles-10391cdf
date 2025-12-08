@@ -30,11 +30,11 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType>({
   notifications: [],
   unreadCount: 0,
-  markAsRead: () => {},
-  markAllAsRead: () => {},
-  addNotification: () => {},
-  clearNotification: () => {},
-  clearAllNotifications: () => {},
+  markAsRead: () => { },
+  markAllAsRead: () => { },
+  addNotification: () => { },
+  clearNotification: () => { },
+  clearAllNotifications: () => { },
 });
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -62,14 +62,30 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [notifications]);
 
   const addNotification = useCallback((notification: Omit<Notification, "id" | "createdAt" | "read">) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      createdAt: new Date(),
-      read: false,
-    };
+    setNotifications((prev) => {
+      // Prevent duplicate notifications for the same business item if it's an action_required type
+      // This allows "frozen" notifications to be persistent but not spammy
+      if (notification.type === "action_required") {
+        const exists = prev.some(
+          (n) =>
+            n.businessId === notification.businessId &&
+            n.type === "action_required" &&
+            !n.read // Only check unread ones, or maybe even read ones if we want it truly unique until resolved? 
+          // User said "persistent". Usually means it stays until action taken.
+          // For now, let's avoid adding if there's already an unread one.
+        );
+        if (exists) return prev;
+      }
 
-    setNotifications((prev) => [newNotification, ...prev]);
+      const newNotification: Notification = {
+        ...notification,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        createdAt: new Date(),
+        read: false,
+      };
+
+      return [newNotification, ...prev];
+    });
   }, []);
 
   const markAsRead = useCallback((id: string) => {

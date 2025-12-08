@@ -11,6 +11,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast";
 import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
+import { addHeaderImage, drawDivider } from "@/utils/pdfUtils";
 const HomePage = () => {
   const { pendingBills } = useBills();
   const { documents, pendingDocuments } = useDocuments();
@@ -31,12 +32,12 @@ const HomePage = () => {
   const getPendingCount = (type: DocumentType | "business") => {
     if (type === "business") {
       // Sum all pending items
-      return (pendingBills?.length || 0) + 
-             (pendingDocuments("statement")?.length || 0) +
-             (pendingDocuments("report")?.length || 0) +
-             (pendingDocuments("regulation")?.length || 0) +
-             (pendingDocuments("policy")?.length || 0) +
-             (pendingDocuments("petition")?.length || 0);
+      return (pendingBills?.length || 0) +
+        (pendingDocuments("statement")?.length || 0) +
+        (pendingDocuments("report")?.length || 0) +
+        (pendingDocuments("regulation")?.length || 0) +
+        (pendingDocuments("policy")?.length || 0) +
+        (pendingDocuments("petition")?.length || 0);
     }
     if (type === "bill") {
       return pendingBills?.length || 0;
@@ -44,7 +45,7 @@ const HomePage = () => {
     return pendingDocuments(type)?.length || 0;
   };
 
-  const generatePDF = (type: DocumentType | "business") => {
+  const generatePDF = async (type: DocumentType | "business") => {
     try {
       let pendingItems: any[];
       let typeLabel: string;
@@ -58,7 +59,7 @@ const HomePage = () => {
         const allRegulations = (pendingDocuments("regulation") || []).map(item => ({ ...item, itemType: "Regulation" }));
         const allPolicies = (pendingDocuments("policy") || []).map(item => ({ ...item, itemType: "Policy" }));
         const allPetitions = (pendingDocuments("petition") || []).map(item => ({ ...item, itemType: "Petition" }));
-        
+
         pendingItems = [...allBills, ...allStatements, ...allReports, ...allRegulations, ...allPolicies, ...allPetitions];
         typeLabel = "Business";
         includeTypeColumn = true;
@@ -86,15 +87,15 @@ const HomePage = () => {
         const now = new Date();
         const aDays = differenceInDays(a.presentationDate, now);
         const bDays = differenceInDays(b.presentationDate, now);
-        
+
         // Check if items are overdue or rescheduled
         const aIsOverdue = a.status === "overdue" || aDays < 0;
         const bIsOverdue = b.status === "overdue" || bDays < 0;
-        
+
         // Prioritize overdue/rescheduled items
         if (aIsOverdue && !bIsOverdue) return -1;
         if (!aIsOverdue && bIsOverdue) return 1;
-        
+
         // Within same priority group, sort by days remaining
         return aDays - bDays;
       });
@@ -104,26 +105,26 @@ const HomePage = () => {
         // Calculate current countdown dynamically
         const countdown = calculateCurrentCountdown(item.presentationDate);
         const displayDays = String(Math.abs(countdown));
-        
+
         // Status is "Overdue" if item has passed date or been extended
         const itemIsOverdue = isItemOverdue(item.presentationDate, item.extensionsCount);
         const statusText = itemIsOverdue ? "Overdue" : "Pending";
-        
+
         // Ensure all values are strings and handle null/undefined values
         const row = [
           String(item.title || "N/A"),
           String(item.committee || "N/A"),
-          item.dateCommitted ? format(new Date(item.dateCommitted), "dd/MM/yyyy") : "N/A",
+          item.dateCommitted ? format(new Date(item.dateCommitted), "EEE, dd/MM/yyyy") : "N/A",
           displayDays,
           statusText,
-          item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A"
+          item.presentationDate ? format(new Date(item.presentationDate), "EEE, dd/MM/yyyy") : "N/A"
         ];
-        
+
         // Add type column for business report
         if (includeTypeColumn) {
           row.push(String(item.itemType || "N/A"));
         }
-        
+
         return row;
       });
 
@@ -134,7 +135,7 @@ const HomePage = () => {
 
       // Validate each row has the correct number of columns
       const expectedColumns = includeTypeColumn ? 7 : 6;
-      const validTableData = tableData.filter(row => 
+      const validTableData = tableData.filter(row =>
         Array.isArray(row) && row.length === expectedColumns && row.every(cell => typeof cell === 'string')
       );
 
@@ -145,71 +146,93 @@ const HomePage = () => {
       const doc = new jsPDF();
       const currentDate = new Date();
       const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
-      
-      // Start position for title (no header image)
-      const startY = 20;
+
+      // Add header image
+      const headerHeight = await addHeaderImage(doc, "/header_logo.png");
+
+      // Calculate start Y based on header
+      let startY = 20;
+      if (headerHeight > 0) {
+        // Draw divider if we have a header
+        startY = headerHeight + 5; // Start divider slightly below image
+        startY = drawDivider(doc, startY, 15, 15); // Draw divider and get new Y
+        startY += 10; // Add space between divider and title
+      } else {
+        startY = 20; // Default start if no image
+      }
 
       // Title positioning with text wrapping
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
-      
+
       // Split text to fit page width
-      const titleText = `Makueni County Assembly Pending ${typeLabel} as at ${formattedDate}`;
-      const maxWidth = doc.internal.pageSize.getWidth() - 20; // 10px margin on each side
+      // Title in ALL CAPS
+      const titleText = `MAKUENI COUNTY ASSEMBLY PENDING ${typeLabel.toUpperCase()} AS AT ${formattedDate.toUpperCase()}`;
+      const marginLeft = 15;
+      const marginRight = 15;
+      const maxWidth = doc.internal.pageSize.getWidth() - (marginLeft + marginRight);
+
+      // Align with table start
       const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-      doc.text(splitTitle, 10, startY);
+      doc.text(splitTitle, marginLeft, startY);
+
+      // Underline the title (line spanning the table width)
+      const titleLines = splitTitle.length;
+      const titleHeight = titleLines * 7; // Approximate height per line
+      const lineY = startY + (titleLines * 5) + 2; // Position below text
+
+      doc.setLineWidth(0.5);
+      doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
 
       // Create table with improved spacing and alignment
       try {
-        const headers = includeTypeColumn 
+        const headers = includeTypeColumn
           ? [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date', 'Type']]
           : [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
-        
-        // Calculate dynamic startY based on title height
-        const titleHeight = splitTitle.length * 7; // Approximate line height
-        
+
         // Define column styles - wrap text columns, fixed width for date/number columns
-        const columnStylesConfig = includeTypeColumn 
+        const columnStylesConfig = includeTypeColumn
           ? {
-              0: { overflow: 'linebreak' as const, cellWidth: 60 },  // Title - allow wrapping with max width
-              1: { overflow: 'linebreak' as const, cellWidth: 30 },  // Committee - allow wrapping
-              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed - no wrap
-              3: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Days Remaining - no wrap
-              4: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Status - no wrap
-              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Due Date - no wrap
-              6: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }  // Type - no wrap
-            }
+            0: { overflow: 'linebreak' as const },  // Title - auto width serves as the main flexible column
+            1: { overflow: 'linebreak' as const, cellWidth: 40 },  // Committee - give it decent fixed width or flexible
+            2: { cellWidth: 32, minCellWidth: 32 }, // Date Committed - fixed width (keep as is)
+            3: { cellWidth: 15, minCellWidth: 15 }, // Days Remaining - reduced from 20
+            4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Status - reduced from 20, no wrap
+            5: { cellWidth: 32, minCellWidth: 32 }, // Due Date - fixed width (keep as is)
+            6: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }  // Type - reduced from 25, no wrap
+          }
           : {
-              0: { overflow: 'linebreak' as const, cellWidth: 70 },  // Title - allow wrapping with max width
-              1: { overflow: 'linebreak' as const, cellWidth: 35 },  // Committee - allow wrapping
-              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed - no wrap
-              3: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Days Remaining - no wrap
-              4: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Status - no wrap
-              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date - no wrap
-            };
-        
+            0: { overflow: 'linebreak' as const },  // Title
+            1: { overflow: 'linebreak' as const, cellWidth: 45 },  // Committee
+            2: { cellWidth: 32, minCellWidth: 32 }, // Date Committed
+            3: { cellWidth: 15, minCellWidth: 15 }, // Days Remaining - reduced
+            4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Status - reduced, no wrap
+            5: { cellWidth: 32, minCellWidth: 32 }  // Due Date
+          };
+
         autoTable(doc, {
-          startY: startY + titleHeight - 2,
+          startY: lineY + 5, // Start table well below the underline
           head: headers,
           body: validTableData,
           theme: 'grid',
-          styles: { 
+          styles: {
             fontSize: 8,
             cellPadding: 3,
             halign: 'left',
-            valign: 'middle'
+            valign: 'middle',
+            overflow: 'linebreak'
           },
-          headStyles: { 
+          headStyles: {
             fillColor: [66, 139, 202],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
             halign: 'left'
           },
           columnStyles: columnStylesConfig,
-          margin: { top: 20, right: 20, bottom: 10, left: 10 },
-          tableWidth: 'wrap',
-          didParseCell: function(data) {
+          margin: { top: 20, right: 15, bottom: 10, left: 15 },
+          tableWidth: 'auto',
+          didParseCell: function (data) {
             // Color overdue status in red
             if (data.column.index === 4 && data.cell.text[0] === "Overdue") {
               data.cell.styles.textColor = [255, 0, 0]; // Red color for overdue status
@@ -219,7 +242,7 @@ const HomePage = () => {
             if (data.column.index === 3 && data.cell.text[0]) {
               const rowIndex = data.row.index;
               const originalItem = sortedItems[rowIndex];
-              
+
               if (originalItem && isItemOverdue(originalItem.presentationDate, originalItem.extensionsCount)) {
                 data.cell.styles.textColor = [255, 0, 0];
                 data.cell.styles.fontStyle = 'bold';
@@ -255,7 +278,7 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-secondary/30">
       <Navbar />
-      
+
       <main className="container py-8">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Makueni County Assembly Business</h1>
@@ -267,7 +290,7 @@ const HomePage = () => {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
           {documentTypes.map(({ type, label }) => {
             const pendingCount = getPendingCount(type);
-            
+
             return (
               <Card key={type} className="relative">
                 <CardHeader className="pb-3">
@@ -298,8 +321,8 @@ const HomePage = () => {
             );
           })}
         </div>
-      </main>
-      
+      </main >
+
       <footer className="bg-gray-100 py-4 mt-8">
         <div className="container text-center">
           <p className="text-sm text-gray-600">
@@ -307,7 +330,7 @@ const HomePage = () => {
           </p>
         </div>
       </footer>
-    </div>
+    </div >
   );
 };
 

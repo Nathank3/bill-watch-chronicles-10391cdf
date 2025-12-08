@@ -12,6 +12,8 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { UserIcon } from "./UserIcon";
+import { NotificationBell } from "./NotificationBell";
 const makueniLogoUrl = "/lovable-uploads/4e53edd2-c5d5-441a-8e85-dd6d8a88c97d.png";
 
 interface Committee {
@@ -36,7 +38,7 @@ export const Navbar = () => {
         .from('committees')
         .select('*')
         .order('name');
-      
+
       if (error) throw error;
       setCommittees(data || []);
     } catch (error) {
@@ -50,13 +52,13 @@ export const Navbar = () => {
         <Link to="/" className="flex items-center gap-2">
           <img src={makueniLogoUrl} alt="County Assembly of Makueni" className="h-8 w-auto" />
         </Link>
-        
+
         <div className="flex items-center gap-4">
           {/* Navigation links */}
           <Link to="/" className="text-sm font-medium text-blue-600 hover:text-green-600">
             Home
           </Link>
-          
+
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
@@ -89,11 +91,11 @@ export const Navbar = () => {
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
-          
+
           <Link to="/documents" className="text-sm font-medium text-blue-600 hover:text-green-600">
             Documents
           </Link>
-          
+
           {isAuthenticated ? (
             <>
               {isAdmin && (
@@ -101,20 +103,16 @@ export const Navbar = () => {
                   Admin Dashboard
                 </Link>
               )}
-              
+
               {isClerk && (
                 <Link to="/clerk" className="text-sm font-medium hover:text-primary">
                   Clerk Dashboard
                 </Link>
               )}
-              
+
               <div className="flex items-center gap-2 ml-4">
-                <span className="text-sm text-muted-foreground">
-                  Welcome, {user?.username}
-                </span>
-                <Button variant="outline" size="sm" onClick={logout}>
-                  Logout
-                </Button>
+                <NotificationBell />
+                <UserIcon username={user?.username} onLogout={logout} />
               </div>
             </>
           ) : (
