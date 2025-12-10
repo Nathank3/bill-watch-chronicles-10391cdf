@@ -1,10 +1,9 @@
 
-import React, { useState, useEffect } from "react";
-import { useBills } from "@/contexts/BillContext";
-import { Bill } from "@/contexts/BillContext";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { useBills, Bill } from "@/contexts/BillContext.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 
 interface BillFilterProps {
   onFilterChange: (filteredBills: Bill[]) => void;
@@ -17,14 +16,13 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
   const [committeeFilter, setCommitteeFilter] = useState("all");
 
   useEffect(() => {
-    console.log("BillFilter: Filtering bills, total:", bills?.length || 0);
     
     if (!bills) {
       onFilterChange([]);
       return;
     }
 
-    let filtered = [...bills];
+    let filtered = bills.filter(b => b.status !== "under_review");
 
     // Filter by search term
     if (searchTerm.trim()) {
@@ -44,7 +42,7 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
       filtered = filtered.filter(bill => bill.committee === committeeFilter);
     }
 
-    console.log("BillFilter: Filtered bills count:", filtered.length);
+
     onFilterChange(filtered);
   }, [bills, searchTerm, statusFilter, committeeFilter, onFilterChange]);
 

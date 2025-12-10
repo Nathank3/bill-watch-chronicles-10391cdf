@@ -1,18 +1,18 @@
 
-import React, { useState, useEffect } from "react";
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast.ts";
+import { supabase } from "@/integrations/supabase/client.ts";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { useAuth } from "@/contexts/AuthContext";
-import { UsersTable } from "./user/UsersTable";
-import { AdminUserManagement } from "./AdminUserManagement";
-import { validateRole } from "@/utils/roleUtils";
+} from "@/components/ui/card.tsx";
+import { useAuth } from "@/contexts/AuthContext.tsx";
+import { UsersTable } from "./user/UsersTable.tsx";
+import { AdminUserManagement } from "./AdminUserManagement.tsx";
+import { validateRole } from "@/utils/roleUtils.ts";
 
 type UserInfo = {
   id: string;
@@ -41,7 +41,7 @@ export function AdminUsers() {
 
         // Map the roles to ensure they are valid
         const usersWithEmails = await Promise.all(
-          data.map(async (profile) => {
+          data.map((profile) => {
             return {
               id: profile.id,
               username: profile.username,
@@ -155,10 +155,34 @@ export function AdminUsers() {
     }
   };
 
+  // Handle password reset
+  const handlePasswordReset = async (userId: string, newPassword: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("reset-user-password", {
+        body: { userId, newPassword },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "Password updated",
+        description: "User password has been successfully updated.",
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      toast({
+        title: "Error updating password",
+        description: (error as Error).message || "Failed to update password.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <AdminUserManagement />
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Manage Users</CardTitle>
@@ -167,13 +191,15 @@ export function AdminUsers() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <UsersTable 
-            users={users} 
-            loading={loading} 
-            updatingUserId={updating} 
+          <UsersTable
+            users={users}
+            loading={loading}
+            updatingUserId={updating}
             onRoleUpdated={handleRoleUpdate}
             onUserDeleted={handleUserDelete}
             deletingUserId={deleting}
+            onPasswordReset={handlePasswordReset}
+            isAdmin={!!user && user.role === 'admin'}
           />
         </CardContent>
       </Card>

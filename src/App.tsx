@@ -1,20 +1,20 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/toaster.tsx";
+import { Toaster as Sonner } from "@/components/ui/sonner.tsx";
+import { TooltipProvider } from "@/components/ui/tooltip.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { BillProvider } from "./contexts/BillContext";
-import { DocumentProvider } from "./contexts/DocumentContext";
-import { NotificationProvider } from "./contexts/NotificationContext";
-import HomePage from "./pages/HomePage";
-import PublicPage from "./pages/PublicPage";
-import LoginPage from "./pages/LoginPage";
-import AdminPage from "./pages/AdminPage";
-import ClerkPage from "./pages/ClerkPage";
-import CommitteePage from "./pages/CommitteePage";
-import NotFound from "./pages/NotFound";
+import { AuthProvider } from "./contexts/AuthContext.tsx";
+import { BillProvider } from "./contexts/BillContext.tsx";
+import { DocumentProvider } from "./contexts/DocumentContext.tsx";
+import { NotificationProvider } from "./contexts/NotificationContext.tsx";
+import HomePage from "./pages/HomePage.tsx";
+import PublicPage from "./pages/PublicPage.tsx";
+import LoginPage from "./pages/LoginPage.tsx";
+import AdminPage from "./pages/AdminPage.tsx";
+import ClerkPage from "./pages/ClerkPage.tsx";
+import CommitteePage from "./pages/CommitteePage.tsx";
+import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 

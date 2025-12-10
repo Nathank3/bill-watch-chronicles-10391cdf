@@ -1,47 +1,42 @@
 
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { useBills, Bill, BillStatus } from "@/contexts/BillContext";
-import { BillCard } from "@/components/BillCard";
-import { BillFilter } from "@/components/BillFilter";
-import { BillFormDialog } from "@/components/BillFormDialog";
-import { DocumentManagement } from "@/components/DocumentManagement";
-import { Navbar } from "@/components/Navbar";
-import { AdminUsers } from "@/components/AdminUsers";
-import { CommitteeManagement } from "@/components/CommitteeManagement";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext.tsx";
+import { useBills, Bill, BillStatus } from "@/contexts/BillContext.tsx";
+import { BillCard } from "@/components/BillCard.tsx";
+import { BillFilter } from "@/components/BillFilter.tsx";
+import { BillFormDialog } from "@/components/BillFormDialog.tsx";
+import { DocumentManagement } from "@/components/DocumentManagement.tsx";
+import { useDocuments } from "@/contexts/DocumentContext.tsx";
+import { Navbar } from "@/components/Navbar.tsx";
+import { AdminUsers } from "@/components/AdminUsers.tsx";
+import { CommitteeManagement } from "@/components/CommitteeManagement.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { toast } from "@/components/ui/use-toast.ts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { DataMigrationDialog } from "@/components/DataMigrationDialog.tsx";
+import { DeleteAllDataDialog } from "@/components/DeleteAllDataDialog.tsx";
 
 const AdminPage = () => {
   const { user, session, isAdmin, isLoading } = useAuth();
-  const { bills, updateBillStatus, rescheduleBill } = useBills();
+  const { bills, updateBillStatus, rescheduleBill, underReviewBills, approveBill, rejectBill } = useBills();
+  const { underReviewDocuments, approveDocument, rejectDocument } = useDocuments();
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
 
   useEffect(() => {
-    // Debug auth state
-    console.log("AdminPage auth state:", { 
-      user: !!user, 
-      session: !!session, 
-      isAdmin, 
-      isLoading,
-      userRole: user?.role
-    });
+    // Debug auth state - removed console logs
   }, [user, session, isAdmin, isLoading]);
 
   useEffect(() => {
     // Initialize filtered bills when bills are loaded
     if (bills) {
-      console.log("AdminPage: Bills loaded, count:", bills.length);
       setFilteredBills(bills);
     }
   }, [bills]);
 
   // Show loading state while auth state is being determined
   if (isLoading) {
-    console.log("AdminPage: Still loading auth state");
     return (
       <div className="min-h-screen bg-secondary/30">
         <Navbar />
@@ -56,13 +51,11 @@ const AdminPage = () => {
 
   // If no session at all, redirect to login
   if (!session) {
-    console.log("AdminPage: No session found, redirecting to login");
     return <Navigate to="/login" replace />;
   }
 
   // If session exists but user profile not loaded yet, show loading
   if (session && !user) {
-    console.log("AdminPage: Session exists but user profile not loaded");
     return (
       <div className="min-h-screen bg-secondary/30">
         <Navbar />
@@ -80,7 +73,6 @@ const AdminPage = () => {
 
   // If user is authenticated but not an admin, show access denied
   if (user && !isAdmin) {
-    console.log("AdminPage: User authenticated but not admin, showing access denied");
     toast({
       title: "Access denied",
       description: "You need admin privileges to access this page",
@@ -93,35 +85,148 @@ const AdminPage = () => {
     updateBillStatus(id, status);
   };
 
-  const handleReschedule = (id: string, additionalDays: number) => {
-    rescheduleBill(id, additionalDays);
+  const handleReschedule = (id: string, newDate: Date) => {
+    rescheduleBill(id, newDate);
   };
 
-  console.log("AdminPage: Rendering admin dashboard, filteredBills count:", filteredBills?.length || 0);
+
 
   return (
     <div className="min-h-screen bg-secondary/30">
       <Navbar />
       
       <main className="container py-8">
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center relative">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
           <p className="text-muted-foreground mt-2">
             Manage and track all legislative documents
           </p>
+          <div className="absolute right-0 top-0 flex gap-2">
+            <DataMigrationDialog />
+            <DeleteAllDataDialog />
+          </div>
         </div>
         
         <Tabs defaultValue="bills" className="max-w-6xl mx-auto">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="bills">Bills</TabsTrigger>
-            <TabsTrigger value="statements">Statements</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="regulations">Regulations</TabsTrigger>
-            <TabsTrigger value="policies">Policies</TabsTrigger>
-            <TabsTrigger value="petitions">Petitions</TabsTrigger>
-            <TabsTrigger value="committees">Committees</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsList className="w-full justify-start overflow-x-auto h-auto flex-nowrap pb-1 no-scrollbar">
+            <TabsTrigger value="review" className="relative min-w-fit px-4">
+              Review Queue
+              {(underReviewBills.length > 0 || underReviewDocuments("statement").length > 0) && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-destructive animate-pulse" />
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="bills" className="min-w-fit px-4">Bills</TabsTrigger>
+            <TabsTrigger value="statements" className="min-w-fit px-4">Statements</TabsTrigger>
+            <TabsTrigger value="reports" className="min-w-fit px-4">Reports</TabsTrigger>
+            <TabsTrigger value="regulations" className="min-w-fit px-4">Regulations</TabsTrigger>
+            <TabsTrigger value="policies" className="min-w-fit px-4">Policies</TabsTrigger>
+            <TabsTrigger value="petitions" className="min-w-fit px-4">Petitions</TabsTrigger>
+            <TabsTrigger value="committees" className="min-w-fit px-4">Committees</TabsTrigger>
+            <TabsTrigger value="users" className="min-w-fit px-4">Users</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="review" className="mt-6">
+             <div className="space-y-8">
+               {/* Bills Review Section */}
+               <section>
+                 <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                   Bills Pending Review 
+                   <span className="text-sm font-normal text-muted-foreground">({underReviewBills.length})</span>
+                 </h2>
+                 {underReviewBills.length > 0 ? (
+                   <div className="grid gap-4 md:grid-cols-2">
+                     {underReviewBills.map((bill) => (
+                       <Card key={bill.id} className="border-l-4 border-l-orange-400">
+                         <CardHeader className="pb-2">
+                           <div className="flex justify-between items-start">
+                             <div>
+                               <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-1 rounded-full">Under Review</span>
+                               <CardTitle className="text-lg mt-2">{bill.title}</CardTitle>
+                             </div>
+                             <div className="text-xs text-muted-foreground">{new Date(bill.createdAt).toLocaleDateString()}</div>
+                           </div>
+                         </CardHeader>
+                         <CardContent>
+                           <p className="text-sm text-gray-600 mb-4">Committee: {bill.committee}</p>
+                           <div className="flex gap-2 justify-end">
+                             <button 
+                               type="button"
+                               onClick={() => rejectBill(bill.id)}
+                               className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded border border-red-200"
+                             >
+                               Reject
+                             </button>
+                             <button 
+                               type="button"
+                               onClick={() => approveBill(bill.id)}
+                               className="px-3 py-1 text-sm text-white bg-green-600 hover:bg-green-700 rounded shadow-sm"
+                             >
+                               Approve
+                             </button>
+                           </div>
+                         </CardContent>
+                       </Card>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="p-8 text-center bg-gray-50 rounded-lg border border-dashed">
+                     <p className="text-muted-foreground">No bills waiting for review</p>
+                   </div>
+                 )}
+               </section>
+
+               {/* Documents Review Section - Simplified to show all types for now */}
+               {/* Ideally we iterate through all types, but let's start with Statements as a proof of concept as requested */}
+               {/* Iterate common types */}
+               {["statement", "report", "regulation", "policy", "petition"].map((type) => {
+                 const docs = underReviewDocuments(type as any); // Type assertion needed until strict typing
+                 if (docs.length === 0) return null;
+                 
+                 return (
+                   <section key={type}>
+                     <h2 className="text-xl font-semibold mb-4 mt-8 capitalize flex items-center gap-2">
+                       {type}s Pending Review
+                       <span className="text-sm font-normal text-muted-foreground">({docs.length})</span>
+                     </h2>
+                     <div className="grid gap-4 md:grid-cols-2">
+                       {docs.map((doc) => (
+                         <Card key={doc.id} className="border-l-4 border-l-blue-400">
+                           <CardHeader className="pb-2">
+                             <div className="flex justify-between items-start">
+                               <div>
+                                 <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">Under Review</span>
+                                 <CardTitle className="text-lg mt-2">{doc.title}</CardTitle>
+                               </div>
+                               <div className="text-xs text-muted-foreground">{new Date(doc.createdAt).toLocaleDateString()}</div>
+                             </div>
+                           </CardHeader>
+                           <CardContent>
+                             <p className="text-sm text-gray-600 mb-4">Committee: {doc.committee}</p>
+                             <div className="flex gap-2 justify-end">
+                               <button 
+                                 type="button"
+                                 onClick={() => rejectDocument(doc.id)}
+                                 className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded border border-red-200"
+                               >
+                                 Reject
+                               </button>
+                               <button 
+                                 type="button"
+                                 onClick={() => approveDocument(doc.id)}
+                                 className="px-3 py-1 text-sm text-white bg-green-600 hover:bg-green-700 rounded shadow-sm"
+                               >
+                                 Approve
+                               </button>
+                             </div>
+                           </CardContent>
+                         </Card>
+                       ))}
+                     </div>
+                   </section>
+                 );
+               })}
+             </div>
+          </TabsContent>
           
           <TabsContent value="bills" className="mt-6">
             <div className="space-y-6">
@@ -179,7 +284,7 @@ const AdminPage = () => {
                         <BillCard
                           key={bill.id}
                           bill={bill}
-                          showActions={true}
+                          showActions
                           onStatusChange={handleStatusChange}
                           onReschedule={handleReschedule}
                         />
@@ -190,7 +295,7 @@ const AdminPage = () => {
                       <CardContent className="p-6 text-center">
                         <p className="text-muted-foreground mb-4">No bills have been created yet</p>
                         <BillFormDialog>
-                          <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+                          <button type="button" className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
                             Create Your First Bill
                           </button>
                         </BillFormDialog>
@@ -210,7 +315,7 @@ const AdminPage = () => {
                           <BillCard
                             key={bill.id}
                             bill={bill}
-                            showActions={true}
+                            showActions
                             onStatusChange={handleStatusChange}
                             onReschedule={handleReschedule}
                           />

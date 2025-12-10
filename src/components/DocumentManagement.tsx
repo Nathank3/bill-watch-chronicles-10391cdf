@@ -1,11 +1,11 @@
 
 import { useState, useEffect } from "react";
-import { useDocuments, DocumentType, Document } from "@/contexts/DocumentContext";
-import { DocumentCard } from "./DocumentCard";
-import { DocumentFormDialog } from "./DocumentFormDialog";
-import { DocumentFilter } from "./DocumentFilter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDocuments, DocumentType, Document } from "@/contexts/DocumentContext.tsx";
+import { DocumentCard } from "./DocumentCard.tsx";
+import { DocumentFormDialog } from "./DocumentFormDialog.tsx";
+import { DocumentFilter } from "./DocumentFilter.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
 
 interface DocumentManagementProps {
   documentType: DocumentType;
@@ -23,7 +23,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
 
   // Update base documents when global documents change or type changes
   useEffect(() => {
-    const typeDocs = documents.filter(doc => doc.type === documentType);
+    const typeDocs = documents.filter(doc => doc.type === documentType && doc.status !== "under_review");
     setBaseDocuments(typeDocs);
     // Initialize filtered documents with type documents initially
     // The Filter component will run its effect and update this shortly after,
@@ -108,7 +108,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
                 <DocumentCard
                   key={doc.id}
                   document={doc}
-                  showActions={true}
+                  showActions
                   onStatusChange={handleStatusChange}
                 />
               ))}
@@ -122,7 +122,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
                     documentType={documentType}
                     title={title.slice(0, -1)}
                   >
-                    <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+                    <button type="button" className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
                       Create Your First {title.slice(0, -1)}
                     </button>
                   </DocumentFormDialog>
@@ -139,7 +139,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
                 <DocumentCard
                   key={doc.id}
                   document={doc}
-                  showActions={true}
+                  showActions
                   onStatusChange={handleStatusChange}
                 />
               ))}
