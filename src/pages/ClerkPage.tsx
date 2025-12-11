@@ -91,13 +91,13 @@ const ClerkPage = () => {
         </div>
 
         <Tabs defaultValue="bills" className="max-w-6xl mx-auto">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="bills">Bills</TabsTrigger>
-            <TabsTrigger value="statements">Statements</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="regulations">Regulations</TabsTrigger>
-            <TabsTrigger value="policies">Policies</TabsTrigger>
-            <TabsTrigger value="petitions">Petitions</TabsTrigger>
+          <TabsList className="w-full justify-start overflow-x-auto h-auto flex-nowrap pb-1 no-scrollbar">
+            <TabsTrigger value="bills" className="min-w-fit px-4">Bills</TabsTrigger>
+            <TabsTrigger value="statements" className="min-w-fit px-4">Statements</TabsTrigger>
+            <TabsTrigger value="reports" className="min-w-fit px-4">Reports</TabsTrigger>
+            <TabsTrigger value="regulations" className="min-w-fit px-4">Regulations</TabsTrigger>
+            <TabsTrigger value="policies" className="min-w-fit px-4">Policies</TabsTrigger>
+            <TabsTrigger value="petitions" className="min-w-fit px-4">Petitions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bills" className="mt-6">
