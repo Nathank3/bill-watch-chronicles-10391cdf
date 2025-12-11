@@ -1,12 +1,12 @@
 
-import React, { useState } from "react";
-import { useBills } from "@/contexts/BillContext";
-import { useDocuments, DocumentType } from "@/contexts/DocumentContext";
-import { BillCard } from "@/components/BillCard";
-import { DocumentCard } from "@/components/DocumentCard";
-import { Navbar } from "@/components/Navbar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { useBills } from "@/contexts/BillContext.tsx";
+import { useDocuments, DocumentType } from "@/contexts/DocumentContext.tsx";
+import { BillCard } from "@/components/BillCard.tsx";
+import { DocumentCard } from "@/components/DocumentCard.tsx";
+import { Navbar } from "@/components/Navbar.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { Input } from "@/components/ui/input.tsx";
 
 const PublicPage = () => {
   const { pendingBills, concludedBills } = useBills();
@@ -55,7 +55,7 @@ const PublicPage = () => {
       
       <main className="container py-8">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold">Makueni County Assembly Business</h1>
+          <h1 className="text-3xl font-bold">Makueni Assembly Business Tracker</h1>
           <p className="text-muted-foreground mt-2">
             Track pending business and view concluded business
           </p>
@@ -68,9 +68,9 @@ const PublicPage = () => {
             onValueChange={(value) => setDocumentType(value as DocumentType)}
             className="w-full"
           >
-            <TabsList className="grid grid-cols-6 w-full">
+            <TabsList className="w-full justify-start overflow-x-auto h-auto flex-nowrap pb-1 no-scrollbar">
               {documentTypes.map(type => (
-                <TabsTrigger key={type.value} value={type.value}>
+                <TabsTrigger key={type.value} value={type.value} className="min-w-fit px-4">
                   {type.label}
                 </TabsTrigger>
               ))}

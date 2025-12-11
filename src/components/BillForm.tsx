@@ -1,16 +1,16 @@
 
 import { useState, useEffect } from "react";
-import { useBills, Bill } from "@/contexts/BillContext";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "@/components/ui/use-toast";
+import { useBills, Bill } from "@/contexts/BillContext.tsx";
+import { supabase } from "@/integrations/supabase/client.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Card } from "@/components/ui/card.tsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { calculatePresentationDate } from "@/utils/documentUtils";
+import { Calendar } from "@/components/ui/calendar.tsx";
+import { calculatePresentationDate } from "@/utils/documentUtils.ts";
 
 interface BillFormProps {
   initialBill?: Bill;
@@ -78,7 +78,7 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
     setFormData(prev => ({ ...prev, committee: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title || !formData.committee || !formData.dateCommitted || formData.daysAllocated <= 0) {
@@ -92,34 +92,39 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
 
     const dateCommitted = new Date(formData.dateCommitted);
 
-    if (isEditing && initialBill) {
-      updateBill(initialBill.id, {
-        title: formData.title,
-        committee: formData.committee,
-        dateCommitted,
-        pendingDays: formData.daysAllocated
-      });
-    } else {
-      addBill({
-        title: formData.title,
-        committee: formData.committee,
-        dateCommitted,
-        pendingDays: formData.daysAllocated
-      });
-    }
+    try {
+      if (isEditing && initialBill) {
+        await updateBill(initialBill.id, {
+          title: formData.title,
+          committee: formData.committee,
+          dateCommitted,
+          pendingDays: formData.daysAllocated
+        });
+      } else {
+        await addBill({
+          title: formData.title,
+          committee: formData.committee,
+          dateCommitted,
+          pendingDays: formData.daysAllocated
+        });
+      }
 
-    // Reset form after submission
-    if (!isEditing) {
-      setFormData({
-        title: "",
-        committee: "",
-        dateCommitted: format(new Date(), "yyyy-MM-dd"),
-        daysAllocated: 10
-      });
-    }
+      // Reset form after submission
+      if (!isEditing) {
+        setFormData({
+          title: "",
+          committee: "",
+          dateCommitted: format(new Date(), "yyyy-MM-dd"),
+          daysAllocated: 10
+        });
+      }
 
-    if (onSuccess) {
-      onSuccess();
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error("Error submitting bill:", error);
+      // Toast is already handled in context, but we prevent closing the dialog here
     }
   };
 

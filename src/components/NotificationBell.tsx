@@ -1,24 +1,24 @@
 
 import { useState } from "react";
 import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button.tsx";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { useNotifications } from "@/contexts/NotificationContext";
+} from "@/components/ui/popover.tsx";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { useNotifications, Notification } from "@/contexts/NotificationContext.tsx";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
 export const NotificationBell = () => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotification } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearReadNotifications } = useNotifications();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
     
     // Navigate to appropriate page based on notification type
@@ -30,6 +30,8 @@ export const NotificationBell = () => {
     
     setOpen(false);
   };
+  
+  const hasReadNotifications = notifications.some(n => n.read);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -46,18 +48,30 @@ export const NotificationBell = () => {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={markAllAsRead}
-              className="text-xs"
-            >
-              Mark all as read
-            </Button>
-          )}
+        <div className="flex items-center justify-between p-4 border-b bg-gray-50/50">
+          <h3 className="font-semibold text-sm">Notifications</h3>
+          <div className="flex gap-2">
+            {hasReadNotifications && (
+               <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearReadNotifications}
+                className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+              >
+                Clear read
+              </Button>
+            )}
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={markAllAsRead}
+                className="text-xs h-7 px-2 text-primary hover:text-primary/80"
+              >
+                Mark all read
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="h-96">
           {notifications.length === 0 ? (

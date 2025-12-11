@@ -189,6 +189,17 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
 
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to create a document.",
+        variant: "destructive"
+      });
+      throw new Error("User not authenticated");
+    }
+
     const newDocument = {
       title: docData.title,
       committee: docData.committee,
@@ -228,7 +239,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error("Error adding document:", error);
       toast({
         title: "Error adding document",
-        description: "Could not save to database.",
+        description: error.message || "Could not save to database.",
         variant: "destructive"
       });
       throw error;
@@ -337,6 +348,11 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .eq('id', id);
 
       if (error) throw error;
+
+      // Update local state immediately
+      setDbDocuments(prev => prev.map(doc => 
+        doc.id === id ? { ...doc, status, updatedAt: new Date() } : doc
+      ));
 
       const statusMessages = {
         pending: "Document has been marked as pending",

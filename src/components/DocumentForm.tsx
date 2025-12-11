@@ -72,7 +72,7 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
     setFormData(prev => ({ ...prev, committee: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title.trim() || !formData.committee.trim() || !formData.dateCommitted || formData.daysAllocated <= 0) {
@@ -87,7 +87,7 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
     const dateCommitted = new Date(formData.dateCommitted);
 
     try {
-      addDocument({
+      await addDocument({
         title: formData.title.trim(),
         committee: formData.committee.trim(),
         dateCommitted,
@@ -111,11 +111,8 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
       });
     } catch (error) {
       console.error("Error creating document:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create document. Please try again.",
-        variant: "destructive"
-      });
+      // Toast is handled in context usually, but keeping this for fallback safety
+      // Important: Form data is NOT reset, allowing user to retry
     }
   };
 

@@ -1,7 +1,5 @@
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
-import { Bill } from "./BillContext";
-import { Document } from "./DocumentContext";
 
 export type NotificationType = "business_created" | "action_required";
 
@@ -25,6 +23,7 @@ interface NotificationContextType {
   addNotification: (notification: Omit<Notification, "id" | "createdAt" | "read">) => void;
   clearNotification: (id: string) => void;
   clearAllNotifications: () => void;
+  clearReadNotifications: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
@@ -35,6 +34,7 @@ const NotificationContext = createContext<NotificationContextType>({
   addNotification: () => { },
   clearNotification: () => { },
   clearAllNotifications: () => { },
+  clearReadNotifications: () => { },
 });
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,7 +45,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const stored = localStorage.getItem("notifications");
     if (stored) {
       try {
-        const parsed = JSON.parse(stored).map((n: any) => ({
+        const parsed = (JSON.parse(stored) as Array<Omit<Notification, "createdAt"> & { createdAt: string }>).map((n) => ({
           ...n,
           createdAt: new Date(n.createdAt),
         }));
@@ -106,6 +106,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications([]);
   }, []);
 
+  const clearReadNotifications = useCallback(() => {
+    setNotifications((prev) => prev.filter((n) => !n.read));
+  }, []);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
@@ -118,6 +122,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         addNotification,
         clearNotification,
         clearAllNotifications,
+        clearReadNotifications,
       }}
     >
       {children}
