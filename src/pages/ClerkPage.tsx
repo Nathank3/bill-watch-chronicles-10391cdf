@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.t
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { toast } from "@/components/ui/use-toast.ts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
-import { AdminUsers } from "@/components/AdminUsers.tsx";
 
 const ClerkPage = () => {
   const { user, session, isClerk, isLoading } = useAuth();
@@ -99,7 +98,6 @@ const ClerkPage = () => {
             <TabsTrigger value="regulations">Regulations</TabsTrigger>
             <TabsTrigger value="policies">Policies</TabsTrigger>
             <TabsTrigger value="petitions">Petitions</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bills" className="mt-6">
@@ -223,9 +221,7 @@ const ClerkPage = () => {
             <DocumentManagement documentType="petition" title="Petitions" />
           </TabsContent>
 
-          <TabsContent value="users" className="mt-6">
-            <AdminUsers />
-          </TabsContent>
+
         </Tabs>
       </main>
 
