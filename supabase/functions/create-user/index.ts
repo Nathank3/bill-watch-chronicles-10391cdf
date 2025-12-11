@@ -1,6 +1,6 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0";
+import { serve } from "std/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +32,45 @@ serve(async (req) => {
         },
       }
     );
+
+    // Get the authorization header from the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization header is required' }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401 
+      });
+    }
+
+    // Verify the current user is an admin
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user: currentUser }, error: userError } = await userClient.auth.getUser();
+
+    if (userError || !currentUser) {
+      return new Response(JSON.stringify({ error: 'Authentication failed' }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401 
+      });
+    }
+
+    // Check if the current user has admin role
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (profileError || profile?.role !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Unauthorized. Only admins can create users.' }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403 
+      });
+    }
 
     const { email, password, username, role }: CreateUserRequest = await req.json();
 
@@ -90,15 +129,15 @@ serve(async (req) => {
     }
 
     // Update the user's profile with the correct role
-    const { error: profileError } = await supabaseAdmin
+    const { error: createProfileError } = await supabaseAdmin
       .from("profiles")
       .update({ role, username })
       .eq("id", authUser.user.id);
 
-    if (profileError) {
+    if (createProfileError) {
       // If profile update fails, we should clean up the auth user
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
-      throw profileError;
+      throw createProfileError;
     }
 
     return new Response(
@@ -117,17 +156,17 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating user:", error);
     
     // Provide more user-friendly error messages
     let errorMessage = "An unexpected error occurred while creating the user";
     
-    if (error.message.includes("already been registered") || error.message.includes("email_exists")) {
+    if (error.message?.includes("already been registered") || error.message?.includes("email_exists")) {
       errorMessage = "A user with this email address already exists. Please use a different email address.";
-    } else if (error.message.includes("Missing required fields")) {
+    } else if (error.message?.includes("Missing required fields")) {
       errorMessage = "Please fill in all required fields";
-    } else if (error.message.includes("Invalid role")) {
+    } else if (error.message?.includes("Invalid role")) {
       errorMessage = "Invalid user role specified";
     } else if (error.message) {
       errorMessage = error.message;

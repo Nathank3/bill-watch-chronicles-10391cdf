@@ -1,23 +1,23 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useBills } from "@/contexts/BillContext";
-import { useDocuments, DocumentType } from "@/contexts/DocumentContext";
-import { Navbar } from "@/components/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useBills, Bill } from "@/contexts/BillContext.tsx";
+import { useDocuments, DocumentType, Document } from "@/contexts/DocumentContext.tsx";
+import { Navbar } from "@/components/Navbar.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { Download, ArrowLeft } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { toast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
+import { toast } from "@/components/ui/use-toast.ts";
+import { supabase } from "@/integrations/supabase/client.ts";
+import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils.ts";
 
 const CommitteePage = () => {
   const { committeeId } = useParams();
   const navigate = useNavigate();
   const { pendingBills } = useBills();
-  const { documents, pendingDocuments } = useDocuments();
+  const { pendingDocuments } = useDocuments();
   const [committeeName, setCommitteeName] = useState<string>("");
 
   useEffect(() => {
@@ -75,7 +75,8 @@ const CommitteePage = () => {
 
   const generatePDF = (type: DocumentType | "business") => {
     try {
-      let pendingItems: any[];
+      type PrintableItem = (Bill | Document) & { itemType?: string };
+      let pendingItems: PrintableItem[];
       let typeLabel: string;
       let includeTypeColumn = false;
 
@@ -171,13 +172,16 @@ const CommitteePage = () => {
       const startY = 20;
 
       doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
+      doc.setFont("times", "bold");
       doc.setTextColor(0, 0, 0);
       
       const titleText = `Makueni County Assembly ${committeeName} Pending ${typeLabel} as at ${formattedDate}`;
-      const maxWidth = doc.internal.pageSize.getWidth() - 20;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const maxWidth = pageWidth - 20;
       const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-      doc.text(splitTitle, 10, startY);
+      
+      // Center align the text
+      doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
 
       try {
         const headers = includeTypeColumn 

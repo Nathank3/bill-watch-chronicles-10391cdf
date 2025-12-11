@@ -1,170 +1,171 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
-import { toast } from "@/components/ui/use-toast";
-import { useBills } from "./BillContext";
-import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document";
-import { calculatePresentationDate, adjustForSittingDay } from "@/utils/documentUtils";
+import React, { createContext, useState, useContext, useEffect, useMemo } from "react";
+import { toast } from "@/components/ui/use-toast.ts";
+import { useBills } from "./BillContext.tsx";
+import { supabase } from "@/integrations/supabase/client.ts";
+import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document.ts";
+import { calculatePresentationDate, adjustForSittingDay } from "@/utils/documentUtils.ts";
 import { format } from "date-fns";
-import { migrateLocalStorageData } from "@/utils/dataMigration";
-import { useNotifications } from "./NotificationContext";
+import { useNotifications } from "./NotificationContext.tsx";
+import { useAuth } from "./AuthContext.tsx";
 
 // Create the context
 const DocumentContext = createContext<DocumentContextType>({
   documents: [],
   pendingDocuments: () => [],
   concludedDocuments: () => [],
-  addDocument: () => { },
-  updateDocument: () => { },
-  deleteDocument: () => { },
-  updateDocumentStatus: () => { },
-  rescheduleDocument: () => { },
+  underReviewDocuments: () => [],
+  addDocument: async () => { },
+  updateDocument: async () => { },
+  deleteDocument: async () => { },
+  updateDocumentStatus: async () => { },
+  approveDocument: async () => { },
+  rejectDocument: async () => { },
+  rescheduleDocument: async () => { },
   getDocumentById: () => undefined,
   searchDocuments: () => [],
   filterDocuments: () => [],
   getDocumentsByType: () => []
 });
 
-// Custom hook for checking and freezing documents
-const useFreezeCheck = (documents: Document[], updateDocumentStatus: (id: string, status: DocumentStatus) => void, addNotification: (n: any) => void) => {
-  useEffect(() => {
-    const checkFreezeStatus = () => {
-      documents.forEach(doc => {
-        if ((doc.status === "pending" || doc.status === "overdue") && doc.currentCountdown <= 0) {
-          updateDocumentStatus(doc.id, "frozen");
+// Helper to map DB result to App type
+interface DbDocumentResult {
+  id: string;
+  title: string;
+  committee: string;
+  date_committed: string;
+  created_at: string;
+  pending_days: number;
+  presentation_date: string;
+  status: string;
+  type: string;
+  updated_at: string;
+  days_allocated: number;
+  current_countdown: number;
+  extensions_count: number;
+  [key: string]: unknown;
+}
 
-          addNotification({
-            type: "action_required",
-            title: "Document Frozen",
-            message: `"${doc.title}" has been frozen due to expired deadline.`,
-            businessId: doc.id,
-            businessType: "document",
-            businessTitle: doc.title
-          });
-        }
-      });
-    };
-
-    checkFreezeStatus();
-    const interval = setInterval(checkFreezeStatus, 60000);
-    return () => clearInterval(interval);
-  }, [documents, updateDocumentStatus, addNotification]);
-};
+const mapDbToDocument = (data: DbDocumentResult): Document => ({
+  id: data.id,
+  title: data.title,
+  committee: data.committee,
+  dateCommitted: new Date(data.date_committed || data.created_at),
+  pendingDays: data.pending_days || 0,
+  presentationDate: new Date(data.presentation_date),
+  status: data.status as DocumentStatus,
+  type: data.type as DocumentType,
+  createdAt: new Date(data.created_at),
+  updatedAt: new Date(data.updated_at),
+  daysAllocated: data.days_allocated || 0,
+  currentCountdown: data.current_countdown || 0,
+  extensionsCount: data.extensions_count || 0
+});
 
 // Document provider component
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [dbDocuments, setDbDocuments] = useState<Document[]>([]); // Documents from DB (non-bills)
   const { bills } = useBills();
   const { addNotification } = useNotifications();
+  const { isAdmin } = useAuth();
 
-  // Initialize with mock data
-  useEffect(() => {
-    // Migration is run in BillContext, but check here too for safety
-    const migrated = localStorage.getItem("data_migrated_v1");
-    if (!migrated) {
-      migrateLocalStorageData();
-      localStorage.setItem("data_migrated_v1", "true");
-    }
+  // Fetch non-bill documents from Supabase
+  const fetchDocuments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const storedDocuments = localStorage.getItem("documents");
-    if (storedDocuments) {
-      try {
-        // Parse stored documents and convert date strings back to Date objects
-        const parsedDocuments = JSON.parse(storedDocuments).map((doc: any) => ({
-          ...doc,
-          presentationDate: new Date(doc.presentationDate),
-          dateCommitted: new Date(doc.dateCommitted),
-          createdAt: new Date(doc.createdAt),
-          updatedAt: new Date(doc.updatedAt),
-          // Ensure new fields exist with defaults for backward compatibility
-          daysAllocated: doc.daysAllocated || doc.pendingDays || 0,
-          currentCountdown: doc.currentCountdown !== undefined ? doc.currentCountdown : doc.pendingDays || 0,
-          extensionsCount: doc.extensionsCount || 0
-        }));
-        setDocuments(parsedDocuments);
-      } catch (error) {
-        console.error("Error parsing stored documents:", error);
-        setDocuments([]);
+      if (error) throw error;
+      
+      if (data) {
+        setDbDocuments(data.map(mapDbToDocument));
       }
-    } else {
-      setDocuments([]);
-      localStorage.setItem("documents", JSON.stringify([]));
-    }
-  }, []);
-
-  // Convert bills to documents format for unified handling
-  useEffect(() => {
-    if (bills.length > 0) {
-      const billDocuments: Document[] = bills.map(bill => ({
-        id: `bill-${bill.id}`,
-        title: bill.title,
-        committee: bill.committee,
-        dateCommitted: bill.dateCommitted,
-        pendingDays: bill.pendingDays,
-        presentationDate: bill.presentationDate,
-        status: bill.status,
-        type: "bill",
-        createdAt: bill.createdAt,
-        updatedAt: bill.updatedAt,
-        daysAllocated: bill.daysAllocated,
-        currentCountdown: bill.currentCountdown,
-        extensionsCount: bill.extensionsCount
-      }));
-
-      // Update document storage with bills
-      setDocuments(prevDocuments => {
-        // Remove existing bill documents
-        const nonBillDocuments = prevDocuments.filter(doc => doc.type !== "bill");
-        return [...nonBillDocuments, ...billDocuments];
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      toast({
+        title: "Error fetching documents",
+        description: "Could not load documents from the database.",
+        variant: "destructive"
       });
     }
-  }, [bills]);
+  };
 
-  // Save documents to local storage whenever they change
+  // Initial fetch
   useEffect(() => {
-    if (documents.length > 0) {
-      // Only save non-bill documents as bills are managed separately
-      const nonBillDocuments = documents.filter(doc => doc.type !== "bill");
-      localStorage.setItem("documents", JSON.stringify(nonBillDocuments));
-    }
-  }, [documents]);
+    fetchDocuments();
+    
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('schema-db-docs-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documents'
+        },
+        () => {
+          fetchDocuments();
+        }
+      )
+      .subscribe();
 
-  // Hook up freeze checker
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Merge bills and dbDocuments into unified 'documents' state
+  const documents = useMemo(() => {
+    const billDocuments: Document[] = bills.map(bill => ({
+      id: `bill-${bill.id}`,
+      title: bill.title,
+      committee: bill.committee,
+      dateCommitted: bill.dateCommitted,
+      pendingDays: bill.pendingDays,
+      presentationDate: bill.presentationDate,
+      status: bill.status === "under_review" ? "under_review" : bill.status, // bill status matches document status
+      type: "bill",
+      createdAt: bill.createdAt,
+      updatedAt: bill.updatedAt,
+      daysAllocated: bill.daysAllocated,
+      currentCountdown: bill.currentCountdown,
+      extensionsCount: bill.extensionsCount
+    }));
+
+    return [...dbDocuments, ...billDocuments];
+  }, [bills, dbDocuments]);
+
+
+  // Hook up freeze checker for DB documents (Using local state to check, but triggering DB updates)
   useEffect(() => {
     const checkFreezeStatus = () => {
-      documents.forEach(doc => {
+      dbDocuments.forEach(doc => {
         if ((doc.status === "pending" || doc.status === "overdue") && doc.currentCountdown <= 0) {
-          setDocuments(prevDocs =>
-            prevDocs.map(d => {
-              if (d.id === doc.id) {
-                return { ...d, status: "frozen", updatedAt: new Date() };
-              }
-              return d;
-            })
-          );
-
-          addNotification({
-            type: "action_required",
-            title: "Document Frozen",
-            message: `"${doc.title}" has been frozen due to expired deadline.`,
-            businessId: doc.id,
-            businessType: "document",
-            businessTitle: doc.title
-          });
-
-          toast({
-            title: "Document Frozen",
-            description: `"${doc.title}" is now frozen.`,
-            variant: "destructive"
+          updateDocumentStatus(doc.id, "frozen", true).then(() => {
+             addNotification({
+              type: "action_required",
+              title: "Document Frozen",
+              message: `"${doc.title}" has been frozen due to expired deadline.`,
+              businessId: doc.id,
+              businessType: "document",
+              businessTitle: doc.title
+            });
           });
         }
       });
     };
-    checkFreezeStatus();
-  }, [documents, addNotification]);
+    
+    // Check periodically
+    const interval = setInterval(checkFreezeStatus, 60000);
+    return () => clearInterval(interval);
+  }, [dbDocuments, addNotification]);
 
   // Helper functions to filter docs by type
   const getDocumentsByType = (type: DocumentType) => documents.filter(doc => doc.type === type);
 
-  // Filtered documents by type and status - include both pending, overdue AND frozen
+  // Filtered documents by type and status
   const pendingDocuments = (type: DocumentType) => documents
     .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue" || doc.status === "frozen"))
     .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime());
@@ -173,136 +174,225 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     .filter(doc => doc.type === type && doc.status === "concluded")
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
+  const underReviewDocuments = (type: DocumentType) => documents
+    .filter(doc => doc.type === type && doc.status === "under_review")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
   // Add new document
-  const addDocument = (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
-    const now = new Date();
+  const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
+    // If type is bill, we shouldn't be here ideally, but for safety:
+    if (docData.type === "bill") {
+      console.error("Cannot add bills via DocumentContext");
+      return;
+    }
+
+
     const presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
 
-    const newDocument: Document = {
-      id: `${docData.type}-${documents.length + 1}`,
-      ...docData,
-      status: "pending",
-      presentationDate,
-      createdAt: now,
-      updatedAt: now,
-      daysAllocated: docData.pendingDays,
-      currentCountdown: docData.pendingDays,
-      extensionsCount: 0
+    const newDocument = {
+      title: docData.title,
+      committee: docData.committee,
+      date_committed: docData.dateCommitted.toISOString(),
+      pending_days: docData.pendingDays,
+      status: isAdmin ? "pending" : "under_review",
+      presentation_date: presentationDate.toISOString(),
+      type: docData.type,
+      days_allocated: docData.pendingDays,
+      current_countdown: docData.pendingDays,
+      extensions_count: 0
     };
 
-    setDocuments(prevDocs => [...prevDocs, newDocument]);
+    try {
+      const { data, error } = await supabase.from('documents').insert(newDocument).select();
+      if (error) throw error;
 
-    addNotification({
-      type: "business_created",
-      title: "Document Created",
-      message: `New ${newDocument.type} "${newDocument.title}" has been created.`,
-      businessId: newDocument.id,
-      businessType: "document",
-      businessTitle: newDocument.title
-    });
+      const createdDoc = data?.[0];
 
-    toast({
-      title: "Document added",
-      description: `"${docData.title}" has been successfully added`,
-    });
+      addNotification({
+        type: "business_created",
+        title: "Document Created",
+        message: `New ${docData.type} "${docData.title}" has been created.`,
+        businessId: createdDoc?.id || "pending",
+        businessType: "document",
+        businessTitle: docData.title
+      });
+
+      toast({
+        title: isAdmin ? "Document published" : "Document submitted for review",
+        description: isAdmin
+          ? `"${docData.title}" has been successfully added`
+          : `"${docData.title}" is now under review by an admin.`,
+      });
+
+    } catch (error) {
+      console.error("Error adding document:", error);
+      toast({
+        title: "Error adding document",
+        description: "Could not save to database.",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
 
   // Update document
-  const updateDocument = (id: string, updates: Partial<Document>) => {
-    setDocuments(prevDocs =>
-      prevDocs.map(doc => {
-        if (doc.id === id) {
-          const updated = { ...doc, ...updates, updatedAt: new Date() };
+  const updateDocument = async (id: string, updates: Partial<Document>) => {
+    // If it's a bill (id starts with 'bill-'), ignore or redirect?
+    // The UI should prevent this, but let's be safe.
+    if (id.startsWith('bill-')) {
+       // Ideally trigger bill update in BillContext? 
+       // For now, we assume simple edits won't target bills via document context 
+       // or if they do, we log a warning.
+       console.warn("Attempted to update bill via DocumentContext - ignored");
+       return;
+    }
 
-          // Recalculate presentation date if needed
-          if ((updates.dateCommitted || updates.pendingDays) && doc.status === "pending") {
-            updated.presentationDate = calculatePresentationDate(
-              updates.dateCommitted || doc.dateCommitted,
-              updates.pendingDays || doc.pendingDays
-            );
-          }
+    try {
+      const dbUpdates: Record<string, string | number | undefined> = {
+        updated_at: new Date().toISOString()
+      };
+      
+      if (updates.title) dbUpdates.title = updates.title;
+      if (updates.committee) dbUpdates.committee = updates.committee;
+      if (updates.status) dbUpdates.status = updates.status;
+      if (updates.dateCommitted) dbUpdates.date_committed = updates.dateCommitted.toISOString();
+      if (updates.pendingDays !== undefined) dbUpdates.pending_days = updates.pendingDays;
+      if (updates.presentationDate) dbUpdates.presentation_date = updates.presentationDate.toISOString();
+      if (updates.daysAllocated !== undefined) dbUpdates.days_allocated = updates.daysAllocated;
+      if (updates.currentCountdown !== undefined) dbUpdates.current_countdown = updates.currentCountdown;
+      if (updates.extensionsCount !== undefined) dbUpdates.extensions_count = updates.extensionsCount;
 
-          return updated;
-        }
-        return doc;
-      })
-    );
+       // Specialized logic: recalc presentation date
+      const currentDoc = dbDocuments.find(d => d.id === id);
+      if (currentDoc && (updates.dateCommitted || updates.pendingDays) && currentDoc.status === "pending") {
+        const newDate = calculatePresentationDate(
+          updates.dateCommitted || currentDoc.dateCommitted,
+          updates.pendingDays || currentDoc.pendingDays
+        );
+        dbUpdates.presentation_date = newDate.toISOString();
+      }
 
-    toast({
-      title: "Document updated",
-      description: `Document has been successfully updated`,
-    });
+      const { error } = await supabase
+        .from('documents')
+        .update(dbUpdates)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Document updated",
+        description: `Document has been successfully updated`,
+      });
+    } catch (error) {
+      console.error("Error updating document:", error);
+      toast({
+        title: "Error updating document",
+        description: "Could not update the database.",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
 
   // Delete document function
-  const deleteDocument = (id: string) => {
-    setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== id));
+  const deleteDocument = async (id: string) => {
+    if (id.startsWith('bill-')) return;
 
-    toast({
-      title: "Document deleted",
-      description: "Document has been successfully deleted",
-    });
+    try {
+      const { error } = await supabase.from('documents').delete().eq('id', id);
+      if (error) throw error;
+
+      // Update local state immediately
+      setDbDocuments(prev => prev.filter(doc => doc.id !== id));
+
+      toast({
+        title: "Document deleted",
+        description: "Document has been successfully deleted",
+      });
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      toast({ title: "Error", description: "Could not delete document.", variant: "destructive" });
+      throw error;
+    }
+  };
+
+  const approveDocument = async (id: string) => {
+    await updateDocumentStatus(id, "pending");
+    toast({ title: "Document Approved", description: "Document has been published successfully." });
+  };
+
+  const rejectDocument = async (id: string) => {
+    await deleteDocument(id);
+    toast({ title: "Document Rejected", description: "Document has been rejected and removed." });
   };
 
   // Update document status
-  const updateDocumentStatus = (id: string, status: DocumentStatus) => {
-    setDocuments(prevDocs =>
-      prevDocs.map(doc => {
-        if (doc.id === id) {
-          return {
-            ...doc,
-            status,
-            updatedAt: new Date()
-          };
-        }
-        return doc;
-      })
-    );
+  const updateDocumentStatus = async (id: string, status: DocumentStatus, silent: boolean = false) => {
+    if (id.startsWith('bill-')) return; 
 
-    const statusMessages = {
-      pending: "Document has been marked as pending",
-      concluded: "Document has been marked as concluded",
-      overdue: "Document has been marked as overdue",
-      frozen: "Document has been marked as frozen",
-    };
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id);
 
-    toast({
-      title: "Status updated",
-      description: statusMessages[status] || "Status updated",
-    });
+      if (error) throw error;
+
+      const statusMessages = {
+        pending: "Document has been marked as pending",
+        concluded: "Document has been marked as concluded",
+        overdue: "Document has been marked as overdue",
+        frozen: "Document has been marked as frozen",
+      };
+
+      toast({
+        title: "Status updated",
+        description: statusMessages[status] || "Status updated",
+      });
+    } catch (error) {
+       console.error("Error updating status:", error);
+       // Suppress toast if it was an automated freeze, or show generic
+       if (!silent) {
+         toast({ title: "Error", description: "Could not update status", variant: "destructive" });
+       }
+    }
   };
 
   // Reschedule document
-  const rescheduleDocument = (id: string, newDate: Date) => {
-    setDocuments(prevDocs =>
-      prevDocs.map(doc => {
-        if (doc.id === id) {
-          // Adjust the new date for sitting days
-          const adjustedDate = adjustForSittingDay(newDate);
+  const rescheduleDocument = async (id: string, newDate: Date) => {
+    if (id.startsWith('bill-')) return;
 
-          // Calculate new pending days relative to now
-          const now = new Date();
-          const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    try {
+      const doc = dbDocuments.find(d => d.id === id);
+      if (!doc) return;
 
-          return {
-            ...doc,
-            presentationDate: adjustedDate,
-            pendingDays: daysDiff > 0 ? daysDiff : 0,
-            daysAllocated: doc.daysAllocated,
-            currentCountdown: daysDiff,
-            extensionsCount: doc.extensionsCount + 1,
-            status: "overdue" as DocumentStatus,
-            updatedAt: new Date()
-          };
-        }
-        return doc;
-      })
-    );
+      const adjustedDate = adjustForSittingDay(newDate);
+      const now = new Date();
+      const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-    toast({
-      title: "Document rescheduled",
-      description: `Document has been rescheduled to ${format(newDate, "PPP")}`,
-    });
+      const { error } = await supabase
+        .from('documents')
+        .update({
+          presentation_date: adjustedDate.toISOString(),
+          pending_days: daysDiff > 0 ? daysDiff : 0,
+          current_countdown: daysDiff,
+          extensions_count: doc.extensionsCount + 1,
+          status: "overdue",
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Document rescheduled",
+        description: `Document has been rescheduled to ${format(newDate, "PPP")}`,
+      });
+    } catch (error) {
+      console.error("Error rescheduling document:", error);
+      toast({ title: "Error", description: "Could not reschedule.", variant: "destructive" });
+      throw error;
+    }
   };
 
   // Get document by ID
@@ -365,10 +455,13 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         documents,
         pendingDocuments,
         concludedDocuments,
+        underReviewDocuments,
         addDocument,
         updateDocument,
         deleteDocument,
         updateDocumentStatus,
+        approveDocument,
+        rejectDocument,
         rescheduleDocument,
         getDocumentById,
         searchDocuments,
@@ -385,4 +478,4 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 export const useDocuments = () => useContext(DocumentContext);
 
 // Re-export document types for convenience
-export type { Document, DocumentType, DocumentStatus } from "@/types/document";
+export type { Document, DocumentType, DocumentStatus } from "@/types/document.ts";

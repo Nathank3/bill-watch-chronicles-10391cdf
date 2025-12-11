@@ -1,12 +1,13 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
-import { migrateLocalStorageData } from "@/utils/dataMigration";
-import { adjustForSittingDay, calculatePresentationDate } from "@/utils/documentUtils";
-import { useNotifications } from "./NotificationContext";
+import { supabase } from "@/integrations/supabase/client.ts";
+import { adjustForSittingDay, calculatePresentationDate } from "@/utils/documentUtils.ts";
+import { useNotifications } from "./NotificationContext.tsx";
+import { useAuth } from "./AuthContext.tsx";
 
 // Define bill status type - Including frozen
-export type BillStatus = "pending" | "concluded" | "overdue" | "frozen";
+export type BillStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review";
 
 // Define bill interface
 export interface Bill {
@@ -29,11 +30,14 @@ interface BillContextType {
   bills: Bill[];
   pendingBills: Bill[];
   concludedBills: Bill[];
-  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => void;
-  updateBill: (id: string, updates: Partial<Bill>) => void;
-  updateBillStatus: (id: string, status: BillStatus) => void;
-  rescheduleBill: (id: string, newDate: Date) => void;
-  deleteBill: (id: string) => void;
+  underReviewBills: Bill[];
+  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => Promise<void>;
+  updateBill: (id: string, updates: Partial<Bill>) => Promise<void>;
+  updateBillStatus: (id: string, status: BillStatus, silent?: boolean) => Promise<void>;
+  approveBill: (id: string) => Promise<void>;
+  rejectBill: (id: string) => Promise<void>;
+  rescheduleBill: (id: string, newDate: Date) => Promise<void>;
+  deleteBill: (id: string) => Promise<void>;
   getBillById: (id: string) => Bill | undefined;
   searchBills: (query: string) => Bill[];
   filterBills: (filters: {
@@ -42,6 +46,7 @@ interface BillContextType {
     pendingDays?: number;
     status?: BillStatus;
   }) => Bill[];
+  isLoading: boolean;
 }
 
 // Create the context
@@ -49,149 +54,138 @@ const BillContext = createContext<BillContextType>({
   bills: [],
   pendingBills: [],
   concludedBills: [],
-  addBill: () => { },
-  updateBill: () => { },
-  updateBillStatus: () => { },
-  rescheduleBill: () => { },
-  deleteBill: () => { },
+  underReviewBills: [],
+  addBill: async () => { },
+  updateBill: async () => { },
+  updateBillStatus: async () => { },
+  approveBill: async () => { },
+  rejectBill: async () => { },
+  rescheduleBill: async () => { },
+  deleteBill: async () => { },
   getBillById: () => undefined,
   searchBills: () => [],
-  filterBills: () => []
+  filterBills: () => [],
+  isLoading: true
 });
 
-// Custom hook for checking and freezing bills
-const useFreezeCheck = (bills: Bill[], updateBillStatus: (id: string, status: BillStatus) => void, addNotification: (n: any) => void) => {
-  useEffect(() => {
-    const checkFreezeStatus = () => {
-      bills.forEach(bill => {
-        // If bill is pending or overdue and countdown is zero or less
-        if ((bill.status === "pending" || bill.status === "overdue") && bill.currentCountdown <= 0) {
-          // Skip if already frozen to avoid loops (though status check above handles it)
+// Helper to map DB result to App type
+interface DbBillResult {
+  id: string;
+  title: string;
+  committee: string;
+  date_committed: string;
+  created_at: string;
+  pending_days: number;
+  presentation_date: string;
+  status: string;
+  updated_at: string;
+  days_allocated: number;
+  current_countdown: number;
+  extensions_count: number;
+  [key: string]: unknown;
+}
 
-          // Update status to frozen
-          updateBillStatus(bill.id, "frozen");
-
-          // Trigger persistent notification
-          addNotification({
-            type: "action_required",
-            title: "Bill Frozen",
-            message: `"${bill.title}" has been frozen due to expired deadline.`,
-            businessId: bill.id,
-            businessType: "bill",
-            businessTitle: bill.title
-          });
-        }
-      });
-    };
-
-    // Check on mount and every minute
-    checkFreezeStatus();
-    const interval = setInterval(checkFreezeStatus, 60000);
-    return () => clearInterval(interval);
-  }, [bills, updateBillStatus, addNotification]);
-};
+const mapDbToBill = (data: DbBillResult): Bill => ({
+  id: data.id,
+  title: data.title,
+  committee: data.committee,
+  dateCommitted: new Date(data.date_committed || data.created_at),
+  pendingDays: data.pending_days || 0,
+  presentationDate: new Date(data.presentation_date),
+  status: data.status as BillStatus,
+  createdAt: new Date(data.created_at),
+  updatedAt: new Date(data.updated_at),
+  daysAllocated: data.days_allocated || 0,
+  currentCountdown: data.current_countdown || 0,
+  extensionsCount: data.extensions_count || 0
+});
 
 // Bill provider component
 export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [bills, setBills] = useState<Bill[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { addNotification } = useNotifications();
+  const { isAdmin } = useAuth();
 
-  // Initialize with mock data ...
-  // (Original initialization logic remains same)
-  useEffect(() => {
-    // Run migration once on first load
-    const migrated = localStorage.getItem("data_migrated_v1");
-    if (!migrated) {
-      migrateLocalStorageData();
-      localStorage.setItem("data_migrated_v1", "true");
-    }
+  // Fetch bills from Supabase
+  const fetchBills = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('bills')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const storedBills = localStorage.getItem("bills");
-    if (storedBills) {
-      try {
-        const parsedBills = JSON.parse(storedBills).map((bill: any) => ({
-          ...bill,
-          presentationDate: new Date(bill.presentationDate),
-          dateCommitted: new Date(bill.dateCommitted || bill.createdAt),
-          createdAt: new Date(bill.createdAt),
-          updatedAt: new Date(bill.updatedAt),
-          daysAllocated: bill.daysAllocated || bill.pendingDays || 0,
-          currentCountdown: bill.currentCountdown !== undefined ? bill.currentCountdown : bill.pendingDays || 0,
-          extensionsCount: bill.extensionsCount || 0
-        }));
-        setBills(parsedBills);
-      } catch (error) {
-        console.error("Error parsing stored bills:", error);
-        setBills([]);
+      if (error) throw error;
+      
+      if (data) {
+        setBills(data.map(mapDbToBill));
       }
-    } else {
-      setBills([]);
-      localStorage.setItem("bills", JSON.stringify([]));
+    } catch (error) {
+      console.error("Error fetching bills:", error);
+      toast({
+        title: "Error fetching bills",
+        description: "Could not load bills from the database.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchBills();
+    
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bills'
+        },
+        () => {
+          fetchBills();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  // Save bills to local storage whenever they change
-  useEffect(() => {
-    localStorage.setItem("bills", JSON.stringify(bills));
-  }, [bills]);
-
-  // Hook up the freeze checker
-  // We need to be careful not to cause infinite loops if updateBillStatus updates 'bills' triggering this effect again
-  // The 'updateBillStatus' function changes status, so 'bills' changes. 
-  // But inside 'useFreezeCheck', we only act if status is NOT 'frozen'. 
-  // Once it becomes 'frozen', the condition fails and we stop updating.
-  // Ideally, we move this logic inside a dedicated effect in the provider or a separate hook.
-
-  // Implemented inline here to avoid 'useFreezeCheck' hoisting issues if defined outside
+  // Hook up the freeze checker (simplified to run locally on fetched data for notifications)
   useEffect(() => {
     const checkFreezeStatus = () => {
       bills.forEach(bill => {
         if ((bill.status === "pending" || bill.status === "overdue") && bill.currentCountdown <= 0) {
-          // We initiate the update. Since 'updateBillStatus' is in scope, we can call it.
-          // However, calling 'updateBillStatus' will trigger a state update for 'bills'
-          // which re-runs this effect.
-          // BUT, the condition (bill.status === "pending" || "overdue") will be false next time.
-          // So it converges.
-
-          // Direct state update to avoid circular dependency on 'updateBillStatus' function reference if we used it in dependency array
-          // But we can just use the function defined below.
-
-          // We need to use the function that sets state.
-          setBills(prevBills =>
-            prevBills.map(b => {
-              if (b.id === bill.id) {
-                return { ...b, status: "frozen", updatedAt: new Date() };
-              }
-              return b;
-            })
-          );
-
-          addNotification({
-            type: "action_required",
-            title: "Bill Frozen",
-            message: `"${bill.title}" has been frozen due to expired deadline.`,
-            businessId: bill.id,
-            businessType: "bill",
-            businessTitle: bill.title
-          });
-
-          toast({
-            title: "Bill Frozen",
-            description: `"${bill.title}" is now frozen.`,
-            variant: "destructive"
+          // We found a bill that needs freezing.
+          // In a real backend, this should be a scheduled job.
+          // Here, the first user to load the app triggers the update.
+          updateBillStatus(bill.id, "frozen", true).then(() => {
+            addNotification({
+              type: "action_required",
+              title: "Bill Frozen",
+              message: `"${bill.title}" has been frozen due to expired deadline.`,
+              businessId: bill.id,
+              businessType: "bill",
+              businessTitle: bill.title
+            });
           });
         }
       });
     };
-
-    // Check purely on 'bills' change ensures we catch updates (like manual reschedule that might somehow result in 0 days? unlikely but possible)
-    // Also runs on mount.
-    checkFreezeStatus();
-
+    
+    // Check periodically
+    const interval = setInterval(checkFreezeStatus, 60000); // Every minute
+    return () => clearInterval(interval);
   }, [bills, addNotification]);
 
-
-  // Filtered bills by status - include pending, overdue AND frozen
+  // Filtered bills getters
   const pendingBills = bills
     .filter(bill => bill.status === "pending" || bill.status === "overdue" || bill.status === "frozen")
     .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime());
@@ -200,140 +194,215 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     .filter(bill => bill.status === "concluded")
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
+  const underReviewBills = bills
+    .filter(bill => bill.status === "under_review")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
   // Add new bill
-  const addBill = (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
-    const now = new Date();
+  const addBill = async (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
+
     const presentationDate = calculatePresentationDate(billData.dateCommitted, billData.pendingDays);
 
-    const newBill: Bill = {
-      id: (bills.length + 1).toString(),
-      ...billData,
-      status: "pending",
-      presentationDate,
-      createdAt: now,
-      updatedAt: now,
-      daysAllocated: billData.pendingDays,
-      currentCountdown: billData.pendingDays,
-      extensionsCount: 0
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newBill = {
+      title: billData.title,
+      committee: billData.committee,
+      date_committed: billData.dateCommitted.toISOString(),
+      pending_days: billData.pendingDays,
+      status: isAdmin ? "pending" : "under_review",
+      presentation_date: presentationDate.toISOString(),
+      days_allocated: billData.pendingDays,
+      current_countdown: billData.pendingDays,
+      extensions_count: 0,
+      created_by: user?.id || "unknown", // Using authed user or fallback
+      department: "Legal", // Default value as it's required
+      mca: "System" // Default value as it's required
     };
 
-    setBills(prevBills => [...prevBills, newBill]);
+    try {
+      const { error } = await supabase.from('bills').insert(newBill);
+      if (error) throw error;
 
-    addNotification({
-      type: "business_created",
-      title: "Bill Created",
-      message: `New bill "${newBill.title}" has been created.`,
-      businessId: newBill.id,
-      businessType: "bill",
-      businessTitle: newBill.title
-    });
+      // Notification is handled by realtime subscription or manual refetch, 
+      // but we can show immediate feedback toast
+      toast({
+        title: isAdmin ? "Bill published" : "Bill submitted for review",
+        description: isAdmin 
+          ? `"${billData.title}" has been successfully added` 
+          : `"${billData.title}" is now under review by an admin.`,
+      });
+      
+      // Also send notification explicitly if needed, but the Subscription handles data refresh
+      addNotification({
+        type: "business_created",
+        title: "Bill Created",
+        message: `New bill "${billData.title}" has been created.`,
+        businessId: "pending", // ID not available yet without return
+        businessType: "bill",
+        businessTitle: billData.title
+      });
 
-    toast({
-      title: "Bill added",
-      description: `"${billData.title}" has been successfully added`,
-    });
+    } catch (error) {
+      console.error("Error adding bill:", error);
+      toast({
+        title: "Error adding bill",
+        description: "Could not save to database.",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
 
   // Update bill
-  const updateBill = (id: string, updates: Partial<Bill>) => {
-    setBills(prevBills =>
-      prevBills.map(bill => {
-        if (bill.id === id) {
-          const updated = { ...bill, ...updates, updatedAt: new Date() };
+  const updateBill = async (id: string, updates: Partial<Bill>) => {
+    try {
+      // Map frontend updates to DB columns
+      const dbUpdates: Record<string, string | number | undefined> = {
+        updated_at: new Date().toISOString()
+      };
+      
+      if (updates.title) dbUpdates.title = updates.title;
+      if (updates.committee) dbUpdates.committee = updates.committee;
+      if (updates.status) dbUpdates.status = updates.status;
+      if (updates.dateCommitted) dbUpdates.date_committed = updates.dateCommitted.toISOString();
+      if (updates.pendingDays !== undefined) dbUpdates.pending_days = updates.pendingDays;
+      if (updates.presentationDate) dbUpdates.presentation_date = updates.presentationDate.toISOString();
+      if (updates.daysAllocated !== undefined) dbUpdates.days_allocated = updates.daysAllocated;
+      if (updates.currentCountdown !== undefined) dbUpdates.current_countdown = updates.currentCountdown;
+      if (updates.extensionsCount !== undefined) dbUpdates.extensions_count = updates.extensionsCount;
 
-          if ((updates.dateCommitted || updates.pendingDays) && bill.status === "pending") {
-            updated.presentationDate = calculatePresentationDate(
-              updates.dateCommitted || bill.dateCommitted,
-              updates.pendingDays || bill.pendingDays
-            );
-          }
+      // Specialized logic from original context: if dates changed, recalc presentation date
+      const currentBill = bills.find(b => b.id === id);
+      if (currentBill && (updates.dateCommitted || updates.pendingDays) && currentBill.status === "pending") {
+        const newDate = calculatePresentationDate(
+          updates.dateCommitted || currentBill.dateCommitted,
+          updates.pendingDays || currentBill.pendingDays
+        );
+        dbUpdates.presentation_date = newDate.toISOString();
+      }
 
-          return updated;
-        }
-        return bill;
-      })
-    );
+      const { error } = await supabase
+        .from('bills')
+        .update(dbUpdates)
+        .eq('id', id);
 
-    toast({
-      title: "Bill updated",
-      description: `Bill has been successfully updated`,
-    });
+      if (error) throw error;
+
+      toast({
+        title: "Bill updated",
+        description: `Bill has been successfully updated`,
+      });
+    } catch (error) {
+      console.error("Error updating bill:", error);
+      toast({
+        title: "Error updating bill",
+        description: "Could not update the database.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  const approveBill = async (id: string) => {
+    // Check if item exists and status is actually under_review to avoid redundant updates?
+    // For now simplistic approach is fine
+    await updateBillStatus(id, "pending");
+    toast({ title: "Bill Approved", description: "Bill has been published successfully." });
+  };
+
+  const rejectBill = async (id: string) => {
+    await deleteBill(id);
+    toast({ title: "Bill Rejected", description: "Bill has been rejected and removed." });
   };
 
   // Update bill status
-  const updateBillStatus = (id: string, status: BillStatus) => {
-    setBills(prevBills =>
-      prevBills.map(bill => {
-        if (bill.id === id) {
-          return {
-            ...bill,
-            status,
-            updatedAt: new Date()
-          };
-        }
-        return bill;
-      })
-    );
+  const updateBillStatus = async (id: string, status: BillStatus, silent: boolean = false) => {
+    try {
+      const { error } = await supabase
+        .from('bills')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id);
 
-    const statusMessages = {
-      pending: "Bill has been marked as pending",
-      concluded: "Bill has been marked as concluded",
-      overdue: "Bill has been marked as overdue",
-      frozen: "Bill has been marked as frozen",
-    };
+      if (error) throw error;
 
-    toast({
-      title: "Status updated",
-      description: statusMessages[status] || "Status updated",
-    });
+      const statusMessages = {
+        pending: "Bill has been marked as pending",
+        concluded: "Bill has been marked as concluded",
+        overdue: "Bill has been marked as overdue",
+        frozen: "Bill has been marked as frozen",
+      };
+
+      toast({
+        title: "Status updated",
+        description: statusMessages[status] || "Status updated",
+      });
+    } catch (error) {
+      console.error("Error updating status:", error);
+      if (!silent) {
+        toast({
+          title: "Error",
+          description: "Could not update status.",
+          variant: "destructive"
+        });
+      }
+      throw error;
+    }
   };
 
-  // ... (rescheduleBill, deleteBill, searchBills, filterBills remain mostly same but filterBills needs update for 'frozen')
+  const rescheduleBill = async (id: string, newDate: Date) => {
+    try {
+      const bill = bills.find(b => b.id === id);
+      if (!bill) return;
 
-  // rescheduleBill logic remains same - it forces 'overdue' which is fine, 
-  // but if new date implies it's still 0 days? 'rescheduleBill' calculates daysDiff.
-  // If daysDiff <= 0, it currently sets 0. 
-  // If it sets 0, our effect will catch it and freeze it again immediately.
-  // A reschedule should presumably ADD time. 
-  // If user reschedules to today (0 days), it freezes immediately. That's consistent.
+      const adjustedDate = adjustForSittingDay(newDate);
+      const now = new Date();
+      const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-  const rescheduleBill = (id: string, newDate: Date) => {
-    setBills(prevBills =>
-      prevBills.map(bill => {
-        if (bill.id === id) {
-          const adjustedDate = adjustForSittingDay(newDate);
-          const now = new Date();
-          const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const { error } = await supabase
+        .from('bills')
+        .update({
+          presentation_date: adjustedDate.toISOString(),
+          pending_days: daysDiff > 0 ? daysDiff : 0,
+          current_countdown: daysDiff,
+          extensions_count: bill.extensionsCount + 1,
+          status: "overdue",
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
 
-          // If we reschedule, we likely want to reset status from 'frozen' to 'overdue' (as per prev logic) or 'pending'
-          // The previous code set it to 'overdue' if daysDiff > 0? No, checking prev code:
-          // pendingDays: daysDiff > 0 ? daysDiff : 0
-          // status: "overdue"
+      if (error) throw error;
 
-          return {
-            ...bill,
-            presentationDate: adjustedDate,
-            pendingDays: daysDiff > 0 ? daysDiff : 0,
-            daysAllocated: bill.daysAllocated,
-            currentCountdown: daysDiff,
-            extensionsCount: bill.extensionsCount + 1,
-            status: "overdue" as BillStatus,
-            updatedAt: new Date()
-          };
-        }
-        return bill;
-      })
-    );
-
-    toast({
-      title: "Bill rescheduled",
-      description: `Bill has been rescheduled to ${format(newDate, "PPP")}`,
-    });
+      toast({
+        title: "Bill rescheduled",
+        description: `Bill has been rescheduled to ${format(newDate, "PPP")}`,
+      });
+    } catch (error) {
+      console.error("Error rescheduling bill:", error);
+      toast({
+        title: "Error",
+        description: "Could not reschedule bill.",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
 
-  const deleteBill = (id: string) => {
-    setBills(prevBills => prevBills.filter(bill => bill.id !== id));
-    toast({ title: "Bill deleted", description: "Bill has been successfully deleted" });
+  const deleteBill = async (id: string) => {
+    try {
+      const { error } = await supabase.from('bills').delete().eq('id', id);
+      if (error) throw error;
+
+      // Update local state immediately
+      setBills(prev => prev.filter(bill => bill.id !== id));
+
+      toast({ title: "Bill deleted", description: "Bill has been successfully deleted" });
+    } catch (error) {
+      console.error("Error deleting bill:", error);
+      toast({ title: "Error", description: "Could not delete bill.", variant: "destructive" });
+      throw error;
+    }
   };
 
   const getBillById = (id: string) => bills.find(bill => bill.id === id);
@@ -367,14 +436,18 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         bills,
         pendingBills,
         concludedBills,
+        underReviewBills,
         addBill,
         updateBill,
         updateBillStatus,
+        approveBill,
+        rejectBill,
         rescheduleBill,
         deleteBill,
         getBillById,
         searchBills,
-        filterBills
+        filterBills,
+        isLoading
       }}
     >
       {children}

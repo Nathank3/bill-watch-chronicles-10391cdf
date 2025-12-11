@@ -1,11 +1,12 @@
 
-import { BillStatus } from "@/contexts/BillContext";
+import { BillStatus } from "@/contexts/BillContext.tsx";
 
 // Define document types
 export type DocumentType = "bill" | "statement" | "report" | "regulation" | "policy" | "petition";
 
 // Define document status type
-export type DocumentStatus = "pending" | "concluded" | "overdue";
+// Define document status type
+export type DocumentStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review";
 
 // Define document interface
 export interface Document {
@@ -38,12 +39,16 @@ export interface DocumentContextType {
   documents: Document[];
   pendingDocuments: (type: DocumentType) => Document[];
   concludedDocuments: (type: DocumentType) => Document[];
+  underReviewDocuments: (type: DocumentType) => Document[];
   addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => void;
   updateDocument: (id: string, updates: Partial<Document>) => void;
   deleteDocument: (id: string) => void;
-  updateDocumentStatus: (id: string, status: DocumentStatus) => void;
+  updateDocumentStatus: (id: string, status: DocumentStatus, silent?: boolean) => void;
+  approveDocument: (id: string) => Promise<void>;
+  rejectDocument: (id: string) => Promise<void>;
   rescheduleDocument: (id: string, newDate: Date) => void;
   getDocumentById: (id: string) => Document | undefined;
   searchDocuments: (query: string, type?: DocumentType) => Document[];
   filterDocuments: (filters: DocumentFilters) => Document[];
+  getDocumentsByType: (type: DocumentType) => Document[];
 }

@@ -1,17 +1,16 @@
-
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { useBills, Bill, BillStatus } from "@/contexts/BillContext";
-import { BillCard } from "@/components/BillCard";
-import { BillFilter } from "@/components/BillFilter";
-import { BillFormDialog } from "@/components/BillFormDialog";
-import { DocumentManagement } from "@/components/DocumentManagement";
-import { Navbar } from "@/components/Navbar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext.tsx";
+import { useBills, Bill, BillStatus } from "@/contexts/BillContext.tsx";
+import { BillCard } from "@/components/BillCard.tsx";
+import { BillFilter } from "@/components/BillFilter.tsx";
+import { BillFormDialog } from "@/components/BillFormDialog.tsx";
+import { DocumentManagement } from "@/components/DocumentManagement.tsx";
+import { Navbar } from "@/components/Navbar.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { toast } from "@/components/ui/use-toast.ts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 
 const ClerkPage = () => {
   const { user, session, isClerk, isLoading } = useAuth();
@@ -19,27 +18,14 @@ const ClerkPage = () => {
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
 
   useEffect(() => {
-    // Debug auth state
-    console.log("ClerkPage auth state:", { 
-      user: !!user, 
-      session: !!session, 
-      isClerk, 
-      isLoading,
-      userRole: user?.role
-    });
-  }, [user, session, isClerk, isLoading]);
-
-  useEffect(() => {
     // Initialize filtered bills when bills are loaded
     if (bills) {
-      console.log("ClerkPage: Bills loaded, count:", bills.length);
       setFilteredBills(bills);
     }
   }, [bills]);
 
   // Show loading state while auth state is being determined
   if (isLoading) {
-    console.log("ClerkPage: Still loading auth state");
     return (
       <div className="min-h-screen bg-secondary/30">
         <Navbar />
@@ -54,13 +40,11 @@ const ClerkPage = () => {
 
   // If no session at all, redirect to login
   if (!session) {
-    console.log("ClerkPage: No session found, redirecting to login");
     return <Navigate to="/login" replace />;
   }
 
   // If session exists but user profile not loaded yet, show loading
   if (session && !user) {
-    console.log("ClerkPage: Session exists but user profile not loaded");
     return (
       <div className="min-h-screen bg-secondary/30">
         <Navbar />
@@ -78,7 +62,6 @@ const ClerkPage = () => {
 
   // If user is authenticated but not a clerk, show access denied
   if (user && !isClerk) {
-    console.log("ClerkPage: User authenticated but not clerk, showing access denied");
     toast({
       title: "Access denied",
       description: "You need clerk privileges to access this page",
@@ -91,16 +74,14 @@ const ClerkPage = () => {
     updateBillStatus(id, status);
   };
 
-  const handleReschedule = (id: string, additionalDays: number) => {
-    rescheduleBill(id, additionalDays);
+  const handleReschedule = (id: string, newDate: Date) => {
+    rescheduleBill(id, newDate);
   };
-
-  console.log("ClerkPage: Rendering clerk dashboard, filteredBills count:", filteredBills?.length || 0);
 
   return (
     <div className="min-h-screen bg-secondary/30">
       <Navbar />
-      
+
       <main className="container py-8">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Clerk Dashboard</h1>
@@ -108,9 +89,9 @@ const ClerkPage = () => {
             Manage and track all legislative documents
           </p>
         </div>
-        
+
         <Tabs defaultValue="bills" className="max-w-6xl mx-auto">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="bills">Bills</TabsTrigger>
             <TabsTrigger value="statements">Statements</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -118,7 +99,7 @@ const ClerkPage = () => {
             <TabsTrigger value="policies">Policies</TabsTrigger>
             <TabsTrigger value="petitions">Petitions</TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="bills" className="mt-6">
             <div className="space-y-6">
               {/* Quick Stats */}
@@ -160,14 +141,14 @@ const ClerkPage = () => {
 
               {/* Filter Component */}
               <BillFilter onFilterChange={setFilteredBills} />
-              
+
               {/* Bills Tabs */}
               <Tabs defaultValue="all" className="mt-6">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="all">All Bills</TabsTrigger>
                   <TabsTrigger value="pending">Pending</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="all" className="mt-6">
                   {filteredBills && filteredBills.length > 0 ? (
                     <div className="grid gap-4 md:grid-cols-2">
@@ -175,7 +156,7 @@ const ClerkPage = () => {
                         <BillCard
                           key={bill.id}
                           bill={bill}
-                          showActions={true}
+                          showActions
                           onStatusChange={handleStatusChange}
                           onReschedule={handleReschedule}
                         />
@@ -186,7 +167,7 @@ const ClerkPage = () => {
                       <CardContent className="p-6 text-center">
                         <p className="text-muted-foreground mb-4">No bills have been created yet</p>
                         <BillFormDialog>
-                          <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+                          <button type="button" className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
                             Create Your First Bill
                           </button>
                         </BillFormDialog>
@@ -196,7 +177,7 @@ const ClerkPage = () => {
                     <p className="text-center py-8 text-muted-foreground">No bills found matching your filters</p>
                   )}
                 </TabsContent>
-                
+
                 <TabsContent value="pending" className="mt-6">
                   {filteredBills?.filter(b => b.status === "pending").length > 0 ? (
                     <div className="grid gap-4 md:grid-cols-2">
@@ -206,7 +187,7 @@ const ClerkPage = () => {
                           <BillCard
                             key={bill.id}
                             bill={bill}
-                            showActions={true}
+                            showActions
                             onStatusChange={handleStatusChange}
                             onReschedule={handleReschedule}
                           />
@@ -239,9 +220,11 @@ const ClerkPage = () => {
           <TabsContent value="petitions" className="mt-6">
             <DocumentManagement documentType="petition" title="Petitions" />
           </TabsContent>
+
+
         </Tabs>
       </main>
-      
+
       <footer className="bg-gray-100 py-4 mt-8">
         <div className="container text-center">
           <p className="text-sm text-gray-600">

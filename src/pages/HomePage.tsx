@@ -1,23 +1,20 @@
 
-import React from "react";
-import { useBills } from "@/contexts/BillContext";
-import { useDocuments, DocumentType } from "@/contexts/DocumentContext";
-import { Navbar } from "@/components/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useBills } from "@/contexts/BillContext.tsx";
+import { useDocuments, DocumentType } from "@/contexts/DocumentContext.tsx";
+import { Navbar } from "@/components/Navbar.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { Download } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { toast } from "@/components/ui/use-toast";
-import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
-import { addHeaderImage, drawDivider } from "@/utils/pdfUtils";
+import { toast } from "@/components/ui/use-toast.ts";
+import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils.ts";
+import { addHeaderImage, drawDivider } from "@/utils/pdfUtils.ts";
 const HomePage = () => {
   const { pendingBills } = useBills();
-  const { documents, pendingDocuments } = useDocuments();
+  const { pendingDocuments } = useDocuments();
 
-  console.log("HomePage: pendingBills count:", pendingBills?.length || 0);
-  console.log("HomePage: documents count:", documents?.length || 0);
 
   const documentTypes: { type: DocumentType | "business", label: string }[] = [
     { type: "business", label: "Business" },
@@ -47,6 +44,7 @@ const HomePage = () => {
 
   const generatePDF = async (type: DocumentType | "business") => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let pendingItems: any[];
       let typeLabel: string;
       let includeTypeColumn = false;
@@ -71,7 +69,6 @@ const HomePage = () => {
         typeLabel = type.charAt(0).toUpperCase() + type.slice(1) + "s";
       }
 
-      console.log(`Generating PDF for ${typeLabel}, items:`, pendingItems.length);
 
       if (pendingItems.length === 0) {
         toast({
@@ -163,7 +160,7 @@ const HomePage = () => {
 
       // Title positioning with text wrapping
       doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
+      doc.setFont("times", "bold");
       doc.setTextColor(0, 0, 0);
 
       // Split text to fit page width
@@ -171,16 +168,18 @@ const HomePage = () => {
       const titleText = `MAKUENI COUNTY ASSEMBLY PENDING ${typeLabel.toUpperCase()} AS AT ${formattedDate.toUpperCase()}`;
       const marginLeft = 15;
       const marginRight = 15;
-      const maxWidth = doc.internal.pageSize.getWidth() - (marginLeft + marginRight);
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const maxWidth = pageWidth - (marginLeft + marginRight);
 
       // Align with table start
       const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-      doc.text(splitTitle, marginLeft, startY);
+      
+      // Center align the text
+      doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
 
-      // Underline the title (line spanning the table width)
+      // Underline the title (line spanning the table width to align with table/header)
       const titleLines = splitTitle.length;
-      const titleHeight = titleLines * 7; // Approximate height per line
-      const lineY = startY + (titleLines * 5) + 2; // Position below text
+      const lineY = startY + (titleLines * 6) + 2; // Position below text, adjusted for spacing
 
       doc.setLineWidth(0.5);
       doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
@@ -251,7 +250,6 @@ const HomePage = () => {
           }
         });
       } catch (tableError) {
-        console.error("Error creating table:", tableError);
         throw new Error(`Failed to create PDF table: ${tableError instanceof Error ? tableError.message : 'Unknown table error'}`);
       }
 
@@ -265,7 +263,6 @@ const HomePage = () => {
       });
 
     } catch (error) {
-      console.error("Error generating PDF:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: "Download failed",
