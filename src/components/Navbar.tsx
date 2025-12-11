@@ -1,21 +1,20 @@
 
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client.ts";
 import {
   NavigationMenu,
   NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuList,
   NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@/components/ui/navigation-menu.tsx";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { UserIcon } from "./UserIcon.tsx";
 import { NotificationBell } from "./NotificationBell.tsx";
-import { Menu, X } from "lucide-react";
-import { cn } from "@/lib/utils.ts";
+import { Menu, X, Lock } from "lucide-react";
 const makueniLogoUrl = "/lovable-uploads/4e53edd2-c5d5-441a-8e85-dd6d8a88c97d.png";
 
 interface Committee {
@@ -76,7 +75,7 @@ export const Navbar = () => {
                           <Link
                             key={committee.id}
                             to={`/committee/${committee.id}`}
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-green-600 focus:bg-accent focus:text-green-600"
                           >
                             <div className="text-sm font-medium leading-none">
                               {committee.name}
@@ -119,8 +118,9 @@ export const Navbar = () => {
               </div>
             </>
           ) : (
-            <Button size="sm" onClick={() => navigate("/login")}>
-              Login
+            <Button variant="ghost" size="icon" onClick={() => navigate("/login")} className="text-gray-400 hover:text-gray-900">
+              <Lock className="h-4 w-4" />
+              <span className="sr-only">Login</span>
             </Button>
           )}
         </div>
@@ -129,6 +129,7 @@ export const Navbar = () => {
         <div className="md:hidden flex items-center gap-4">
             {isAuthenticated && <NotificationBell />}
             <button
+              type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 text-gray-600 hover:text-gray-900"
             >
@@ -200,8 +201,9 @@ export const Navbar = () => {
                </div>
              </div>
            ) : (
-             <Button className="w-full" onClick={() => { navigate("/login"); setIsMobileMenuOpen(false); }}>
-               Login
+             <Button variant="ghost" className="w-full justify-start text-gray-400" onClick={() => { navigate("/login"); setIsMobileMenuOpen(false); }}>
+               <Lock className="h-4 w-4 mr-2" />
+               <span className="sr-only">Login</span>
              </Button>
            )}
         </div>
