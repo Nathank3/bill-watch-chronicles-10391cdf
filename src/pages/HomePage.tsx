@@ -1,6 +1,6 @@
 
-import { useBills } from "@/contexts/BillContext.tsx";
-import { useDocuments, DocumentType } from "@/contexts/DocumentContext.tsx";
+import { useBills, Bill } from "@/contexts/BillContext.tsx";
+import { useDocuments, DocumentType, Document } from "@/contexts/DocumentContext.tsx";
 import { Navbar } from "@/components/Navbar.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -44,8 +44,7 @@ const HomePage = () => {
 
   const generatePDF = async (type: DocumentType | "business") => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let pendingItems: any[];
+      let pendingItems: ((Bill | Document) & { itemType?: string })[];
       let typeLabel: string;
       let includeTypeColumn = false;
 
@@ -278,7 +277,7 @@ const HomePage = () => {
 
       <main className="container py-8">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold">Makueni County Assembly Business</h1>
+          <h1 className="text-3xl font-bold">Makueni County Assembly Business Tracker</h1>
           <p className="text-muted-foreground mt-2">
             Overview of pending business
           </p>

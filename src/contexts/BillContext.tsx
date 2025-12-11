@@ -205,6 +205,15 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { data: { user } } = await supabase.auth.getUser();
 
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to add a bill.",
+        variant: "destructive"
+      });
+      throw new Error("User not authenticated");
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newBill = {
       title: billData.title,
@@ -216,7 +225,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       days_allocated: billData.pendingDays,
       current_countdown: billData.pendingDays,
       extensions_count: 0,
-      created_by: user?.id || "unknown", // Using authed user or fallback
+      created_by: user.id, 
       department: "Legal", // Default value as it's required
       mca: "System" // Default value as it's required
     };
