@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useBills } from "@/contexts/BillContext.tsx";
 import { useDocuments, DocumentType } from "@/contexts/DocumentContext.tsx";
 import { BillCard } from "@/components/BillCard.tsx";
@@ -15,30 +15,34 @@ const PublicPage = () => {
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
 
   // Filter bills based on search query
-  const filteredPendingBills = pendingBills.filter(bill =>
-    bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bill.committee.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPendingBills = useMemo(() => 
+    pendingBills.filter(bill =>
+      bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bill.committee.toLowerCase().includes(searchQuery.toLowerCase())
+    ), [pendingBills, searchQuery]);
 
-  const filteredConcludedBills = concludedBills.filter(bill =>
-    bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bill.committee.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredConcludedBills = useMemo(() => 
+    concludedBills.filter(bill =>
+      bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bill.committee.toLowerCase().includes(searchQuery.toLowerCase())
+    ), [concludedBills, searchQuery]);
 
   // Get documents for selected type
-  const currentPendingDocuments = documentType === "bill" 
-    ? [] 
-    : pendingDocuments(documentType).filter(doc =>
-        doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.committee.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const currentPendingDocuments = useMemo(() => 
+    documentType === "bill" 
+      ? [] 
+      : pendingDocuments(documentType).filter(doc =>
+          doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.committee.toLowerCase().includes(searchQuery.toLowerCase())
+        ), [documentType, pendingDocuments, searchQuery]);
 
-  const currentConcludedDocuments = documentType === "bill"
-    ? []
-    : concludedDocuments(documentType).filter(doc =>
-        doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doc.committee.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const currentConcludedDocuments = useMemo(() => 
+    documentType === "bill"
+      ? []
+      : concludedDocuments(documentType).filter(doc =>
+          doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.committee.toLowerCase().includes(searchQuery.toLowerCase())
+        ), [documentType, concludedDocuments, searchQuery]);
 
   const documentTypes: { value: DocumentType, label: string }[] = [
     { value: "bill", label: "Bills" },

@@ -210,7 +210,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       type: docData.type,
       days_allocated: docData.pendingDays,
       current_countdown: docData.pendingDays,
-      extensions_count: 0
+      extensions_count: 0,
+      created_by: user.id
     };
 
     try {
