@@ -4,6 +4,7 @@ import { useBills } from "./BillContext.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document.ts";
 import { calculatePresentationDate, adjustForSittingDay } from "@/utils/documentUtils.ts";
+import { calculateCurrentCountdown } from "@/utils/countdownUtils.ts";
 import { format } from "date-fns";
 import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
@@ -65,7 +66,7 @@ const mapDbToDocument = (data: DbDocumentResult): Document => ({
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [dbDocuments, setDbDocuments] = useState<Document[]>([]); // Documents from DB (non-bills)
   const { bills } = useBills();
-  const { addNotification } = useNotifications();
+  const { addNotification, clearBusinessNotifications } = useNotifications();
   const { isAdmin } = useAuth();
 
   // Fetch non-bill documents from Supabase
@@ -142,7 +143,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const checkFreezeStatus = () => {
       dbDocuments.forEach(doc => {
-        if ((doc.status === "pending" || doc.status === "overdue") && doc.currentCountdown <= 0) {
+        const countdown = calculateCurrentCountdown(doc.presentationDate);
+        if ((doc.status === "pending" || doc.status === "overdue") && countdown <= 0) {
           updateDocumentStatus(doc.id, "frozen", true).then(() => {
              addNotification({
               type: "action_required",
@@ -152,10 +154,25 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               businessType: "document",
               businessTitle: doc.title
             });
+          }).catch(() => {
+            // Persistent notification even if RLS blocks update
+            addNotification({
+              type: "action_required",
+              title: "Document Frozen",
+              message: `"${doc.title}" has been frozen due to expired deadline.`,
+              businessId: doc.id,
+              businessType: "document",
+              businessTitle: doc.title
+            });
           });
+        } else if (doc.status === "concluded" || (doc.status === "pending" && countdown > 0)) {
+          clearBusinessNotifications(doc.id);
         }
       });
     };
+    
+    // Check immediately
+    checkFreezeStatus();
     
     // Check periodically
     const interval = setInterval(checkFreezeStatus, 60000);
@@ -343,12 +360,22 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (id.startsWith('bill-')) return; 
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('documents')
         .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) throw error;
+
+      if (!data || data.length === 0) {
+        console.warn(`Update document status yielded NO matched rows for ${id}. This might be due to RLS policies.`);
+      }
+
+      // Clear notifications if handled
+      if (status === "concluded" || status === "pending") {
+        clearBusinessNotifications(id);
+      }
 
       // Update local state immediately
       setDbDocuments(prev => prev.map(doc => 
@@ -400,6 +427,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         .eq('id', id);
 
       if (error) throw error;
+
+      // Clear frozen notifications
+      clearBusinessNotifications(id);
 
       toast({
         title: "Document rescheduled",

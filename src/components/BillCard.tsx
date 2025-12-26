@@ -1,13 +1,13 @@
 
 import { useState, useEffect } from "react";
-import { Bill, useBills } from "@/contexts/BillContext";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { RescheduleDialog } from "./RescheduleDialog";
-import { formatDistanceToNow, isPast, format } from "date-fns";
-import { Calendar, Trash2 } from "lucide-react";
-import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
+import { Bill, useBills } from "@/contexts/BillContext.tsx";
+import { Card } from "@/components/ui/card.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { RescheduleDialog } from "./RescheduleDialog.tsx";
+import { formatDistanceToNow, format } from "date-fns";
+import { Calendar, Trash2, Snowflake } from "lucide-react";
+import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog.tsx";
 
 interface BillCardProps {
   bill: Bill;
@@ -77,6 +77,13 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
         return <Badge className="bg-bill-pending">Pending</Badge>;
       case "overdue":
         return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
+      case "frozen":
+        return (
+          <Badge className="bg-bill-frozen text-blue-900 border-blue-200">
+            <Snowflake className="h-3 w-3 mr-1" />
+            Frozen
+          </Badge>
+        );
       case "concluded":
         return <Badge className="bg-bill-passed">Concluded</Badge>;
       default:
@@ -88,14 +95,19 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
     return format(date, "dd/MM/yyyy");
   };
 
-  const isActionable = isOverdue || bill.status === "overdue";
-  const shouldShowCountdown = (bill.status === "pending" || bill.status === "overdue") && timeLeft;
+  const effectiveStatus = determineItemStatus(bill.status, bill.presentationDate, bill.extensionsCount);
+  const isActionable = isOverdue || effectiveStatus === "overdue" || effectiveStatus === "frozen";
+  const shouldShowCountdown = (effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && timeLeft;
 
   return (
-    <Card className={`bill-card bill-${bill.status} p-4`}>
+    <Card className={`bill-card bill-${effectiveStatus} p-4 ${effectiveStatus === "frozen" ? "bill-frozen" : ""}`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
-          <h3 className="font-medium text-lg mb-1">{bill.title}</h3>
+          <div className="flex items-start gap-2 mb-1 flex-wrap">
+            <h3 className={`font-medium text-lg break-words flex-1 min-w-0 ${effectiveStatus === "frozen" ? "text-destructive" : ""}`}>
+              {bill.title}
+            </h3>
+          </div>
           <p className="text-sm text-muted-foreground">
             Committee: {bill.committee}
           </p>
@@ -103,12 +115,12 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             <p className="text-sm">
               <span className="font-medium">Date Committed:</span> {formatDate(bill.dateCommitted)}
             </p>
-            {(bill.status === "pending" || bill.status === "overdue") && (
+            {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
               <>
                 <p className="text-sm">
                   <span className="font-medium">Days Allocated:</span> {bill.daysAllocated} days
                 </p>
-                <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
+                <p className={`text-sm ${isOverdue || effectiveStatus === "frozen" ? "text-destructive font-semibold" : ""}`}>
                   <span className="font-medium">Days Remaining:</span> {Math.abs(currentCountdown)} days
                 </p>
               </>
@@ -123,9 +135,9 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             </p>
           </div>
           <div className="flex items-center gap-2 mt-2">
-            {getStatusBadge(bill.status)}
+            {getStatusBadge(effectiveStatus)}
             {shouldShowCountdown && (
-              <span className={`countdown text-sm ${isOverdue
+              <span className={`countdown text-sm ${isOverdue || effectiveStatus === "frozen"
                 ? "countdown-urgent text-destructive font-medium"
                 : "text-muted-foreground"
                 }`}>
@@ -147,7 +159,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             </Badge>
           )}
 
-          {(bill.status === "pending" || bill.status === "overdue") && (
+          {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
             <RescheduleDialog onReschedule={handleReschedule}>
               <Button variant="outline" size="sm">
                 <Calendar className="h-4 w-4 mr-1" />

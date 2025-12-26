@@ -1,13 +1,13 @@
 
 import { useState, useEffect } from "react";
-import { Document, useDocuments } from "@/contexts/DocumentContext";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { RescheduleDialog } from "./RescheduleDialog";
-import { formatDistanceToNow, isPast, format } from "date-fns";
-import { Calendar, Trash2 } from "lucide-react";
-import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils";
+import { Document, useDocuments } from "@/contexts/DocumentContext.tsx";
+import { Card } from "@/components/ui/card.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { RescheduleDialog } from "./RescheduleDialog.tsx";
+import { formatDistanceToNow, format } from "date-fns";
+import { Calendar, Trash2, Snowflake } from "lucide-react";
+import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog.tsx";
 
 interface DocumentCardProps {
   document: Document;
@@ -67,34 +67,43 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     deleteDocument(document.id);
   };
 
+  const effectiveStatus = determineItemStatus(document.status, document.presentationDate, document.extensionsCount);
+
   const getStatusBadge = () => {
-    if (document.status === "concluded") {
-      return <Badge className="bg-bill-passed">Concluded</Badge>;
+    switch (effectiveStatus) {
+      case "concluded":
+        return <Badge className="bg-bill-passed">Concluded</Badge>;
+      case "frozen":
+        return (
+          <Badge className="bg-bill-frozen text-blue-900 border-blue-200">
+            <Snowflake className="h-3 w-3 mr-1" />
+            Frozen
+          </Badge>
+        );
+      case "overdue":
+        return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
+      default:
+        return <Badge className="bg-bill-pending">Pending</Badge>;
     }
-
-    // Use real-time overdue calculation
-    if (isOverdue) {
-      return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
-    }
-
-    return <Badge className="bg-bill-pending">Pending</Badge>;
   };
 
   const formatDate = (date: Date): string => {
     return format(date, "dd/MM/yyyy");
   };
 
-  const isActionable = isOverdue || document.status === "overdue";
+  const isActionable = isOverdue || effectiveStatus === "overdue" || effectiveStatus === "frozen";
   const documentType = document.type.charAt(0).toUpperCase() + document.type.slice(1);
-  const shouldShowCountdown = (document.status === "pending" || document.status === "overdue") && document.pendingDays > 0;
+  const shouldShowCountdown = (effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && timeLeft;
 
   return (
-    <Card className={`document-card document-${document.status} p-4`}>
+    <Card className={`document-card document-${effectiveStatus} p-4 ${effectiveStatus === "frozen" ? "bill-frozen" : ""}`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-start gap-2 mb-1 flex-wrap">
             <Badge variant="outline" className="shrink-0">{documentType}</Badge>
-            <h3 className="font-medium text-lg break-words flex-1 min-w-0">{document.title}</h3>
+            <h3 className={`font-medium text-lg break-words flex-1 min-w-0 ${effectiveStatus === "frozen" ? "text-destructive" : ""}`}>
+              {document.title}
+            </h3>
           </div>
           <p className="text-sm text-muted-foreground">
             Committee: {document.committee}
@@ -103,13 +112,13 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             <p className="text-sm">
               <span className="font-medium">Date Committed:</span> {formatDate(document.dateCommitted)}
             </p>
-            {(document.status === "pending" || document.status === "overdue") && (
+            {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
               <>
                 <p className="text-sm">
                   <span className="font-medium">Days Allocated:</span> {document.daysAllocated} days
                 </p>
-                <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
-                  <span className="font-medium">{isOverdue ? "Days Overdue" : "Days Remaining"}:</span> {Math.abs(currentCountdown)} days
+                <p className={`text-sm ${isOverdue || effectiveStatus === "frozen" ? "text-destructive font-semibold" : ""}`}>
+                  <span className="font-medium">{isOverdue || effectiveStatus === "frozen" ? "Days Overdue" : "Days Remaining"}:</span> {Math.abs(currentCountdown)} days
                 </p>
               </>
             )}
@@ -125,7 +134,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           <div className="flex items-center gap-2 mt-2">
             {getStatusBadge()}
             {shouldShowCountdown && (
-              <span className={`countdown text-sm ${isOverdue ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
+              <span className={`countdown text-sm ${isOverdue || effectiveStatus === "frozen" ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
                 {timeLeft}
               </span>
             )}
@@ -144,7 +153,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             </Badge>
           )}
 
-          {(document.status === "pending" || document.status === "overdue") && (
+          {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
             <RescheduleDialog onReschedule={handleReschedule}>
               <Button variant="outline" size="sm">
                 <Calendar className="h-4 w-4 mr-1" />

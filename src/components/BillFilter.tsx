@@ -73,6 +73,8 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="concluded">Concluded</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="frozen">Frozen</SelectItem>
               </SelectContent>
             </Select>
           </div>

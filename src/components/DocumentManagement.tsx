@@ -41,12 +41,12 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
 
   // Derive counts from the *base* documents (unfiltered stats)
   const totalBaseDocs = baseDocuments.length;
-  const pendingBaseDocs = baseDocuments.filter(d => d.status === "pending" || d.status === "overdue").length;
+  const pendingBaseDocs = baseDocuments.filter(d => d.status === "pending" || d.status === "overdue" || d.status === "frozen").length;
   const concludedBaseDocs = baseDocuments.filter(d => d.status === "concluded").length;
 
   // Filtered lists for the view
   const pendingDocs = filteredDocuments.filter(
-    doc => doc.status === "pending" || doc.status === "overdue"
+    doc => doc.status === "pending" || doc.status === "overdue" || doc.status === "frozen"
   );
 
   return (

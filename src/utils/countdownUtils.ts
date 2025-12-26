@@ -34,9 +34,14 @@ export const determineItemStatus = (
   currentStatus: string,
   presentationDate: Date,
   extensionsCount: number
-): "pending" | "concluded" | "overdue" => {
+): "pending" | "concluded" | "overdue" | "frozen" => {
   if (currentStatus === "concluded") {
     return "concluded";
+  }
+  
+  const countdown = calculateCurrentCountdown(presentationDate);
+  if (countdown <= 0) {
+    return "frozen";
   }
   
   if (isItemOverdue(presentationDate, extensionsCount)) {
