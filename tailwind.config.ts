@@ -1,5 +1,6 @@
 
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -67,7 +68,8 @@ export default {
           pending: "#3B82F6",
           passed: "#10B981",
           rejected: "#EF4444",
-          rescheduled: "#6366F1"
+          rescheduled: "#6366F1",
+          frozen: "#93C5FD"
         }
       },
       borderRadius: {
@@ -96,5 +98,5 @@ export default {
       }
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

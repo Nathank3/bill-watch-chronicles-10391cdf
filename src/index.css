@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -56,29 +55,35 @@
 
 @layer components {
   .bill-card {
-    @apply relative rounded-lg border p-4 shadow-sm transition-all hover:shadow-md;
+    @apply relative rounded-lg border p-4 shadow-sm transition-all
+      hover:shadow-md;
   }
-  
+
   .bill-pending {
     @apply border-l-4 border-l-bill-pending;
   }
-  
+
   .bill-passed {
     @apply border-l-4 border-l-bill-passed;
   }
-  
+
   .bill-rejected {
     @apply border-l-4 border-l-bill-rejected;
   }
-  
+
   .bill-rescheduled {
     @apply border-l-4 border-l-bill-rescheduled;
   }
-  
+
+  .bill-frozen {
+    @apply border-l-4 border-l-bill-frozen bg-blue-50/50
+      shadow-[0_0_15px_rgba(147,197,253,0.3)];
+  }
+
   .countdown {
     @apply font-mono text-sm font-bold;
   }
-  
+
   .countdown-urgent {
     @apply text-red-600 animate-pulse-light;
   }

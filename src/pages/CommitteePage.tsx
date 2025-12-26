@@ -11,7 +11,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
-import { calculateCurrentCountdown, isItemOverdue } from "@/utils/countdownUtils.ts";
+import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
 
 const CommitteePage = () => {
   const { committeeId } = useParams();
@@ -137,8 +137,8 @@ const CommitteePage = () => {
       const tableData = sortedItems.map(item => {
         const countdown = calculateCurrentCountdown(item.presentationDate);
         const displayDays = String(Math.abs(countdown));
-        const itemIsOverdue = isItemOverdue(item.presentationDate, item.extensionsCount);
-        const statusText = itemIsOverdue ? "Overdue" : "Pending";
+        const currentStatus = determineItemStatus(item.status, item.presentationDate, item.extensionsCount);
+        const statusText = currentStatus === "frozen" ? "Frozen" : (currentStatus === "overdue" ? "Overdue" : "Pending");
         
         const row = [
           String(item.title || "N/A"),
@@ -231,19 +231,28 @@ const CommitteePage = () => {
           margin: { top: 20, right: 20, bottom: 10, left: 10 },
           tableWidth: 'wrap',
           didParseCell: function(data) {
-            if (data.column.index === 4 && data.cell.text[0] === "Overdue") {
+            const rowIndex = data.row.index;
+            const originalItem = sortedItems[rowIndex];
+            if (!originalItem) return;
+
+            const currentStatus = determineItemStatus(originalItem.status, originalItem.presentationDate, originalItem.extensionsCount);
+
+            // Color status in red if overdue or frozen
+            if (data.column.index === 4 && (currentStatus === "overdue" || currentStatus === "frozen")) {
               data.cell.styles.textColor = [255, 0, 0];
               data.cell.styles.fontStyle = 'bold';
             }
             
-            if (data.column.index === 3 && data.cell.text[0]) {
-              const rowIndex = data.row.index;
-              const originalItem = sortedItems[rowIndex];
-              
-              if (originalItem && isItemOverdue(originalItem.presentationDate, originalItem.extensionsCount)) {
-                data.cell.styles.textColor = [255, 0, 0];
-                data.cell.styles.fontStyle = 'bold';
-              }
+            // Urgency: Color name (title) in red if frozen
+            if (data.column.index === 0 && currentStatus === "frozen") {
+              data.cell.styles.textColor = [255, 0, 0];
+              data.cell.styles.fontStyle = 'bold';
+            }
+
+            // Color days column in red if overdue/frozen
+            if (data.column.index === 3 && (currentStatus === "overdue" || currentStatus === "frozen")) {
+              data.cell.styles.textColor = [255, 0, 0];
+              data.cell.styles.fontStyle = 'bold';
             }
           }
         });

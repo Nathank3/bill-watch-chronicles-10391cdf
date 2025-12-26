@@ -22,6 +22,7 @@ interface NotificationContextType {
   markAllAsRead: () => void;
   addNotification: (notification: Omit<Notification, "id" | "createdAt" | "read">) => void;
   clearNotification: (id: string) => void;
+  clearBusinessNotifications: (businessId: string) => void;
   clearAllNotifications: () => void;
   clearReadNotifications: () => void;
 }
@@ -33,6 +34,7 @@ const NotificationContext = createContext<NotificationContextType>({
   markAllAsRead: () => { },
   addNotification: () => { },
   clearNotification: () => { },
+  clearBusinessNotifications: () => { },
   clearAllNotifications: () => { },
   clearReadNotifications: () => { },
 });
@@ -63,18 +65,25 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const addNotification = useCallback((notification: Omit<Notification, "id" | "createdAt" | "read">) => {
     setNotifications((prev) => {
-      // Prevent duplicate notifications for the same business item if it's an action_required type
-      // This allows "frozen" notifications to be persistent but not spammy
+      // For action_required (Frozen) notifications, we want them to be extremely persistent
       if (notification.type === "action_required") {
-        const exists = prev.some(
-          (n) =>
-            n.businessId === notification.businessId &&
-            n.type === "action_required" &&
-            !n.read // Only check unread ones, or maybe even read ones if we want it truly unique until resolved? 
-          // User said "persistent". Usually means it stays until action taken.
-          // For now, let's avoid adding if there's already an unread one.
+        const existingIndex = prev.findIndex(
+          (n) => n.businessId === notification.businessId && n.type === "action_required"
         );
-        if (exists) return prev;
+
+        if (existingIndex !== -1) {
+          // If it exists, even if read, we make it unread and bring it to top with new timestamp
+          const existing = prev[existingIndex];
+          const updated: Notification = {
+            ...existing,
+            ...notification,
+            read: false, // Reset to unread
+            createdAt: new Date(), // Update timestamp
+          };
+          const next = [...prev];
+          next.splice(existingIndex, 1);
+          return [updated, ...next];
+        }
       }
 
       const newNotification: Notification = {
@@ -102,6 +111,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
+  const clearBusinessNotifications = useCallback((businessId: string) => {
+    setNotifications((prev) => prev.filter((n) => n.businessId !== businessId));
+  }, []);
+
   const clearAllNotifications = useCallback(() => {
     setNotifications([]);
   }, []);
@@ -121,6 +134,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         markAllAsRead,
         addNotification,
         clearNotification,
+        clearBusinessNotifications,
         clearAllNotifications,
         clearReadNotifications,
       }}

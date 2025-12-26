@@ -3,6 +3,7 @@ import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { adjustForSittingDay, calculatePresentationDate } from "@/utils/documentUtils.ts";
+import { calculateCurrentCountdown } from "@/utils/countdownUtils.ts";
 import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
 
@@ -104,7 +105,7 @@ const mapDbToBill = (data: DbBillResult): Bill => ({
 export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { addNotification } = useNotifications();
+  const { addNotification, clearBusinessNotifications } = useNotifications();
   const { isAdmin } = useAuth();
 
   // Fetch bills from Supabase
@@ -161,11 +162,10 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Hook up the freeze checker (simplified to run locally on fetched data for notifications)
   useEffect(() => {
     const checkFreezeStatus = () => {
-      bills.forEach(bill => {
-        if ((bill.status === "pending" || bill.status === "overdue") && bill.currentCountdown <= 0) {
-          // We found a bill that needs freezing.
-          // In a real backend, this should be a scheduled job.
-          // Here, the first user to load the app triggers the update.
+      bills.forEach((bill) => {
+        const countdown = calculateCurrentCountdown(bill.presentationDate);
+
+        if ((bill.status === "pending" || bill.status === "overdue") && countdown <= 0) {
           updateBillStatus(bill.id, "frozen", true).then(() => {
             addNotification({
               type: "action_required",
@@ -175,10 +175,27 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
               businessType: "bill",
               businessTitle: bill.title
             });
+          }).catch(() => {
+            // Even if RLS blocks the DB update, we still want the persistent notification
+            // for the local user if they are the one seeing it frozen.
+            addNotification({
+              type: "action_required",
+              title: "Bill Frozen",
+              message: `"${bill.title}" has been frozen due to expired deadline.`,
+              businessId: bill.id,
+              businessType: "bill",
+              businessTitle: bill.title
+            });
           });
+        } else if (bill.status === "concluded" || (bill.status === "pending" && countdown > 0)) {
+          // If it was fixed, clear the frozen notification
+          clearBusinessNotifications(bill.id);
         }
       });
     };
+    
+    // Check immediately
+    checkFreezeStatus();
     
     // Check periodically
     const interval = setInterval(checkFreezeStatus, 60000); // Every minute
@@ -329,18 +346,28 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update bill status
   const updateBillStatus = async (id: string, status: BillStatus, silent: boolean = false) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('bills')
         .update({ status, updated_at: new Date().toISOString() })
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        console.warn(`Update status yielded NO matched rows for ${id}. This might be due to RLS policies.`);
+      }
+
+      // If status is changed away from frozen/overdue, clear notifications
+      if (status === "concluded" || status === "pending") {
+        clearBusinessNotifications(id);
+      }
 
       const statusMessages = {
         pending: "Bill has been marked as pending",
         concluded: "Bill has been marked as concluded",
         overdue: "Bill has been marked as overdue",
-        frozen: "Bill has been marked as frozen",
+        frozen: "Bill has been marked as frozen"
       };
 
       toast({
@@ -382,6 +409,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', id);
 
       if (error) throw error;
+
+      // Clear notifications on reschedule (it's no longer frozen)
+      clearBusinessNotifications(id);
 
       toast({
         title: "Bill rescheduled",
