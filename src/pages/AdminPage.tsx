@@ -6,6 +6,7 @@ import { useBills, Bill, BillStatus } from "@/contexts/BillContext.tsx";
 import { BillCard } from "@/components/BillCard.tsx";
 import { BillFilter } from "@/components/BillFilter.tsx";
 import { BillFormDialog } from "@/components/BillFormDialog.tsx";
+import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
 import { DocumentManagement } from "@/components/DocumentManagement.tsx";
 import { useDocuments } from "@/contexts/DocumentContext.tsx";
 import { Navbar } from "@/components/Navbar.tsx";
@@ -179,7 +180,7 @@ const AdminPage = () => {
                {/* Ideally we iterate through all types, but let's start with Statements as a proof of concept as requested */}
                {/* Iterate common types */}
                {["statement", "report", "regulation", "policy", "petition"].map((type) => {
-                 const docs = underReviewDocuments(type as any); // Type assertion needed until strict typing
+                 const docs = underReviewDocuments(type as DocumentType);
                  if (docs.length === 0) return null;
                  
                  return (
@@ -263,7 +264,8 @@ const AdminPage = () => {
               </div>
 
               {/* Add New Bill Button */}
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <BulkUploadDialog />
                 <BillFormDialog />
               </div>
 

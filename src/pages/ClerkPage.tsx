@@ -5,6 +5,7 @@ import { useBills, Bill, BillStatus } from "@/contexts/BillContext.tsx";
 import { BillCard } from "@/components/BillCard.tsx";
 import { BillFilter } from "@/components/BillFilter.tsx";
 import { BillFormDialog } from "@/components/BillFormDialog.tsx";
+import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
 import { DocumentManagement } from "@/components/DocumentManagement.tsx";
 import { Navbar } from "@/components/Navbar.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
@@ -135,7 +136,8 @@ const ClerkPage = () => {
               </div>
 
               {/* Add New Bill Button */}
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <BulkUploadDialog />
                 <BillFormDialog />
               </div>
 
