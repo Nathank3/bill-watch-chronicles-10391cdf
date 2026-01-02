@@ -5,6 +5,7 @@ import { useBills, Bill, BillStatus } from "@/contexts/BillContext.tsx";
 import { BillCard } from "@/components/BillCard.tsx";
 import { BillFilter } from "@/components/BillFilter.tsx";
 import { BillFormDialog } from "@/components/BillFormDialog.tsx";
+import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
 import { DocumentManagement } from "@/components/DocumentManagement.tsx";
 import { Navbar } from "@/components/Navbar.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
@@ -83,11 +84,14 @@ const ClerkPage = () => {
       <Navbar />
 
       <main className="container py-8">
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center relative">
           <h1 className="text-3xl font-bold">Clerk Dashboard</h1>
           <p className="text-muted-foreground mt-2">
             Manage and track all legislative documents
           </p>
+          <div className="absolute right-0 top-0">
+            <BulkUploadDialog />
+          </div>
         </div>
 
         <Tabs defaultValue="bills" className="max-w-6xl mx-auto">
