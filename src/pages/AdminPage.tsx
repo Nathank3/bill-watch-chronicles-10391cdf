@@ -103,6 +103,7 @@ const AdminPage = () => {
             Manage and track all legislative documents
           </p>
           <div className="absolute right-0 top-0 flex gap-2">
+            <BulkUploadDialog />
             <DataMigrationDialog />
             <DeleteAllDataDialog />
           </div>
@@ -264,8 +265,7 @@ const AdminPage = () => {
               </div>
 
               {/* Add New Bill Button */}
-              <div className="flex justify-end gap-2">
-                <BulkUploadDialog />
+              <div className="flex justify-end">
                 <BillFormDialog />
               </div>
 

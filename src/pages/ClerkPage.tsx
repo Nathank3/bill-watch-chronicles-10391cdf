@@ -84,11 +84,14 @@ const ClerkPage = () => {
       <Navbar />
 
       <main className="container py-8">
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center relative">
           <h1 className="text-3xl font-bold">Clerk Dashboard</h1>
           <p className="text-muted-foreground mt-2">
             Manage and track all legislative documents
           </p>
+          <div className="absolute right-0 top-0">
+            <BulkUploadDialog />
+          </div>
         </div>
 
         <Tabs defaultValue="bills" className="max-w-6xl mx-auto">
@@ -136,8 +139,7 @@ const ClerkPage = () => {
               </div>
 
               {/* Add New Bill Button */}
-              <div className="flex justify-end gap-2">
-                <BulkUploadDialog />
+              <div className="flex justify-end">
                 <BillFormDialog />
               </div>
 
