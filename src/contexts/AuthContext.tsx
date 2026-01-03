@@ -29,12 +29,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check for existing user session and setup auth state listener
   useEffect(() => {
-    // Migration: Clear old localStorage session once to ensure move to sessionStorage is clean
-    const legacyKey = Object.keys(localStorage).find(key => key.includes("-auth-token"));
-    if (legacyKey) {
-      console.log("Found legacy persistent session, clearing for security...");
-      localStorage.removeItem(legacyKey);
-    }
+    // Migration: Clear ALL legacy persistent sessions to ensure move to sessionStorage is clean
+    Object.keys(localStorage).forEach(key => {
+      if (key.includes("-auth-token") || key.includes("supabase.auth.token")) {
+        console.log(`[AuthMigration] Found legacy persistent session [${key}], clearing...`);
+        localStorage.removeItem(key);
+      }
+    });
+
+    // Diagnostic Log
+    console.log("[Auth] Current Storage Type:", supabase.auth.getSession().then(({ data }) => {
+      const storageType = window.sessionStorage.getItem(Object.keys(window.sessionStorage).find(k => k.includes("-auth-token")) || "") ? "sessionStorage" : "unknown/none";
+      console.log(`[Auth] Session active in: ${storageType}`);
+    }));
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
