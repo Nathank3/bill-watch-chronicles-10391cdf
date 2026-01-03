@@ -106,8 +106,11 @@ export const BulkUploadDialog = () => {
     });
     
     if (failCount === 0) {
-      setOpen(false);
       setValidationResults([]);
+      // Force reload to see new data immediately
+      setTimeout(() => {
+        globalThis.location.reload();
+      }, 500);
     }
   };
 

@@ -5,7 +5,6 @@ import { useBills, Bill, BillStatus } from "@/contexts/BillContext.tsx";
 import { BillCard } from "@/components/BillCard.tsx";
 import { BillFilter } from "@/components/BillFilter.tsx";
 import { BillFormDialog } from "@/components/BillFormDialog.tsx";
-import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
 import { DocumentManagement } from "@/components/DocumentManagement.tsx";
 import { Navbar } from "@/components/Navbar.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
@@ -90,7 +89,6 @@ const ClerkPage = () => {
             Manage and track all legislative documents
           </p>
           <div className="absolute right-0 top-0">
-            <BulkUploadDialog />
           </div>
         </div>
 
