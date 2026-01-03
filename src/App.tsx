@@ -9,6 +9,7 @@ import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { BillProvider } from "./contexts/BillContext.tsx";
 import { DocumentProvider } from "./contexts/DocumentContext.tsx";
 import { NotificationProvider } from "./contexts/NotificationContext.tsx";
+import { LoadingScreen } from "./components/LoadingScreen.tsx";
 
 const HomePage = lazy(() => import("./pages/HomePage.tsx"));
 const PublicPage = lazy(() => import("./pages/PublicPage.tsx"));
@@ -18,11 +19,7 @@ const ClerkPage = lazy(() => import("./pages/ClerkPage.tsx"));
 const CommitteePage = lazy(() => import("./pages/CommitteePage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-  </div>
-);
+const PageLoader = () => <LoadingScreen />;
 
 const queryClient = new QueryClient();
 
