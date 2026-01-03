@@ -70,14 +70,28 @@ export const validateBulkData = (
         } else {
           errors.push('Invalid Date format (numeric)');
         }
-      } else {
-        const date = new Date(dateStr);
-        if (!isNaN(date.getTime())) {
-          finalDate = date;
-        } else {
-          errors.push('Invalid Date format (text). Use YYYY-MM-DD');
+        } else if (typeof dateStr === 'string') {
+          // Handle DD/MM/YYYY format
+          const parts = dateStr.split('/');
+          if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const year = parseInt(parts[2], 10);
+            const date = new Date(year, month, day);
+            if (!isNaN(date.getTime())) {
+              finalDate = date;
+            } else {
+              errors.push(`Invalid Date format: "${dateStr}". Use DD/MM/YYYY`);
+            }
+          } else {
+            const date = new Date(dateStr);
+            if (!isNaN(date.getTime())) {
+              finalDate = date;
+            } else {
+              errors.push(`Invalid Date format: "${dateStr}". Use DD/MM/YYYY`);
+            }
+          }
         }
-      }
     }
 
     // Duplicate Check (Name + Type + Committee)
