@@ -1,11 +1,11 @@
 
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import { User, Session } from '@supabase/supabase-js';
-import { AuthContextType, AuthUser } from '@/types/auth';
-import { useUserProfile } from '@/hooks/useUserProfile';
+import { supabase } from "@/integrations/supabase/client.ts";
+import { toast } from "@/components/ui/use-toast.ts";
+import { Session } from '@supabase/supabase-js';
+import { AuthContextType, AuthUser } from '@/types/auth.ts';
+import { useUserProfile } from '@/hooks/useUserProfile.ts';
 
 // Create the context with default values
 const AuthContext = createContext<AuthContextType>({
@@ -29,9 +29,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check for existing user session and setup auth state listener
   useEffect(() => {
+    // Migration: Clear ALL legacy persistent sessions to ensure move to sessionStorage is clean
+    Object.keys(localStorage).forEach(key => {
+      if (key.includes("-auth-token") || key.includes("supabase.auth.token")) {
+        console.log(`[AuthMigration] Found legacy persistent session [${key}], clearing...`);
+        localStorage.removeItem(key);
+      }
+    });
+
+    // Diagnostic Log
+    console.log("[Auth] Current Storage Type:", supabase.auth.getSession().then(({ data: _data }) => {
+      const storageType = globalThis.sessionStorage.getItem(Object.keys(globalThis.sessionStorage).find(k => k.includes("-auth-token")) || "") ? "sessionStorage" : "unknown/none";
+      console.log(`[Auth] Session active in: ${storageType}`);
+    }));
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         console.log("Auth state change:", event, newSession?.user?.id);
         
         if (newSession?.user) {
@@ -86,11 +100,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
+    globalThis.addEventListener('storage', handleStorageChange);
 
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener('storage', handleStorageChange);
+      globalThis.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -109,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: _data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });

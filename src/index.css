@@ -87,4 +87,54 @@
   .countdown-urgent {
     @apply text-red-600 animate-pulse-light;
   }
+
+  /* Custom Loading Screen Styles */
+  .loader-squares {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+    animation: loader-rotate 2s infinite ease-in-out;
+  }
+
+  .loader-square {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  .bg-loader-orange {
+    background-color: #fb923c;
+  }
+  .bg-loader-blue {
+    background-color: #3b82f6;
+  }
+  .bg-loader-yellow {
+    background-color: #facc15;
+  }
+  .bg-loader-green {
+    background-color: #4ade80;
+  }
+
+  .anim-delay-1 { animation-delay: 0s; }
+  .anim-delay-2 { animation-delay: 0.2s; }
+  .anim-delay-3 { animation-delay: 0.4s; }
+  .anim-delay-4 { animation-delay: 0.6s; }
+
+  @keyframes loader-rotate {
+    0% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(90deg);
+    }
+    50% {
+      transform: rotate(180deg);
+    }
+    75% {
+      transform: rotate(270deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 }

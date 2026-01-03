@@ -18,6 +18,7 @@ import { toast } from "@/components/ui/use-toast.ts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { DataMigrationDialog } from "@/components/DataMigrationDialog.tsx";
 import { DeleteAllDataDialog } from "@/components/DeleteAllDataDialog.tsx";
+import { LoadingScreen } from "@/components/LoadingScreen.tsx";
 
 const AdminPage = () => {
   const { user, session, isAdmin, isLoading } = useAuth();
@@ -38,16 +39,7 @@ const AdminPage = () => {
 
   // Show loading state while auth state is being determined
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-secondary/30">
-        <Navbar />
-        <main className="container py-8">
-          <div className="flex justify-center items-center h-64">
-            <Skeleton className="h-12 w-12 rounded-full" />
-          </div>
-        </main>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // If no session at all, redirect to login
@@ -57,19 +49,7 @@ const AdminPage = () => {
 
   // If session exists but user profile not loaded yet, show loading
   if (session && !user) {
-    return (
-      <div className="min-h-screen bg-secondary/30">
-        <Navbar />
-        <main className="container py-8">
-          <div className="flex justify-center items-center h-64">
-            <div className="text-center">
-              <Skeleton className="h-12 w-12 rounded-full mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading user profile...</p>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // If user is authenticated but not an admin, show access denied
