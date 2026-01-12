@@ -13,12 +13,12 @@ import { Navbar } from "@/components/Navbar.tsx";
 import { AdminUsers } from "@/components/AdminUsers.tsx";
 import { CommitteeManagement } from "@/components/CommitteeManagement.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { toast } from "@/components/ui/use-toast.ts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { DataMigrationDialog } from "@/components/DataMigrationDialog.tsx";
 import { DeleteAllDataDialog } from "@/components/DeleteAllDataDialog.tsx";
 import { LoadingScreen } from "@/components/LoadingScreen.tsx";
+import { DocumentType } from "@/types/document.ts";
 
 const AdminPage = () => {
   const { user, session, isAdmin, isLoading } = useAuth();
@@ -161,7 +161,7 @@ const AdminPage = () => {
                {/* Ideally we iterate through all types, but let's start with Statements as a proof of concept as requested */}
                {/* Iterate common types */}
                {["statement", "report", "regulation", "policy", "petition"].map((type) => {
-                 const docs = underReviewDocuments(type as DocumentType);
+                 const docs = underReviewDocuments(type as any);
                  if (docs.length === 0) return null;
                  
                  return (
