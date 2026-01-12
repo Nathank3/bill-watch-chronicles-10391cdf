@@ -17,6 +17,7 @@ export const BulkUploadDialog = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
   const [committees, setCommittees] = useState<string[]>([]);
+  const [templateType, setTemplateType] = useState<'days' | 'date'>('days');
   
   const { bills, addBill } = useBills();
   const { documents, addDocument } = useDocuments();
@@ -31,7 +32,7 @@ export const BulkUploadDialog = () => {
   };
 
   const handleDownloadTemplate = () => {
-    generateTemplate(committees);
+    generateTemplate(committees, templateType);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,15 +132,43 @@ export const BulkUploadDialog = () => {
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center p-4 border rounded-lg bg-muted/30">
-            <div>
-              <h3 className="font-medium">Step 1: Get the Template</h3>
-              <p className="text-sm text-muted-foreground">Download the spreadsheet guide for the correct format.</p>
+          <div className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/30">
+            <div className="flex justify-between items-start sm:items-center">
+              <div>
+                <h3 className="font-medium">Step 1: Get the Template</h3>
+                <p className="text-sm text-muted-foreground">Download the spreadsheet guide for the correct format.</p>
+              </div>
+              <Button onClick={handleDownloadTemplate} variant="secondary" className="gap-2 shrink-0">
+                <Download className="h-4 w-4" />
+                Download Template
+              </Button>
             </div>
-            <Button onClick={handleDownloadTemplate} variant="secondary" className="gap-2">
-              <Download className="h-4 w-4" />
-              Download Template
-            </Button>
+            
+            <div className="flex gap-6 mt-2 pt-4 border-t">
+               <div className="text-sm font-medium pt-1">Template Format:</div>
+               <div className="flex flex-col sm:flex-row gap-4">
+                 <label className="flex items-center space-x-2 cursor-pointer">
+                   <input 
+                      type="radio" 
+                      name="templateType" 
+                      checked={templateType === 'days'} 
+                      onChange={() => setTemplateType('days')}
+                      className="accent-primary h-4 w-4"
+                   />
+                   <span className="text-sm">Standard (Days Given)</span>
+                 </label>
+                 <label className="flex items-center space-x-2 cursor-pointer">
+                   <input 
+                      type="radio" 
+                      name="templateType" 
+                      checked={templateType === 'date'} 
+                      onChange={() => setTemplateType('date')}
+                      className="accent-primary h-4 w-4"
+                   />
+                   <span className="text-sm">Date Based (Due Date)</span>
+                 </label>
+               </div>
+            </div>
           </div>
 
           <div className="space-y-2">

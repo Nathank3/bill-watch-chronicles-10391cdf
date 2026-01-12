@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { format } from 'date-fns';
 
-export const generateTemplate = async (committees: string[]) => {
+export const generateTemplate = async (committees: string[], templateType: 'days' | 'date' = 'days') => {
   const types = ['Bill', 'Statement', 'Report', 'Regulation', 'Policy', 'Petition'];
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Bill Watch Chronicles';
@@ -13,13 +13,15 @@ export const generateTemplate = async (committees: string[]) => {
   // 1. Data Entry Sheet
   const sheet = workbook.addWorksheet('Business Data');
   
+  const daysHeader = templateType === 'days' ? 'Time Given (Days)' : 'Due Date';
+  
   // Define columns
   sheet.columns = [
     { header: 'Business Name', key: 'name', width: 40 },
     { header: 'Committee', key: 'committee', width: 40 },
     { header: 'Type of Business', key: 'type', width: 20 },
     { header: 'Date of Committing', key: 'date', width: 25 },
-    { header: 'Time Given (Days)', key: 'days', width: 20 },
+    { header: daysHeader, key: 'deadline', width: 25 },
   ];
 
   // Style the header row
@@ -33,12 +35,14 @@ export const generateTemplate = async (committees: string[]) => {
   headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
   // Add sample data
+  const sampleDeadline = templateType === 'days' ? 14 : format(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy');
+  
   sheet.addRow({
     name: 'Sample Business Title',
     committee: committees[0] || 'Select Committee',
     type: 'Bill',
     date: format(new Date(), 'dd/MM/yyyy'),
-    days: 14
+    deadline: sampleDeadline
   });
 
   // 2. Hidden Lookup Sheet for Dropdowns
@@ -96,16 +100,31 @@ export const generateTemplate = async (committees: string[]) => {
       prompt: 'Day/Month/Year'
     };
     
-    const daysCell = sheet.getCell(`E${i}`);
-    daysCell.dataValidation = {
-      type: 'whole',
-      operator: 'greaterThan',
-      allowBlank: true,
-      showErrorMessage: true,
-      formulae: [0],
-      errorTitle: 'Invalid Days',
-      error: 'Must be a positive number.'
-    };
+    // Validation for the 5th column (Days or Due Date)
+    const deadlineCell = sheet.getCell(`E${i}`);
+    if (templateType === 'days') {
+        deadlineCell.dataValidation = {
+            type: 'whole',
+            operator: 'greaterThan',
+            allowBlank: true,
+            showErrorMessage: true,
+            formulae: [0],
+            errorTitle: 'Invalid Days',
+            error: 'Must be a positive number.'
+        };
+    } else {
+        deadlineCell.numFmt = 'dd/mm/yyyy';
+        deadlineCell.dataValidation = {
+            type: 'date',
+            operator: 'greaterThan',
+            allowBlank: true,
+            formulae: [new Date(2000, 0, 1)],
+            showErrorMessage: true,
+            errorTitle: 'Invalid Date',
+            error: 'Please enter a valid date in DD/MM/YYYY format.',
+            prompt: 'Day/Month/Year'
+        };
+    }
   }
 
   // 4. Instructions Sheet
@@ -119,19 +138,27 @@ export const generateTemplate = async (committees: string[]) => {
   const instrHeader = instrSheet.getRow(1);
   instrHeader.font = { bold: true };
   
+  const deadlineDesc = templateType === 'days' 
+    ? { field: 'Time Given (Days)', desc: 'Allocated time period in days.', notes: 'Must be a positive number.' }
+    : { field: 'Due Date', desc: 'The deadline date for the business item.', notes: 'Format: DD/MM/YYYY. Should be after Date of Committing.' };
+
   instrSheet.addRows([
     { field: 'Business Name', desc: 'The full title of the bill or document.', notes: 'E.g., The Finance Bill 2024' },
     { field: 'Committee', desc: 'Committee assigned to the item.', notes: 'Use the dropdown menu in the Business Data sheet.' },
     { field: 'Type of Business', desc: 'Classification of the item.', notes: 'Bill, Statement, Report, etc. Use dropdown.' },
     { field: 'Date of Committing', desc: 'Official date the item was committed.', notes: 'Format: DD/MM/YYYY (e.g., 25/12/2024)' },
-    { field: 'Time Given (Days)', desc: 'Allocated time period in days.', notes: 'Must be a positive number.' },
+    deadlineDesc,
   ]);
 
   instrSheet.addRow({});
   instrSheet.addRow({ field: 'IMPORTANT', desc: 'Do not rename the columns or change their order.', notes: 'The system relies on this structure.' });
 
   // Generate and Trigger Download
+  const filename = templateType === 'days' 
+    ? `Business_Upload_Template_Days_${format(new Date(), 'yyyyMMdd')}.xlsx`
+    : `Business_Upload_Template_DueDates_${format(new Date(), 'yyyyMMdd')}.xlsx`;
+
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  saveAs(blob, `Business_Upload_Template_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+  saveAs(blob, filename);
 };
