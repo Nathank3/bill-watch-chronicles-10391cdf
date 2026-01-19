@@ -84,6 +84,8 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             Frozen
           </Badge>
         );
+      case "limbo":
+        return <Badge variant="secondary" className="bg-gray-200 text-gray-700">In Limbo</Badge>;
       case "concluded":
         return <Badge className="bg-bill-passed">Concluded</Badge>;
       default:
@@ -113,7 +115,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           </p>
           <div className="mt-2 space-y-1">
             <p className="text-sm">
-              <span className="font-medium">Date Committed:</span> {formatDate(bill.dateCommitted)}
+              <span className="font-medium">Date Committed:</span> {bill.dateCommitted ? formatDate(bill.dateCommitted) : "TBD (In Limbo)"}
             </p>
             {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
               <>
@@ -125,13 +127,21 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
                 </p>
               </>
             )}
+            
+            {/* Limbo Message */}
+            {effectiveStatus === "limbo" && (
+                 <p className="text-sm text-muted-foreground italic">
+                    Awaiting court judgment or further action.
+                 </p>
+            )}
+
             {bill.extensionsCount > 0 && (
               <p className="text-sm text-amber-600">
                 <span className="font-medium">Extensions:</span> {bill.extensionsCount} time(s)
               </p>
             )}
             <p className="text-sm">
-              <span className="font-medium">Date Due:</span> {formatDate(bill.presentationDate)}
+              <span className="font-medium">Date Due:</span> {bill.presentationDate ? formatDate(bill.presentationDate) : "TBD"}
             </p>
           </div>
           <div className="flex items-center gap-2 mt-2">

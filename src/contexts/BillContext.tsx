@@ -9,16 +9,16 @@ import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
 
 // Define bill status type - Including frozen
-export type BillStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review";
+export type BillStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review" | "limbo";
 
 // Define bill interface
 export interface Bill {
   id: string;
   title: string;
   committee: string;
-  dateCommitted: Date;
+  dateCommitted: Date | null;
   pendingDays: number;
-  presentationDate: Date;
+  presentationDate: Date | null;
   status: BillStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -33,7 +33,7 @@ interface BillContextType {
   pendingBills: Bill[];
   concludedBills: Bill[];
   underReviewBills: Bill[];
-  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => Promise<void>;
+  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null }) => Promise<void>;
   updateBill: (id: string, updates: Partial<Bill>) => Promise<void>;
   updateBillStatus: (id: string, status: BillStatus, silent?: boolean) => Promise<void>;
   approveBill: (id: string) => Promise<void>;
@@ -75,10 +75,10 @@ interface DbBillResult {
   id: string;
   title: string;
   committee: string;
-  date_committed: string;
+  date_committed: string | null;
   created_at: string;
   pending_days: number;
-  presentation_date: string;
+  presentation_date: string | null;
   status: string;
   updated_at: string;
   days_allocated: number;
@@ -91,9 +91,9 @@ const mapDbToBill = (data: DbBillResult): Bill => ({
   id: data.id,
   title: data.title,
   committee: data.committee,
-  dateCommitted: new Date(data.date_committed || data.created_at),
+  dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
   pendingDays: data.pending_days || 0,
-  presentationDate: new Date(data.presentation_date),
+  presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
   status: data.status as BillStatus,
   createdAt: new Date(data.created_at),
   updatedAt: new Date(data.updated_at),
