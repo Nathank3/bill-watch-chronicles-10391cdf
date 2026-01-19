@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client.ts";
@@ -107,9 +108,10 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const { addNotification, clearBusinessNotifications } = useNotifications();
   const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch bills from Supabase
-  const fetchBills = async () => {
+  const _fetchBills = async () => {
     try {
       setIsLoading(true);
       const { data, error } = await supabase
@@ -134,6 +136,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+
+  /* 
+  // Disable auto-fetch for scalability
   // Initial fetch
   useEffect(() => {
     fetchBills();
@@ -149,7 +154,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           table: 'bills'
         },
         () => {
-          fetchBills();
+          // fetchBills(); // Disabled global re-fetch
+          // In React Query, we would invalidate the query cache here
+          // But for now, user action will trigger re-fetch or manual refresh
         }
       )
       .subscribe();
@@ -158,6 +165,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       supabase.removeChannel(channel);
     };
   }, []);
+  */
 
   // Hook up the freeze checker (simplified to run locally on fetched data for notifications)
   useEffect(() => {
@@ -260,6 +268,10 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : `"${billData.title}" is now under review by an admin.`,
       });
       
+      // Invalidate queries to refresh lists
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["bills-stats"] });
+
       // Also send notification explicitly if needed, but the Subscription handles data refresh
       addNotification({
         type: "business_created",
@@ -316,6 +328,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
 
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["bills-stats"] });
+
       toast({
         title: "Bill updated",
         description: `Bill has been successfully updated`,
@@ -370,6 +385,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         frozen: "Bill has been marked as frozen"
       };
 
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["bills-stats"] });
+
       toast({
         title: "Status updated",
         description: statusMessages[status] || "Status updated",
@@ -413,6 +431,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear notifications on reschedule (it's no longer frozen)
       clearBusinessNotifications(id);
 
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["bills-stats"] });
+
       toast({
         title: "Bill rescheduled",
         description: `Bill has been rescheduled to ${format(newDate, "PPP")}`,
@@ -435,6 +456,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Update local state immediately
       setBills(prev => prev.filter(bill => bill.id !== id));
+
+      queryClient.invalidateQueries({ queryKey: ["bills"] });
+      queryClient.invalidateQueries({ queryKey: ["bills-stats"] });
 
       toast({ title: "Bill deleted", description: "Bill has been successfully deleted" });
     } catch (error) {

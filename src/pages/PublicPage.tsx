@@ -1,48 +1,62 @@
 
-import { useState, useMemo } from "react";
-import { useBills } from "@/contexts/BillContext.tsx";
-import { useDocuments, DocumentType } from "@/contexts/DocumentContext.tsx";
+import { useState } from "react";
 import { BillCard } from "@/components/BillCard.tsx";
 import { DocumentCard } from "@/components/DocumentCard.tsx";
 import { Navbar } from "@/components/Navbar.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import { useBillList } from "@/hooks/useBillsQuery.ts";
+import { useDocumentList } from "@/hooks/useDocumentsQuery.ts";
+import { DocumentType } from "@/types/document.ts";
+import { PaginationControls } from "@/components/ui/pagination-controls.tsx";
 
 const PublicPage = () => {
-  const { pendingBills, concludedBills } = useBills();
-  const { pendingDocuments, concludedDocuments } = useDocuments();
   const [searchQuery, setSearchQuery] = useState("");
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
+  const [activeTab, setActiveTab] = useState("pending");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
-  // Filter bills based on search query
-  const filteredPendingBills = useMemo(() => 
-    pendingBills.filter(bill =>
-      bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bill.committee.toLowerCase().includes(searchQuery.toLowerCase())
-    ), [pendingBills, searchQuery]);
+  // Determine status filter based on active tab
+  const statusFilter = activeTab === "pending" ? "pending" : "concluded";
 
-  const filteredConcludedBills = useMemo(() => 
-    concludedBills.filter(bill =>
-      bill.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bill.committee.toLowerCase().includes(searchQuery.toLowerCase())
-    ), [concludedBills, searchQuery]);
+  // Fetch Bills
+  // We fetch if documentType is bill. Otherwise we pause? 
+  // TanStack Query has `enabled` option.
+  const { data: billsData } = useBillList({
+    status: statusFilter,
+    search: searchQuery,
+    page,
+    pageSize
+  }, {
+    enabled: documentType === "bill"
+  });
 
-  // Get documents for selected type
-  const currentPendingDocuments = useMemo(() => 
-    documentType === "bill" 
-      ? [] 
-      : pendingDocuments(documentType).filter(doc =>
-          doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doc.committee.toLowerCase().includes(searchQuery.toLowerCase())
-        ), [documentType, pendingDocuments, searchQuery]);
+  // Fetch Documents
+  const { data: docsData } = useDocumentList({
+    type: documentType !== "bill" ? documentType : undefined,
+    status: statusFilter,
+    search: searchQuery,
+    page,
+    pageSize
+  }, {
+    enabled: documentType !== "bill"
+  });
 
-  const currentConcludedDocuments = useMemo(() => 
-    documentType === "bill"
-      ? []
-      : concludedDocuments(documentType).filter(doc =>
-          doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doc.committee.toLowerCase().includes(searchQuery.toLowerCase())
-        ), [documentType, concludedDocuments, searchQuery]);
+  const handleTabChange = (val: string) => {
+    setActiveTab(val);
+    setPage(1);
+  };
+
+  const handleTypeChange = (val: string) => {
+    setDocumentType(val as DocumentType);
+    setPage(1);
+  };
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setPage(1);
+  };
 
   const documentTypes: { value: DocumentType, label: string }[] = [
     { value: "bill", label: "Bills" },
@@ -69,7 +83,7 @@ const PublicPage = () => {
         <div className="mb-6 flex justify-center">
           <Tabs 
             value={documentType} 
-            onValueChange={(value) => setDocumentType(value as DocumentType)}
+            onValueChange={handleTypeChange}
             className="w-full"
           >
             <TabsList className="w-full justify-start overflow-x-auto h-auto flex-nowrap pb-1 no-scrollbar">
@@ -86,12 +100,12 @@ const PublicPage = () => {
           <Input
             placeholder={`Search ${documentType}s by title or committee`}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="max-w-xl mx-auto"
           />
         </div>
 
-        <Tabs defaultValue="pending" className="max-w-5xl mx-auto">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="max-w-5xl mx-auto">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="concluded">Concluded</TabsTrigger>
@@ -99,24 +113,40 @@ const PublicPage = () => {
           
           <TabsContent value="pending" className="mt-6">
             {documentType === "bill" ? (
-              filteredPendingBills.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {filteredPendingBills.map((bill) => (
-                    <BillCard key={bill.id} bill={bill} />
-                  ))}
-                </div>
+              billsData && billsData.data.length > 0 ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {billsData.data.map((bill) => (
+                      <BillCard key={bill.id} bill={bill} />
+                    ))}
+                  </div>
+                  <PaginationControls 
+                    currentPage={page}
+                    totalCount={billsData.count}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                  />
+                </>
               ) : (
                 <p className="text-center py-8 text-muted-foreground">
                   {searchQuery ? "No pending bills match your search" : "No pending bills at this time"}
                 </p>
               )
             ) : (
-              currentPendingDocuments.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {currentPendingDocuments.map((doc) => (
-                    <DocumentCard key={doc.id} document={doc} />
-                  ))}
-                </div>
+              docsData && docsData.data.length > 0 ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {docsData.data.map((doc) => (
+                      <DocumentCard key={doc.id} document={doc} />
+                    ))}
+                  </div>
+                  <PaginationControls 
+                    currentPage={page}
+                    totalCount={docsData.count}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                  />
+                </>
               ) : (
                 <p className="text-center py-8 text-muted-foreground">
                   {searchQuery 
@@ -130,24 +160,40 @@ const PublicPage = () => {
           
           <TabsContent value="concluded" className="mt-6">
             {documentType === "bill" ? (
-              filteredConcludedBills.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {filteredConcludedBills.map((bill) => (
-                    <BillCard key={bill.id} bill={bill} />
-                  ))}
-                </div>
+              billsData && billsData.data.length > 0 ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {billsData.data.map((bill) => (
+                      <BillCard key={bill.id} bill={bill} />
+                    ))}
+                  </div>
+                  <PaginationControls 
+                    currentPage={page}
+                    totalCount={billsData.count}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                  />
+                </>
               ) : (
                 <p className="text-center py-8 text-muted-foreground">
                   {searchQuery ? "No concluded bills match your search" : "No concluded bills at this time"}
                 </p>
               )
             ) : (
-              currentConcludedDocuments.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {currentConcludedDocuments.map((doc) => (
-                    <DocumentCard key={doc.id} document={doc} />
-                  ))}
-                </div>
+              docsData && docsData.data.length > 0 ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {docsData.data.map((doc) => (
+                      <DocumentCard key={doc.id} document={doc} />
+                    ))}
+                  </div>
+                  <PaginationControls 
+                    currentPage={page}
+                    totalCount={docsData.count}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                  />
+                </>
               ) : (
                 <p className="text-center py-8 text-muted-foreground">
                   {searchQuery 

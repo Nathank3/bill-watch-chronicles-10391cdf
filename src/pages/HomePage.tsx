@@ -1,20 +1,43 @@
 
-import { useBills, Bill } from "@/contexts/BillContext.tsx";
-import { useDocuments, DocumentType, Document } from "@/contexts/DocumentContext.tsx";
+import { useBillStats } from "@/hooks/useBillsQuery.ts";
+import { useDocumentStats } from "@/hooks/useDocumentsQuery.ts";
 import { Navbar } from "@/components/Navbar.tsx";
+import { BillStatus } from "@/contexts/BillContext.tsx";
+import { DocumentStatus } from "@/types/document.ts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Download } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { UserOptions } from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast.ts";
-import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
+import { calculateCurrentCountdown, determineItemStatus } from "@/utils/countdownUtils.ts";
 import { addHeaderImage, drawDivider } from "@/utils/pdfUtils.ts";
-const HomePage = () => {
-  const { pendingBills } = useBills();
-  const { pendingDocuments } = useDocuments();
+import { DocumentType } from "@/types/document.ts";
+import { supabase } from "@/integrations/supabase/client.ts";
 
+// Define a type for items used in PDF generation to ensure they have common checking properties
+interface PdfItem {
+    id: string;
+    title: string;
+    committee: string;
+    status: string;
+    dateCommitted: Date;
+    presentationDate: Date;
+    pendingDays: number;
+    extensionsCount: number;
+    itemType?: string; // Optional discriminator
+}
+
+const HomePage = () => {
+  // Fetch Stats
+  const { data: billStats } = useBillStats();
+  // We need stats for all document types
+  const { data: statementStats } = useDocumentStats("statement");
+  const { data: reportStats } = useDocumentStats("report");
+  const { data: regulationStats } = useDocumentStats("regulation");
+  const { data: policyStats } = useDocumentStats("policy");
+  const { data: petitionStats } = useDocumentStats("petition");
 
   const documentTypes: { type: DocumentType | "business", label: string }[] = [
     { type: "business", label: "Business" },
@@ -28,48 +51,91 @@ const HomePage = () => {
 
   const getPendingCount = (type: DocumentType | "business") => {
     if (type === "business") {
-      // Sum all pending items
-      return (pendingBills?.length || 0) +
-        (pendingDocuments("statement")?.length || 0) +
-        (pendingDocuments("report")?.length || 0) +
-        (pendingDocuments("regulation")?.length || 0) +
-        (pendingDocuments("policy")?.length || 0) +
-        (pendingDocuments("petition")?.length || 0);
+      return (billStats?.pending || 0) +
+        (statementStats?.pending || 0) +
+        (reportStats?.pending || 0) +
+        (regulationStats?.pending || 0) +
+        (policyStats?.pending || 0) +
+        (petitionStats?.pending || 0);
     }
-    if (type === "bill") {
-      return pendingBills?.length || 0;
+    if (type === "bill") return billStats?.pending || 0;
+    if (type === "statement") return statementStats?.pending || 0;
+    if (type === "report") return reportStats?.pending || 0;
+    if (type === "regulation") return regulationStats?.pending || 0;
+    if (type === "policy") return policyStats?.pending || 0;
+    if (type === "petition") return petitionStats?.pending || 0;
+    return 0;
+  };
+
+  const fetchAllPendingFiles = async (type: DocumentType | "business"): Promise<PdfItem[]> => {
+    const fetchLimit = 1000; // Cap for PDF export
+
+    if (type === "business") {
+        const { data: bills } = await supabase.from("bills").select("*").in("status", ["pending", "overdue", "frozen"]).limit(fetchLimit);
+        const { data: docs } = await supabase.from("documents").select("*").in("status", ["pending", "overdue", "frozen"]).limit(fetchLimit);
+        
+        const mappedBills: PdfItem[] = (bills || []).map(b => ({
+            id: b.id,
+            title: b.title,
+            committee: b.committee,
+            status: b.status,
+            dateCommitted: new Date(b.date_committed), 
+            presentationDate: new Date(b.presentation_date), 
+            pendingDays: b.pending_days || 0, 
+            extensionsCount: b.extensions_count || 0,
+            itemType: "Bill"
+        }));
+        
+        const mappedDocs: PdfItem[] = (docs || []).map(d => ({ 
+            id: d.id,
+            title: d.title,
+            committee: d.committee,
+            status: d.status,
+            dateCommitted: new Date(d.date_committed || d.created_at), // Fallback if needed
+            presentationDate: new Date(d.presentation_date), 
+            pendingDays: d.pending_days || 0, 
+            extensionsCount: d.extensions_count || 0,
+            itemType: d.type.charAt(0).toUpperCase() + d.type.slice(1)
+        }));
+        
+        return [...mappedBills, ...mappedDocs];
+    } else if (type === "bill") {
+        const { data } = await supabase.from("bills").select("*").in("status", ["pending", "overdue", "frozen"]).limit(fetchLimit);
+        return (data || []).map(b => ({ 
+            id: b.id,
+            title: b.title,
+            committee: b.committee,
+            status: b.status,
+            dateCommitted: new Date(b.date_committed), 
+            presentationDate: new Date(b.presentation_date), 
+            pendingDays: b.pending_days || 0, 
+            extensionsCount: b.extensions_count || 0
+        }));
+    } else {
+        const { data } = await supabase.from("documents").select("*").eq("type", type).in("status", ["pending", "overdue", "frozen"]).limit(fetchLimit);
+        return (data || []).map(d => ({ 
+            id: d.id,
+            title: d.title,
+            committee: d.committee,
+            status: d.status,
+            dateCommitted: new Date(d.date_committed || d.created_at), 
+            presentationDate: new Date(d.presentation_date), 
+            pendingDays: d.pending_days || 0, 
+            extensionsCount: d.extensions_count || 0
+        }));
     }
-    return pendingDocuments(type)?.length || 0;
   };
 
   const generatePDF = async (type: DocumentType | "business") => {
     try {
-      let pendingItems: ((Bill | Document) & { itemType?: string })[];
-      let typeLabel: string;
-      let includeTypeColumn = false;
+      toast({ title: "Generating PDF...", description: "Fetching data..." });
+      
+      const pendingItemsRaw = await fetchAllPendingFiles(type);
+      
+      const typeLabel = type === "business" ? "Business" : (type === "bill" ? "Bills" : type.charAt(0).toUpperCase() + type.slice(1) + "s");
+      const includeTypeColumn = type === "business";
 
-      if (type === "business") {
-        // Collect all pending items from all types
-        const allBills = (pendingBills || []).map(item => ({ ...item, itemType: "Bill" }));
-        const allStatements = (pendingDocuments("statement") || []).map(item => ({ ...item, itemType: "Statement" }));
-        const allReports = (pendingDocuments("report") || []).map(item => ({ ...item, itemType: "Report" }));
-        const allRegulations = (pendingDocuments("regulation") || []).map(item => ({ ...item, itemType: "Regulation" }));
-        const allPolicies = (pendingDocuments("policy") || []).map(item => ({ ...item, itemType: "Policy" }));
-        const allPetitions = (pendingDocuments("petition") || []).map(item => ({ ...item, itemType: "Petition" }));
-
-        pendingItems = [...allBills, ...allStatements, ...allReports, ...allRegulations, ...allPolicies, ...allPetitions];
-        typeLabel = "Business";
-        includeTypeColumn = true;
-      } else if (type === "bill") {
-        pendingItems = pendingBills || [];
-        typeLabel = "Bills";
-      } else {
-        pendingItems = pendingDocuments(type) || [];
-        typeLabel = type.charAt(0).toUpperCase() + type.slice(1) + "s";
-      }
-
-
-      if (pendingItems.length === 0) {
+      if (!pendingItemsRaw || pendingItemsRaw.length === 0) {
         toast({
           title: "No data to export",
           description: `No pending ${typeLabel.toLowerCase()} found to export.`,
@@ -78,45 +144,37 @@ const HomePage = () => {
         return;
       }
 
-      // Sort by priority: overdue/rescheduled first, then by days remaining (least to most)
-      const sortedItems = [...pendingItems].sort((a, b) => {
+      // Sort
+      const sortedItems = [...pendingItemsRaw].sort((a, b) => {
         const now = new Date();
         const aDays = differenceInDays(a.presentationDate, now);
         const bDays = differenceInDays(b.presentationDate, now);
 
-        // Check if items are overdue or rescheduled
         const aIsOverdue = a.status === "overdue" || aDays < 0;
         const bIsOverdue = b.status === "overdue" || bDays < 0;
 
-        // Prioritize overdue/rescheduled items
         if (aIsOverdue && !bIsOverdue) return -1;
         if (!aIsOverdue && bIsOverdue) return 1;
 
-        // Within same priority group, sort by days remaining
         return aDays - bDays;
       });
 
-      // Validate and prepare data before creating table
+      // Prepare Table Data
       const tableData = sortedItems.map(item => {
-        // Calculate current countdown dynamically
         const countdown = calculateCurrentCountdown(item.presentationDate);
         const displayDays = String(Math.abs(countdown));
-
-        // Calculate status dynamically
-        const currentStatus = determineItemStatus(item.status, item.presentationDate, item.extensionsCount);
+        const currentStatus = determineItemStatus(item.status as BillStatus | DocumentStatus, item.presentationDate, item.extensionsCount);
         const statusText = currentStatus === "frozen" ? "Frozen" : (currentStatus === "overdue" ? "Overdue" : "Pending");
 
-        // Ensure all values are strings and handle null/undefined values
         const row = [
           String(item.title || "N/A"),
           String(item.committee || "N/A"),
-          item.dateCommitted ? format(new Date(item.dateCommitted), "EEE, dd/MM/yyyy") : "N/A",
+          item.dateCommitted ? format(item.dateCommitted, "EEE, dd/MM/yyyy") : "N/A",
           displayDays,
           statusText,
-          item.presentationDate ? format(new Date(item.presentationDate), "EEE, dd/MM/yyyy") : "N/A"
+          item.presentationDate ? format(item.presentationDate, "EEE, dd/MM/yyyy") : "N/A"
         ];
 
-        // Add type column for business report
         if (includeTypeColumn) {
           row.push(String(item.itemType || "N/A"));
         }
@@ -124,143 +182,97 @@ const HomePage = () => {
         return row;
       });
 
-      // Double-check that tableData is valid
-      if (!tableData || tableData.length === 0 || !Array.isArray(tableData)) {
-        throw new Error("No valid data to generate table");
-      }
-
-      // Validate each row has the correct number of columns
-      const expectedColumns = includeTypeColumn ? 7 : 6;
-      const validTableData = tableData.filter(row =>
-        Array.isArray(row) && row.length === expectedColumns && row.every(cell => typeof cell === 'string')
-      );
-
-      if (validTableData.length === 0) {
-        throw new Error("No valid table rows found");
-      }
-
+      // PDF Generation Logic (Keep existing logic mainly)
       const doc = new jsPDF();
       const currentDate = new Date();
       const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
 
-      // Add header image
       const headerHeight = await addHeaderImage(doc, "/header_logo.png");
 
-      // Calculate start Y based on header
       let startY = 20;
       if (headerHeight > 0) {
-        // Draw divider if we have a header
-        startY = headerHeight + 5; // Start divider slightly below image
-        startY = drawDivider(doc, startY, 15, 15); // Draw divider and get new Y
-        startY += 10; // Add space between divider and title
+        startY = headerHeight + 5;
+        startY = drawDivider(doc, startY, 15, 15);
+        startY += 10;
       } else {
-        startY = 20; // Default start if no image
+        startY = 20;
       }
 
-      // Title positioning with text wrapping
       doc.setFontSize(16);
       doc.setFont("times", "bold");
       doc.setTextColor(0, 0, 0);
 
-      // Split text to fit page width
-      // Title in ALL CAPS
       const titleText = `MAKUENI COUNTY ASSEMBLY PENDING ${typeLabel.toUpperCase()} AS AT ${formattedDate.toUpperCase()}`;
       const marginLeft = 15;
-      const marginRight = 15;
       const pageWidth = doc.internal.pageSize.getWidth();
-      const maxWidth = pageWidth - (marginLeft + marginRight);
+      const maxWidth = pageWidth - (marginLeft * 2);
 
-      // Align with table start
       const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-      
-      // Center align the text
       doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
 
-      // Underline the title (line spanning the table width to align with table/header)
       const titleLines = splitTitle.length;
-      const lineY = startY + (titleLines * 6) + 2; // Position below text, adjusted for spacing
+      const lineY = startY + (titleLines * 6) + 2;
 
       doc.setLineWidth(0.5);
       doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
 
-      // Create table with improved spacing and alignment
-      try {
-        const headers = includeTypeColumn
+      const headers = includeTypeColumn
           ? [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date', 'Type']]
           : [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
-
-        // Define column styles - wrap text columns, fixed width for date/number columns
-        const columnStylesConfig = includeTypeColumn
+      
+      const columnStylesConfig = includeTypeColumn
           ? {
-            0: { overflow: 'linebreak' as const },  // Title - auto width serves as the main flexible column
-            1: { overflow: 'linebreak' as const, cellWidth: 40 },  // Committee - give it decent fixed width or flexible
-            2: { cellWidth: 32, minCellWidth: 32 }, // Date Committed - fixed width (keep as is)
-            3: { cellWidth: 15, minCellWidth: 15 }, // Days Remaining - reduced from 20
-            4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Status - reduced from 20, no wrap
-            5: { cellWidth: 32, minCellWidth: 32 }, // Due Date - fixed width (keep as is)
-            6: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }  // Type - reduced from 25, no wrap
+             0: { overflow: 'linebreak' }, 
+             1: { overflow: 'linebreak', cellWidth: 40 }, 
+             2: { cellWidth: 32, minCellWidth: 32 }, 
+             3: { cellWidth: 15, minCellWidth: 15 }, 
+             4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
+             5: { cellWidth: 32, minCellWidth: 32 },
+             6: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' }
           }
           : {
-            0: { overflow: 'linebreak' as const },  // Title
-            1: { overflow: 'linebreak' as const, cellWidth: 45 },  // Committee
-            2: { cellWidth: 32, minCellWidth: 32 }, // Date Committed
-            3: { cellWidth: 15, minCellWidth: 15 }, // Days Remaining - reduced
-            4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Status - reduced, no wrap
-            5: { cellWidth: 32, minCellWidth: 32 }  // Due Date
+             0: { overflow: 'linebreak' },
+             1: { overflow: 'linebreak', cellWidth: 45 },
+             2: { cellWidth: 32, minCellWidth: 32 },
+             3: { cellWidth: 15, minCellWidth: 15 },
+             4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
+             5: { cellWidth: 32, minCellWidth: 32 }
           };
 
-        autoTable(doc, {
-          startY: lineY + 5, // Start table well below the underline
+      const options: UserOptions = {
+          startY: lineY + 5,
           head: headers,
-          body: validTableData,
+          body: tableData,
           theme: 'grid',
-          styles: {
-            fontSize: 8,
-            cellPadding: 3,
-            halign: 'left',
-            valign: 'middle',
-            overflow: 'linebreak'
-          },
-          headStyles: {
-            fillColor: [66, 139, 202],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            halign: 'left'
-          },
-          columnStyles: columnStylesConfig,
+          styles: { fontSize: 8, cellPadding: 3, halign: 'left', valign: 'middle', overflow: 'linebreak' },
+          headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
+          columnStyles: columnStylesConfig as UserOptions["columnStyles"],
           margin: { top: 20, right: 15, bottom: 10, left: 15 },
           tableWidth: 'auto',
           didParseCell: function (data) {
-            const rowIndex = data.row.index;
-            const originalItem = sortedItems[rowIndex];
-            if (!originalItem) return;
+             const rowIndex = data.row.index;
+             const originalItem = sortedItems[rowIndex];
+             if (!originalItem) return;
 
-            const currentStatus = determineItemStatus(originalItem.status, originalItem.presentationDate, originalItem.extensionsCount);
+             const currentStatus = determineItemStatus(originalItem.status as BillStatus | DocumentStatus, originalItem.presentationDate, originalItem.extensionsCount);
 
-            // Color status in red if overdue or frozen
-            if (data.column.index === 4 && (currentStatus === "overdue" || currentStatus === "frozen")) {
-              data.cell.styles.textColor = [255, 0, 0];
-              data.cell.styles.fontStyle = 'bold';
-            }
-
-            // Urgency: Color name (title) in red if frozen
-            if (data.column.index === 0 && currentStatus === "frozen") {
-              data.cell.styles.textColor = [255, 0, 0];
-              data.cell.styles.fontStyle = 'bold';
-            }
-
-            // Color days column in red if overdue/frozen
-            if (data.column.index === 3 && (currentStatus === "overdue" || currentStatus === "frozen")) {
-              data.cell.styles.textColor = [255, 0, 0];
-              data.cell.styles.fontStyle = 'bold';
-            }
+             if (data.column.index === 4 && (currentStatus === "overdue" || currentStatus === "frozen")) {
+               data.cell.styles.textColor = [255, 0, 0];
+               data.cell.styles.fontStyle = 'bold';
+             }
+             if (data.column.index === 0 && currentStatus === "frozen") {
+               data.cell.styles.textColor = [255, 0, 0];
+               data.cell.styles.fontStyle = 'bold';
+             }
+             if (data.column.index === 3 && (currentStatus === "overdue" || currentStatus === "frozen")) {
+               data.cell.styles.textColor = [255, 0, 0];
+               data.cell.styles.fontStyle = 'bold';
+             }
           }
-        });
-      } catch (tableError) {
-        throw new Error(`Failed to create PDF table: ${tableError instanceof Error ? tableError.message : 'Unknown table error'}`);
-      }
+      };
 
-      // Save PDF
+      autoTable(doc, options);
+
       const fileName = `pending-${typeLabel.toLowerCase()}-${format(currentDate, "yyyy-MM-dd")}.pdf`;
       doc.save(fileName);
 
@@ -270,12 +282,8 @@ const HomePage = () => {
       });
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast({
-        title: "Download failed",
-        description: `There was an error generating the PDF: ${errorMessage}. Please try again.`,
-        variant: "destructive"
-      });
+       console.error(error);
+       toast({ title: "Download failed", description: "Could not generate PDF.", variant: "destructive" });
     }
   };
 
@@ -330,7 +338,7 @@ const HomePage = () => {
       <footer className="bg-gray-100 py-4 mt-8">
         <div className="container text-center">
           <p className="text-sm text-gray-600">
-            © 2025 All Rights Reserved By County Assembly of Makueni
+            © 2026 All Rights Reserved By County Assembly of Makueni
           </p>
         </div>
       </footer>

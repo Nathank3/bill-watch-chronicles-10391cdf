@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useBills, Bill } from "@/contexts/BillContext.tsx";
+import { useAuth } from "@/contexts/AuthContext.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -24,6 +25,7 @@ interface Committee {
 
 export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
   const { addBill, updateBill } = useBills();
+  const { isAdmin } = useAuth();
   const isEditing = !!initialBill;
   const [committees, setCommittees] = useState<Committee[]>([]);
 
@@ -167,6 +169,8 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
             type="date"
             value={formData.dateCommitted}
             onChange={handleChange}
+            disabled={isEditing && !(isAdmin && formData.title.trim().toLowerCase() === "reports")}
+            className={isEditing && !(isAdmin && formData.title.trim().toLowerCase() === "reports") ? "bg-muted" : ""}
           />
         </div>
 

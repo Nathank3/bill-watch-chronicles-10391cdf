@@ -1,52 +1,48 @@
 
-import React, { useState, useEffect } from "react";
-import { useDocuments, Document } from "@/contexts/DocumentContext";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input.tsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { supabase } from "@/integrations/supabase/client.ts";
 
 interface DocumentFilterProps {
-    documents: Document[];
-    onFilterChange: (filteredDocs: Document[]) => void;
+    onSearchChange: (term: string) => void;
+    onStatusChange: (status: string) => void;
+    onCommitteeChange: (committee: string) => void;
     title: string;
 }
 
-export const DocumentFilter = ({ documents, onFilterChange, title }: DocumentFilterProps) => {
+export const DocumentFilter = ({ onSearchChange, onStatusChange, onCommitteeChange, title }: DocumentFilterProps) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [committeeFilter, setCommitteeFilter] = useState("all");
+    const [committees, setCommittees] = useState<{name: string}[]>([]);
 
     useEffect(() => {
-        if (!documents) {
-            onFilterChange([]);
-            return;
-        }
+        const fetchCommittees = async () => {
+          const { data } = await supabase
+            .from("committees")
+            .select("name")
+            .order("name");
+          if (data) setCommittees(data);
+        };
+        fetchCommittees();
+    }, []);
 
-        let filtered = [...documents];
+    const handleSearchChange = (val: string) => {
+        setSearchTerm(val);
+        onSearchChange(val);
+    };
 
-        // Filter by search term
-        if (searchTerm.trim()) {
-            filtered = filtered.filter(doc =>
-                doc.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                doc.committee?.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
+    const handleStatusUpdate = (val: string) => {
+        setStatusFilter(val);
+        onStatusChange(val);
+    };
 
-        // Filter by status
-        if (statusFilter !== "all") {
-            filtered = filtered.filter(doc => doc.status === statusFilter);
-        }
-
-        // Filter by committee
-        if (committeeFilter !== "all") {
-            filtered = filtered.filter(doc => doc.committee === committeeFilter);
-        }
-
-        onFilterChange(filtered);
-    }, [documents, searchTerm, statusFilter, committeeFilter]);
-
-    // Get unique committees for filter
-    const committees = documents ? [...new Set(documents.map(doc => doc.committee).filter(Boolean))].sort() : [];
+    const handleCommitteeUpdate = (val: string) => {
+        setCommitteeFilter(val);
+        onCommitteeChange(val);
+    };
 
     return (
         <Card>
@@ -58,13 +54,13 @@ export const DocumentFilter = ({ documents, onFilterChange, title }: DocumentFil
                     <Input
                         placeholder={`Search ${title.toLowerCase()} by title or committee...`}
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => handleSearchChange(e.target.value)}
                     />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <Select value={statusFilter} onValueChange={handleStatusUpdate}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Filter by status" />
                             </SelectTrigger>
@@ -79,14 +75,14 @@ export const DocumentFilter = ({ documents, onFilterChange, title }: DocumentFil
                     </div>
 
                     <div>
-                        <Select value={committeeFilter} onValueChange={setCommitteeFilter}>
+                        <Select value={committeeFilter} onValueChange={handleCommitteeUpdate}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Filter by committee" />
                             </SelectTrigger>
                             <SelectContent className="max-h-[200px]">
                                 <SelectItem value="all">All Committees</SelectItem>
                                 {committees.map(committee => (
-                                    <SelectItem key={committee} value={committee}>{committee}</SelectItem>
+                                    <SelectItem key={committee.name} value={committee.name}>{committee.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
