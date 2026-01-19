@@ -6,16 +6,16 @@ export type DocumentType = "bill" | "statement" | "report" | "regulation" | "pol
 
 // Define document status type
 // Define document status type
-export type DocumentStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review";
+export type DocumentStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review" | "limbo";
 
 // Define document interface
 export interface Document {
   id: string;
   title: string;
   committee: string;
-  dateCommitted: Date;
+  dateCommitted: Date | null;
   pendingDays: number;
-  presentationDate: Date;
+  presentationDate: Date | null;
   status: DocumentStatus;
   type: DocumentType;
   createdAt: Date;

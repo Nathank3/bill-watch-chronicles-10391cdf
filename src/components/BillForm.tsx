@@ -32,18 +32,19 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
   const [formData, setFormData] = useState({
     title: initialBill?.title || "",
     committee: initialBill?.committee || "",
-    dateCommitted: initialBill
+    dateCommitted: initialBill && initialBill.dateCommitted
       ? format(initialBill.dateCommitted, "yyyy-MM-dd")
-      : format(new Date(), "yyyy-MM-dd"),
+      : format(new Date(), "yyyy-MM-dd"), // Default to today for new forms, or fallback
     daysAllocated: initialBill?.pendingDays || 10,
   });
 
   // Calculate the projected date based on current form data
+  // Calculate the projected date based on current form data
   // We use current date as fallback if form date is invalid, though input type='date' restricts this
   const dateCommittedObj = new Date(formData.dateCommitted);
-  const projectedDate = !isNaN(dateCommittedObj.getTime())
+  const projectedDate = !isNaN(dateCommittedObj.getTime()) && formData.daysAllocated > 0
     ? calculatePresentationDate(dateCommittedObj, formData.daysAllocated)
-    : new Date();
+    : new Date(); // Fallback for display only
 
   useEffect(() => {
     fetchCommittees();

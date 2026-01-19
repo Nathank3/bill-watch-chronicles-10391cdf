@@ -18,10 +18,15 @@ export interface ValidationResult {
     title: string;
     committee: string;
     type: string;
-    dateCommitted: Date;
+    dateCommitted: Date | null;
     pendingDays: number;
+    status: 'pending' | 'limbo';
   } | null;
 }
+
+// ... (omitting lines between interface and push for brevity, tool will not replace them unless targeted)
+
+
 
 export const validateBulkData = (
   data: BulkRow[],
@@ -58,34 +63,63 @@ export const validateBulkData = (
       }
     }
 
-    // Determine Pending Days
+    // Determine Pending Days & Due Date
     let days: number = 0;
-    
-    // Logic: Look for Due Date first, then Days
+    let hasDueDate = false;
+    let hasDaysGiven = false;
+
+    // Check availability of Due Date columns
     if (dueDateStr !== undefined && dueDateStr !== null && dueDateStr !== '') {
-        const dueDate = parseExcelDate(dueDateStr);
-        if (dueDate) {
-            if (dateCommitted) {
-                 const diffTime = dueDate.getTime() - dateCommitted.getTime();
-                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                 if (diffDays < 0) {
-                     errors.push(`Due Date cannot be before Date of Committing.`);
-                 } else {
-                     days = diffDays;
+        hasDueDate = true;
+    }
+    if (daysStr !== undefined && daysStr !== null && daysStr !== '') {
+        hasDaysGiven = true;
+    }
+
+    // --- Data Integrity & Limbo Logic ---
+    const hasCommittedDate = !!dateCommitted;
+    const hasDeadline = hasDueDate || hasDaysGiven;
+    let isLimbo = false;
+
+    if (!hasCommittedDate && !hasDeadline) {
+        // Scenario A: Limbo (No dates at all)
+        isLimbo = true;
+    } else if (hasCommittedDate && hasDeadline) {
+        // Scenario B: Active (Both dates exist)
+        // Proceed to calculate days/validate dates
+        
+        if (hasDueDate) {
+             const dueDate = parseExcelDate(dueDateStr!);
+             if (dueDate) {
+                 if (dateCommitted) {
+                      const diffTime = dueDate.getTime() - dateCommitted.getTime();
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      if (diffDays < 0) {
+                          errors.push(`Due Date cannot be before Date of Committing.`);
+                      } else {
+                          days = diffDays;
+                      }
                  }
-            }
+             } else {
+                 errors.push(`Invalid Due Date: "${dueDateStr}". Use DD/MM/YYYY`);
+             }
         } else {
-            errors.push(`Invalid Due Date: "${dueDateStr}". Use DD/MM/YYYY`);
+             // specific days given
+             const d = typeof daysStr === 'number' ? daysStr : parseInt(daysStr as string);
+             if (isNaN(d) || d < 0) { 
+                 errors.push('Invalid Time Given (Days)');
+             } else {
+                 days = d;
+             }
         }
-    } else if (daysStr !== undefined && daysStr !== null && daysStr !== '') {
-         const d = typeof daysStr === 'number' ? daysStr : parseInt(daysStr);
-         if (isNaN(d) || d < 0) { 
-             errors.push('Invalid Time Given (Days)');
-         } else {
-             days = d;
-         }
+
     } else {
-        errors.push('Missing either "Due Date" or "Time Given (Days)"');
+        // Scenario C: Half-Baked (Integrity Violation)
+        if (hasCommittedDate && !hasDeadline) {
+             errors.push('Data Integrity Error: "Date of Committing" provided but missing "Due Date" or "Time Given". Must provide BOTH or NEITHER (for Limbo).');
+        } else if (!hasCommittedDate && hasDeadline) {
+             errors.push('Data Integrity Error: "Due Date/Time Given" provided but missing "Date of Committing". Must provide BOTH or NEITHER (for Limbo).');
+        }
     }
 
     // Type validation
@@ -118,8 +152,9 @@ export const validateBulkData = (
         title: name,
         committee,
         type: type?.toLowerCase(),
-        dateCommitted: dateCommitted as Date,
-        pendingDays: days
+        dateCommitted: isLimbo ? null : (dateCommitted as Date),
+        pendingDays: isLimbo ? 0 : days,
+        status: isLimbo ? 'limbo' : 'pending'
       } : null
     });
   });
