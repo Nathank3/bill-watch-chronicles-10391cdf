@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker.tsx";
 import { DateRange } from "react-day-picker";
@@ -14,8 +14,8 @@ import { BillCard } from "@/components/BillCard.tsx";
 import { DocumentCard } from "@/components/DocumentCard.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Plus } from "lucide-react";
-import { BillStatus } from "@/contexts/BillContext.tsx";
-import { DocumentType, DocumentStatus } from "@/types/document.ts";
+import { BillStatus, Bill } from "@/contexts/BillContext.tsx";
+import { DocumentType, DocumentStatus, Document } from "@/types/document.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
 
 export default function BusinessView() {
@@ -80,7 +80,7 @@ export default function BusinessView() {
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    globalThis.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const title = type.charAt(0).toUpperCase() + type.slice(1);
@@ -174,9 +174,9 @@ export default function BusinessView() {
             <div className="grid gap-4">
                 {listData.map((item) => (
                     isBill ? (
-                        <BillCard key={item.id} bill={item as any} />
+                        <BillCard key={item.id} bill={item as Bill} />
                     ) : (
-                        <DocumentCard key={item.id} document={item as any} />
+                        <DocumentCard key={item.id} document={item as Document} />
                     )
                 ))}
             </div>
@@ -186,7 +186,8 @@ export default function BusinessView() {
 
         <PaginationControls 
             currentPage={page}
-            totalPages={Math.ceil((totalCount || 0) / pageSize)}
+            totalCount={totalCount || 0}
+            pageSize={pageSize}
             onPageChange={handlePageChange}
         />
       </div>

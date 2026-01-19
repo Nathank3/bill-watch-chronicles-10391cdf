@@ -1,8 +1,8 @@
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx"
+import { Button } from "@/components/ui/button.tsx"
 import { Bell } from "lucide-react"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarTrigger } from "@/components/ui/sidebar.tsx"
 
 export function DashboardTopbar() {
   const getGreeting = () => {

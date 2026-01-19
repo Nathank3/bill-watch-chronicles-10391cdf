@@ -9,6 +9,7 @@ import { BillFormDialog } from "@/components/BillFormDialog.tsx";
 import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
 import { DocumentManagement } from "@/components/DocumentManagement.tsx";
 import { useDocuments } from "@/contexts/DocumentContext.tsx";
+import { DocumentType } from "@/types/document.ts";
 import { Navbar } from "@/components/Navbar.tsx";
 import { AdminUsers } from "@/components/AdminUsers.tsx";
 import { CommitteeManagement } from "@/components/CommitteeManagement.tsx";
@@ -185,7 +186,7 @@ const AdminPage = () => {
 
                {/* Documents Review Section */}
                {["statement", "report", "regulation", "policy", "petition"].map((type) => {
-                 const docs = underReviewDocuments(type as any);
+                 const docs = underReviewDocuments(type as DocumentType);
                  if (docs.length === 0) return null;
                  
                  return (

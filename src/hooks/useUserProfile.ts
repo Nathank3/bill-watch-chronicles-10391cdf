@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
-import { supabase } from "@/integrations/supabase/client";
-import { AuthUser, UserRole } from '@/types/auth';
+import { supabase } from "@/integrations/supabase/client.ts";
+import { AuthUser, UserRole } from "@/types/auth.ts";
 
 export const useUserProfile = () => {
   const [profileLoading, setProfileLoading] = useState(false);
