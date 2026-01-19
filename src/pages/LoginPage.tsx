@@ -1,13 +1,12 @@
 
 import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext.tsx";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { LucideGavel } from "@/components/icons/LucideGavel";
-import { ForgotPasswordForm } from "@/components/ForgotPasswordForm";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Card } from "@/components/ui/card.tsx";
+import { ForgotPasswordForm } from "@/components/ForgotPasswordForm.tsx";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -112,7 +111,7 @@ const LoginPage = () => {
       <footer className="absolute bottom-0 left-0 right-0 bg-gray-100 py-4">
         <div className="container text-center">
           <p className="text-sm text-gray-600">
-            © 2025 All Rights Reserved By County Assembly of Makueni
+            © 2026 All Rights Reserved By County Assembly of Makueni
           </p>
         </div>
       </footer>

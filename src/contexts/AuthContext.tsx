@@ -132,8 +132,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
 
-      // Navigate to home page immediately after successful login
-      navigate("/");
+      // Navigate to dashboard immediately after successful login
+      navigate("/dashboard");
 
       toast({
         title: "Login successful",

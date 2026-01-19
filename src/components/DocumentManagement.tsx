@@ -1,11 +1,13 @@
 
 import { useState, useEffect } from "react";
-import { useDocuments, DocumentType, Document } from "@/contexts/DocumentContext.tsx";
+import { useDocuments, DocumentType, DocumentStatus } from "@/contexts/DocumentContext.tsx";
 import { DocumentCard } from "./DocumentCard.tsx";
 import { DocumentFormDialog } from "./DocumentFormDialog.tsx";
 import { DocumentFilter } from "./DocumentFilter.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { useDocumentList, useDocumentStats } from "@/hooks/useDocumentsQuery.ts";
+import { PaginationControls } from "@/components/ui/pagination-controls.tsx";
 
 interface DocumentManagementProps {
   documentType: DocumentType;
@@ -13,41 +15,38 @@ interface DocumentManagementProps {
 }
 
 export const DocumentManagement = ({ documentType, title }: DocumentManagementProps) => {
-  const { documents, updateDocumentStatus } = useDocuments();
+  const { updateDocumentStatus } = useDocuments();
 
-  // Base documents of the specific type
-  const [baseDocuments, setBaseDocuments] = useState<Document[]>([]);
+  // Local state for filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<DocumentStatus | "all">("all");
+  const [committeeFilter, setCommitteeFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
-  // Documents after being filtered by the DocumentFilter component
-  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
+  // Fetch Documents
+  const { data: docsData } = useDocumentList({
+    type: documentType,
+    status: statusFilter,
+    search: searchTerm,
+    page,
+    pageSize
+  });
 
-  // Update base documents when global documents change or type changes
+  // Fetch Stats
+  const { data: stats } = useDocumentStats(documentType);
+
   useEffect(() => {
-    const typeDocs = documents.filter(doc => doc.type === documentType && doc.status !== "under_review");
-    setBaseDocuments(typeDocs);
-    // Initialize filtered documents with type documents initially
-    // The Filter component will run its effect and update this shortly after,
-    // but this prevents a flash of empty content
-    setFilteredDocuments(typeDocs);
-  }, [documents, documentType]);
+    setPage(1);
+  }, [searchTerm, statusFilter, committeeFilter]);
 
   const handleStatusChange = (id: string, status: "pending" | "concluded") => {
     updateDocumentStatus(id, status);
   };
 
-  const handleFilterChange = (filtered: Document[]) => {
-    setFilteredDocuments(filtered);
+  const handleStatusFilterChange = (status: string) => {
+      setStatusFilter(status as DocumentStatus | "all");
   };
-
-  // Derive counts from the *base* documents (unfiltered stats)
-  const totalBaseDocs = baseDocuments.length;
-  const pendingBaseDocs = baseDocuments.filter(d => d.status === "pending" || d.status === "overdue" || d.status === "frozen").length;
-  const concludedBaseDocs = baseDocuments.filter(d => d.status === "concluded").length;
-
-  // Filtered lists for the view
-  const pendingDocs = filteredDocuments.filter(
-    doc => doc.status === "pending" || doc.status === "overdue" || doc.status === "frozen"
-  );
 
   return (
     <div className="space-y-6">
@@ -58,7 +57,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
             <CardTitle className="text-sm font-medium">Total {title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalBaseDocs}</div>
+            <div className="text-2xl font-bold">{stats?.total || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -66,7 +65,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
             <CardTitle className="text-sm font-medium">Pending {title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingBaseDocs}</div>
+            <div className="text-2xl font-bold">{stats?.pending || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -74,7 +73,7 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
             <CardTitle className="text-sm font-medium">Concluded {title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{concludedBaseDocs}</div>
+            <div className="text-2xl font-bold">{stats?.concluded || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -89,35 +88,48 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
 
       {/* Filter Component */}
       <DocumentFilter
-        documents={baseDocuments}
-        onFilterChange={handleFilterChange}
         title={title}
+        onSearchChange={setSearchTerm}
+        onStatusChange={handleStatusFilterChange}
+        onCommitteeChange={setCommitteeFilter}
       />
 
       {/* Documents Tabs */}
-      <Tabs defaultValue="all" className="mt-6">
+      <Tabs defaultValue="all" className="mt-6" onValueChange={(val) => setStatusFilter(val === "pending" ? "pending" : "all")}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="all">All {title}</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-6">
-          {filteredDocuments && filteredDocuments.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {filteredDocuments.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  document={doc}
-                  showActions
-                  onStatusChange={handleStatusChange}
+          {docsData && docsData.data.length > 0 ? (
+            <>
+                <div className="grid gap-4 md:grid-cols-2">
+                {docsData.data.map((doc) => (
+                    <DocumentCard
+                    key={doc.id}
+                    document={doc}
+                    showActions
+                    onStatusChange={handleStatusChange}
+                    />
+                ))}
+                </div>
+                <PaginationControls 
+                    currentPage={page}
+                    totalCount={docsData.count}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
                 />
-              ))}
-            </div>
+            </>
           ) : (
             <Card>
               <CardContent className="p-6 text-center">
                 <p className="text-muted-foreground mb-4">No {title.toLowerCase()} found matching your criteria</p>
-                {baseDocuments.length === 0 && (
+                {/* 
+                   Logic to show 'Create Your First' button if empty was dependent on baseDocuments.
+                   Now dependent on total count being 0.
+                */}
+                {(stats?.total === 0) && (
                   <DocumentFormDialog
                     documentType={documentType}
                     title={title.slice(0, -1)}
@@ -133,17 +145,25 @@ export const DocumentManagement = ({ documentType, title }: DocumentManagementPr
         </TabsContent>
 
         <TabsContent value="pending" className="mt-6">
-          {pendingDocs.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {pendingDocs.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  document={doc}
-                  showActions
-                  onStatusChange={handleStatusChange}
+          {docsData && docsData.data.length > 0 ? (
+            <>
+                <div className="grid gap-4 md:grid-cols-2">
+                {docsData.data.map((doc) => (
+                    <DocumentCard
+                    key={doc.id}
+                    document={doc}
+                    showActions
+                    onStatusChange={handleStatusChange}
+                    />
+                ))}
+                </div>
+                <PaginationControls 
+                    currentPage={page}
+                    totalCount={docsData.count}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
                 />
-              ))}
-            </div>
+            </>
           ) : (
             <p className="text-center py-8 text-muted-foreground">No pending {title.toLowerCase()} found</p>
           )}

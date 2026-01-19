@@ -1,29 +1,45 @@
+
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext.tsx";
-import { useBills, Bill, BillStatus } from "@/contexts/BillContext.tsx";
+import { useBills, BillStatus } from "@/contexts/BillContext.tsx";
 import { BillCard } from "@/components/BillCard.tsx";
 import { BillFilter } from "@/components/BillFilter.tsx";
 import { BillFormDialog } from "@/components/BillFormDialog.tsx";
 import { DocumentManagement } from "@/components/DocumentManagement.tsx";
 import { Navbar } from "@/components/Navbar.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { toast } from "@/components/ui/use-toast.ts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { LoadingScreen } from "@/components/LoadingScreen.tsx";
+import { useBillList, useBillStats } from "@/hooks/useBillsQuery.ts";
+import { PaginationControls } from "@/components/ui/pagination-controls.tsx";
 
 const ClerkPage = () => {
   const { user, session, isClerk, isLoading } = useAuth();
-  const { bills, updateBillStatus, rescheduleBill } = useBills();
-  const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
+  const { updateBillStatus, rescheduleBill } = useBills();
+
+  // Local state for filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<BillStatus | "all">("all");
+  const [committeeFilter, setCommitteeFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  // React Query Hooks
+  const { data: billsData } = useBillList({
+    status: statusFilter,
+    search: searchTerm,
+    page,
+    pageSize
+  });
+
+  const { data: billStats } = useBillStats();
 
   useEffect(() => {
-    // Initialize filtered bills when bills are loaded
-    if (bills) {
-      setFilteredBills(bills);
-    }
-  }, [bills]);
+    // Reset page on filter change
+    setPage(1);
+  }, [searchTerm, statusFilter, committeeFilter]);
 
   // Show loading state while auth state is being determined
   if (isLoading) {
@@ -50,12 +66,16 @@ const ClerkPage = () => {
     return <Navigate to="/" replace />;
   }
 
-  const handleStatusChange = (id: string, status: BillStatus) => {
+  const handleStatusChangeAction = (id: string, status: BillStatus) => {
     updateBillStatus(id, status);
   };
 
   const handleReschedule = (id: string, newDate: Date) => {
     rescheduleBill(id, newDate);
+  };
+
+  const handleStatusFilterChange = (status: string) => {
+    setStatusFilter(status as BillStatus | "all");
   };
 
   return (
@@ -91,7 +111,7 @@ const ClerkPage = () => {
                     <CardTitle className="text-sm font-medium">Total Bills</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{bills?.length || 0}</div>
+                    <div className="text-2xl font-bold">{billStats?.total || 0}</div>
                   </CardContent>
                 </Card>
                 <Card>
@@ -100,7 +120,7 @@ const ClerkPage = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {bills?.filter(b => b.status === "pending").length || 0}
+                      {billStats?.pending || 0}
                     </div>
                   </CardContent>
                 </Card>
@@ -110,7 +130,7 @@ const ClerkPage = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      {bills?.filter(b => b.status === "concluded").length || 0}
+                      {billStats?.concluded || 0}
                     </div>
                   </CardContent>
                 </Card>
@@ -122,32 +142,44 @@ const ClerkPage = () => {
               </div>
 
               {/* Filter Component */}
-              <BillFilter onFilterChange={setFilteredBills} />
+              <BillFilter 
+                onSearchChange={setSearchTerm}
+                onStatusChange={handleStatusFilterChange}
+                onCommitteeChange={setCommitteeFilter}
+              />
 
               {/* Bills Tabs */}
-              <Tabs defaultValue="all" className="mt-6">
+              <Tabs defaultValue="all" className="mt-6" onValueChange={(val) => setStatusFilter(val === "pending" ? "pending" : "all")}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="all">All Bills</TabsTrigger>
                   <TabsTrigger value="pending">Pending</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="all" className="mt-6">
-                  {filteredBills && filteredBills.length > 0 ? (
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {filteredBills.map((bill) => (
-                        <BillCard
-                          key={bill.id}
-                          bill={bill}
-                          showActions
-                          onStatusChange={handleStatusChange}
-                          onReschedule={handleReschedule}
-                        />
-                      ))}
-                    </div>
-                  ) : bills && bills.length === 0 ? (
+                  {billsData && billsData.data.length > 0 ? (
+                    <>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {billsData.data.map((bill) => (
+                          <BillCard
+                            key={bill.id}
+                            bill={bill}
+                            showActions
+                            onStatusChange={handleStatusChangeAction}
+                            onReschedule={handleReschedule}
+                          />
+                        ))}
+                      </div>
+                      <PaginationControls 
+                         currentPage={page}
+                         totalCount={billsData.count}
+                         pageSize={pageSize}
+                         onPageChange={setPage}
+                       />
+                    </>
+                  ) : (
                     <Card>
                       <CardContent className="p-6 text-center">
-                        <p className="text-muted-foreground mb-4">No bills have been created yet</p>
+                        <p className="text-muted-foreground mb-4">No bills found</p>
                         <BillFormDialog>
                           <button type="button" className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
                             Create Your First Bill
@@ -155,26 +187,30 @@ const ClerkPage = () => {
                         </BillFormDialog>
                       </CardContent>
                     </Card>
-                  ) : (
-                    <p className="text-center py-8 text-muted-foreground">No bills found matching your filters</p>
                   )}
                 </TabsContent>
 
                 <TabsContent value="pending" className="mt-6">
-                  {filteredBills?.filter(b => b.status === "pending").length > 0 ? (
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {filteredBills
-                        .filter(b => b.status === "pending")
-                        .map((bill) => (
+                  {billsData && billsData.data.length > 0 ? (
+                    <>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {billsData.data.map((bill) => (
                           <BillCard
                             key={bill.id}
                             bill={bill}
                             showActions
-                            onStatusChange={handleStatusChange}
+                            onStatusChange={handleStatusChangeAction}
                             onReschedule={handleReschedule}
                           />
                         ))}
-                    </div>
+                      </div>
+                      <PaginationControls 
+                         currentPage={page}
+                         totalCount={billsData.count}
+                         pageSize={pageSize}
+                         onPageChange={setPage}
+                       />
+                    </>
                   ) : (
                     <p className="text-center py-8 text-muted-foreground">No pending bills found</p>
                   )}

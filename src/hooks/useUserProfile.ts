@@ -30,15 +30,16 @@ export const useUserProfile = () => {
         // Ensure role is never empty string, null or undefined
         let role: UserRole = publicRole;
         
-        // Check if the role from DB is null, undefined or not in our allowed types
-        if (data.role && 
-            data.role.trim() !== '' && 
-            (data.role === adminRole || 
-             data.role === clerkRole || 
-             data.role === publicRole)) {
-          role = data.role as UserRole;
+        // Normalize role for comparison
+        const dbRole = data.role ? data.role.toLowerCase().trim() : '';
+
+        // Check if the role from DB match allowed types
+        if (dbRole === adminRole || 
+            dbRole === clerkRole || 
+            dbRole === publicRole) {
+          role = dbRole as UserRole;
         } else {
-          console.warn("Invalid role detected, defaulting to 'public'");
+          console.warn(`Invalid role detected [${data.role}], defaulting to 'public'`);
         }
         
         console.log("User profile retrieved:", { username: data.username, role });

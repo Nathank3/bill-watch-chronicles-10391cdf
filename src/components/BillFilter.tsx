@@ -1,53 +1,47 @@
 
 import { useState, useEffect } from "react";
-import { useBills, Bill } from "@/contexts/BillContext.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { supabase } from "@/integrations/supabase/client.ts";
 
 interface BillFilterProps {
-  onFilterChange: (filteredBills: Bill[]) => void;
+  onSearchChange: (term: string) => void;
+  onStatusChange: (status: string) => void;
+  onCommitteeChange: (committee: string) => void;
 }
 
-export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
-  const { bills } = useBills();
+export const BillFilter = ({ onSearchChange, onStatusChange, onCommitteeChange }: BillFilterProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [committeeFilter, setCommitteeFilter] = useState("all");
+  const [committees, setCommittees] = useState<{name: string}[]>([]);
 
   useEffect(() => {
-    
-    if (!bills) {
-      onFilterChange([]);
-      return;
-    }
+    const fetchCommittees = async () => {
+      const { data } = await supabase
+        .from("committees")
+        .select("name")
+        .order("name");
+      if (data) setCommittees(data);
+    };
+    fetchCommittees();
+  }, []);
 
-    let filtered = bills.filter(b => b.status !== "under_review");
+  const handleSearchChange = (val: string) => {
+    setSearchTerm(val);
+    onSearchChange(val);
+  };
 
-    // Filter by search term
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(bill => 
-        bill.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.committee?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+  const handleStatusUpdate = (val: string) => {
+    setStatusFilter(val);
+    onStatusChange(val);
+  };
 
-    // Filter by status
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(bill => bill.status === statusFilter);
-    }
-
-    // Filter by committee
-    if (committeeFilter !== "all") {
-      filtered = filtered.filter(bill => bill.committee === committeeFilter);
-    }
-
-
-    onFilterChange(filtered);
-  }, [bills, searchTerm, statusFilter, committeeFilter, onFilterChange]);
-
-  // Get unique committees for filter
-  const committees = bills ? [...new Set(bills.map(bill => bill.committee).filter(Boolean))] : [];
+  const handleCommitteeUpdate = (val: string) => {
+    setCommitteeFilter(val);
+    onCommitteeChange(val);
+  };
 
   return (
     <Card>
@@ -59,13 +53,13 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
           <Input
             placeholder="Search bills by title or committee..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={handleStatusUpdate}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -80,14 +74,14 @@ export const BillFilter = ({ onFilterChange }: BillFilterProps) => {
           </div>
           
           <div>
-            <Select value={committeeFilter} onValueChange={setCommitteeFilter}>
+            <Select value={committeeFilter} onValueChange={handleCommitteeUpdate}>
               <SelectTrigger>
                 <SelectValue placeholder="Filter by committee" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Committees</SelectItem>
-                {committees.map(committee => (
-                  <SelectItem key={committee} value={committee}>{committee}</SelectItem>
+                {committees.map(c => (
+                  <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

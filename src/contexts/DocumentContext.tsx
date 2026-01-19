@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
 import { useBills } from "./BillContext.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
@@ -68,9 +69,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { bills } = useBills();
   const { addNotification, clearBusinessNotifications } = useNotifications();
   const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
 
   // Fetch non-bill documents from Supabase
-  const fetchDocuments = async () => {
+  const _fetchDocuments = async () => {
     try {
       const { data, error } = await supabase
         .from('documents')
@@ -92,6 +94,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+
+  /*
+  // Disable auto-fetch for scalability
   // Initial fetch
   useEffect(() => {
     fetchDocuments();
@@ -116,6 +121,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       supabase.removeChannel(channel);
     };
   }, []);
+  */
 
   // Merge bills and dbDocuments into unified 'documents' state
   const documents = useMemo(() => {
@@ -237,6 +243,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       const createdDoc = data?.[0];
 
+      // Invalidate queries to refresh lists
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
+
       addNotification({
         type: "business_created",
         title: "Document Created",
@@ -308,6 +318,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (error) throw error;
 
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
+
       toast({
         title: "Document updated",
         description: `Document has been successfully updated`,
@@ -333,6 +346,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // Update local state immediately
       setDbDocuments(prev => prev.filter(doc => doc.id !== id));
+
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
 
       toast({
         title: "Document deleted",
@@ -382,6 +398,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         doc.id === id ? { ...doc, status, updatedAt: new Date() } : doc
       ));
 
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
+
       const statusMessages = {
         pending: "Document has been marked as pending",
         concluded: "Document has been marked as concluded",
@@ -430,6 +449,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // Clear frozen notifications
       clearBusinessNotifications(id);
+
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents-stats"] });
 
       toast({
         title: "Document rescheduled",
