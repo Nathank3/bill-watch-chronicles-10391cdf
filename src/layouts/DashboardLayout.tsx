@@ -1,7 +1,7 @@
 
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
-import { DashboardSidebar } from "@/components/dashboard/Sidebar"
-import { DashboardTopbar } from "@/components/dashboard/Topbar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar.tsx"
+import { DashboardSidebar } from "@/components/dashboard/Sidebar.tsx"
+import { DashboardTopbar } from "@/components/dashboard/Topbar.tsx"
 import { Outlet } from "react-router-dom"
 
 export default function DashboardLayout({ isAdmin = false }: { isAdmin?: boolean }) {

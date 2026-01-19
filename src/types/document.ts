@@ -1,5 +1,5 @@
 
-import { BillStatus } from "@/contexts/BillContext.tsx";
+
 
 // Define document types
 export type DocumentType = "bill" | "statement" | "report" | "regulation" | "policy" | "petition";
