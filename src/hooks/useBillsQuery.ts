@@ -4,6 +4,7 @@ import { Bill, BillStatus } from "@/contexts/BillContext.tsx";
 
 export interface BillFilters {
   status?: BillStatus | "all";
+  committee?: string;
   search?: string;
   page?: number;
   pageSize?: number;
@@ -44,11 +45,11 @@ const mapDbToBill = (data: DbBillResult): Bill => ({
 });
 
 export const useBillList = (
-  { status = "all", search = "", page = 1, pageSize = 10, startDate, endDate }: BillFilters,
+  { status = "all", committee = "all", search = "", page = 1, pageSize = 10, startDate, endDate }: BillFilters,
   options?: Omit<UseQueryOptions<{ data: Bill[]; count: number }>, "queryKey" | "queryFn">
 ) => {
   return useQuery({
-    queryKey: ["bills", { status, search, page, pageSize, startDate, endDate }],
+    queryKey: ["bills", { status, committee, search, page, pageSize, startDate, endDate }],
     queryFn: async () => {
       let query = supabase
         .from("bills")
@@ -57,6 +58,12 @@ export const useBillList = (
       // Apply status filter
       if (status !== "all") {
         query = query.eq("status", status);
+      }
+
+      // Apply committee filter
+      // If a specific committee is selected, we show items for that committee OR items assigned to "All Committees"
+      if (committee && committee !== "all") {
+        query = query.or(`committee.eq.${committee},committee.eq.All Committees`);
       }
 
       // Apply search filter

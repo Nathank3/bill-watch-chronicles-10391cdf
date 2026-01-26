@@ -153,6 +153,7 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
               <SelectValue placeholder="Select a committee" />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
+              <SelectItem value="All Committees">All Committees</SelectItem>
               {committees.map((committee) => (
                 <SelectItem key={committee.id} value={committee.name}>
                   {committee.name}

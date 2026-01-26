@@ -151,6 +151,7 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
                 <SelectValue placeholder="Select committee" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="All Committees">All Committees</SelectItem>
                 {committees.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
@@ -165,7 +166,7 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant={"outline"}
+                  variant="outline"
                   className={cn(
                     "col-span-3 justify-start text-left font-normal",
                     !dateCommitted && "text-muted-foreground"

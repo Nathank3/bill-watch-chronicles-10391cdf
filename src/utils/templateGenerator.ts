@@ -50,8 +50,9 @@ export const generateTemplate = async (committees: string[], templateType: 'days
   lookupSheet.state = 'hidden';
 
   // Add committees to lookup
+  lookupSheet.getCell(1, 1).value = "All Committees";
   committees.forEach((c, i) => {
-    lookupSheet.getCell(i + 1, 1).value = c;
+    lookupSheet.getCell(i + 2, 1).value = c;
   });
 
   // Add types to lookup
@@ -60,7 +61,7 @@ export const generateTemplate = async (committees: string[], templateType: 'days
   });
 
   // Define named ranges for dynamic lists
-  const committeeRange = `Lookups!$A$1:$A$${committees.length}`;
+  const committeeRange = `Lookups!$A$1:$A$${committees.length + 1}`;
   const typesRange = `Lookups!$B$1:$B$${types.length}`;
 
   // 3. Apply Data Validation Dropdowns (Rows 2 to 500)
