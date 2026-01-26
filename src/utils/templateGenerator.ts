@@ -3,7 +3,7 @@ import { saveAs } from 'file-saver';
 import { format } from 'date-fns';
 
 export const generateTemplate = async (committees: string[], templateType: 'days' | 'date' = 'days') => {
-  const types = ['Bill', 'Statement', 'Report', 'Regulation', 'Policy', 'Petition'];
+  const types = ['Bill', 'Statement', 'Report', 'Regulation', 'Policy', 'Petition', 'Motion'];
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Bill Watch Chronicles';
   workbook.lastModifiedBy = 'Bill Watch Chronicles';
