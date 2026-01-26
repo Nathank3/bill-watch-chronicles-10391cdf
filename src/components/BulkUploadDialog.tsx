@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import * as XLSX from "xlsx";
+// import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { toast } from "@/components/ui/use-toast.ts";
@@ -41,8 +41,9 @@ export const BulkUploadDialog = () => {
 
     setIsParsing(true);
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const { default: XLSX } = await import("xlsx");
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
@@ -53,6 +54,16 @@ export const BulkUploadDialog = () => {
           toast({ title: "Empty File", description: "No data found in the spreadsheet.", variant: "destructive" });
           setIsParsing(false);
           return;
+        }
+
+        if (data.length > 500) {
+            toast({ 
+                title: "File too large", 
+                description: `The file contains ${data.length} rows. Please upload a maximum of 500 rows at a time.`, 
+                variant: "destructive" 
+            });
+            setIsParsing(false);
+            return;
         }
 
         const results = validateBulkData(data, bills, documents, committees);

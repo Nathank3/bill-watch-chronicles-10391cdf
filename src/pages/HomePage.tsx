@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.t
 import { Button } from "@/components/ui/button.tsx";
 import { Download } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
-import jsPDF from "jspdf";
-import autoTable, { UserOptions } from "jspdf-autotable";
+// import jsPDF from "jspdf";
+// import autoTable, { UserOptions } from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast.ts";
 import { calculateCurrentCountdown, determineItemStatus } from "@/utils/countdownUtils.ts";
 import { addHeaderImage, drawDivider } from "@/utils/pdfUtils.ts";
@@ -38,12 +38,14 @@ const HomePage = () => {
   const { data: regulationStats } = useDocumentStats("regulation");
   const { data: policyStats } = useDocumentStats("policy");
   const { data: petitionStats } = useDocumentStats("petition");
+  const { data: motionStats } = useDocumentStats("motion");
 
   const documentTypes: { type: DocumentType | "business", label: string }[] = [
     { type: "business", label: "Business" },
     { type: "bill", label: "Bills" },
+    { type: "motion", label: "Motions" },
     { type: "statement", label: "Statements" },
-    { type: "report", label: "Reports" },
+    { type: "report", label: "Committee Reports" },
     { type: "regulation", label: "Regulations" },
     { type: "policy", label: "Policies" },
     { type: "petition", label: "Petitions" }
@@ -56,7 +58,8 @@ const HomePage = () => {
         (reportStats?.pending || 0) +
         (regulationStats?.pending || 0) +
         (policyStats?.pending || 0) +
-        (petitionStats?.pending || 0);
+        (petitionStats?.pending || 0) +
+        (motionStats?.pending || 0);
     }
     if (type === "bill") return billStats?.pending || 0;
     if (type === "statement") return statementStats?.pending || 0;
@@ -64,6 +67,7 @@ const HomePage = () => {
     if (type === "regulation") return regulationStats?.pending || 0;
     if (type === "policy") return policyStats?.pending || 0;
     if (type === "petition") return petitionStats?.pending || 0;
+    if (type === "motion") return motionStats?.pending || 0;
     return 0;
   };
 
@@ -183,6 +187,8 @@ const HomePage = () => {
       });
 
       // PDF Generation Logic (Keep existing logic mainly)
+      const { default: jsPDF } = await import("jspdf");
+      const { default: autoTable } = await import("jspdf-autotable");
       const doc = new jsPDF();
       const currentDate = new Date();
       const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
@@ -295,7 +301,7 @@ const HomePage = () => {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold">Makueni County Assembly Business Tracker</h1>
           <p className="text-muted-foreground mt-2">
-            Overview of pending business
+            Overview of All Pending Business
           </p>
         </div>
 
@@ -325,7 +331,7 @@ const HomePage = () => {
                       {pendingCount}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Pending {label.toLowerCase()}
+                      {type === 'business' ? "All Pending Business" : `Pending ${label.toLowerCase()}`}
                     </div>
                   </div>
                 </CardContent>

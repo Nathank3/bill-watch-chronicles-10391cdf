@@ -28,6 +28,7 @@ const DataControlView = lazy(() => import("./pages/dashboard/DataControlView.tsx
 const UserManagementView = lazy(() => import("./pages/dashboard/UserManagementView.tsx"));
 const CommitteeManagementView = lazy(() => import("./pages/dashboard/CommitteeManagementView.tsx"));
 const AnalyticsView = lazy(() => import("./pages/dashboard/AnalyticsView.tsx"));
+const SystemAuditView = lazy(() => import("./pages/dashboard/SystemAuditView.tsx"));
 
 const PageLoader = () => <LoadingScreen />;
 
@@ -65,6 +66,7 @@ const App = () => (
                         <Route path="users" element={<UserManagementView />} />
                         <Route path="committees" element={<CommitteeManagementView />} />
                         <Route path="analytics" element={<AnalyticsView />} />
+                        <Route path="audit" element={<SystemAuditView />} />
                     </Route>
 
                     {/* Legacy Redirects */}

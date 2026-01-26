@@ -22,7 +22,8 @@ import {
   Briefcase,
   BarChart,
   ChevronRight,
-  LogOut
+  LogOut,
+  ShieldAlert
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext.tsx"
@@ -131,6 +132,13 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                     <SidebarMenuButton tooltip="Analytics" onClick={() => navigate("/dashboard/analytics")} className="text-white hover:bg-white/10 hover:text-white">
                       <BarChart />
                       <span>Analytics</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton tooltip="System Audit" onClick={() => navigate("/dashboard/audit")} className="text-white hover:bg-white/10 hover:text-white">
+                      <ShieldAlert />
+                      <span>System Audit</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </>

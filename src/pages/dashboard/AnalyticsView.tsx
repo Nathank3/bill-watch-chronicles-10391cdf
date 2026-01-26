@@ -8,8 +8,8 @@ import { DateRange } from "react-day-picker";
 import { Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { toast } from "@/components/ui/use-toast.ts";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+// import jsPDF from "jspdf";
+// import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { addHeaderImage } from "@/utils/pdfUtils.ts";
 
@@ -45,7 +45,7 @@ export default function AnalyticsView() {
       let error = null;
 
       if (reportType === "bills") {
-            let query = supabase.from("bills").select("*");
+            let query = supabase.from("bills").select("*").limit(1000);
             if (status !== "all") query = query.eq("status", status);
             if (committee !== "all") query = query.eq("committee", committee);
             if (date?.from) query = query.gte("created_at", date.from.toISOString());
@@ -58,7 +58,7 @@ export default function AnalyticsView() {
             data = result.data;
             error = result.error;
         } else {
-             let query = supabase.from("documents").select("*");
+             let query = supabase.from("documents").select("*").limit(1000);
              // Filter by document type
             if (reportType !== "all_business") {
                  query = query.eq("type", reportType.slice(0, -1)); 
@@ -83,6 +83,8 @@ export default function AnalyticsView() {
         }
 
         // PDF Generation (Simplified version of HomePage logic)
+        const { default: jsPDF } = await import("jspdf");
+        const { default: autoTable } = await import("jspdf-autotable");
         const doc = new jsPDF();
         const headerHeight = await addHeaderImage(doc, "/header_logo.png");
         let startY = headerHeight > 0 ? headerHeight + 15 : 20;
@@ -135,8 +137,9 @@ export default function AnalyticsView() {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="bills">Bills</SelectItem>
+                            <SelectItem value="motions">Motions</SelectItem>
                             <SelectItem value="statements">Statements</SelectItem>
-                            <SelectItem value="reports">Reports</SelectItem>
+                            <SelectItem value="reports">Committee Reports</SelectItem>
                             <SelectItem value="petitions">Petitions</SelectItem>
                             <SelectItem value="regulations">Regulations</SelectItem>
                             <SelectItem value="policies">Policies</SelectItem>
@@ -171,6 +174,7 @@ export default function AnalyticsView() {
                             <SelectItem value="concluded">Concluded</SelectItem>
                             <SelectItem value="overdue">Overdue</SelectItem>
                             <SelectItem value="frozen">Frozen</SelectItem>
+                            <SelectItem value="limbo">Limbo</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
