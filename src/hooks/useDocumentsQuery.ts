@@ -5,6 +5,7 @@ import { Document, DocumentType, DocumentStatus } from "@/types/document.ts";
 export interface DocumentFilters {
   type?: DocumentType;
   status?: DocumentStatus | "all";
+  committee?: string;
   search?: string;
   page?: number;
   pageSize?: number;
@@ -45,11 +46,11 @@ const mapDbToDocument = (data: DbDocumentResult): Document => ({
 });
 
 export const useDocumentList = (
-  { type, status = "all", search = "", page = 1, pageSize = 10, startDate, endDate }: DocumentFilters,
+  { type, status = "all", committee = "all", search = "", page = 1, pageSize = 10, startDate, endDate }: DocumentFilters,
   options?: Omit<UseQueryOptions<{ data: Document[]; count: number }>, "queryKey" | "queryFn">
 ) => {
   return useQuery({
-    queryKey: ["documents", { type, status, search, page, pageSize, startDate, endDate }],
+    queryKey: ["documents", { type, status, committee, search, page, pageSize, startDate, endDate }],
     queryFn: async () => {
       let query = supabase
         .from("documents")
@@ -61,6 +62,12 @@ export const useDocumentList = (
 
       if (status !== "all") {
         query = query.eq("status", status);
+      }
+
+      // Apply committee filter
+      // If a specific committee is selected, we show items for that committee OR items assigned to "All Committees"
+      if (committee && committee !== "all") {
+        query = query.or(`committee.eq.${committee},committee.eq.All Committees`);
       }
 
       if (search) {

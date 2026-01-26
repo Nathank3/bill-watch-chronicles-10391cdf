@@ -128,7 +128,7 @@ export const validateBulkData = (
     }
 
     // Committee validation
-    if (committee && !committees.includes(committee)) {
+    if (committee && committee !== "All Committees" && !committees.includes(committee)) {
       errors.push(`Invalid Committee: "${committee}". Please use names from the dropdown/list.`);
     }
 

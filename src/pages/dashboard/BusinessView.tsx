@@ -52,7 +52,8 @@ export default function BusinessView() {
   
   // Queries
   const { data: billData, isLoading: billsLoading } = useBillList({
-    status: status as BillStatus | "all", 
+    status: status as BillStatus | "all",
+    committee, 
     search, 
     page, 
     pageSize,
@@ -63,6 +64,7 @@ export default function BusinessView() {
   const { data: docData, isLoading: docsLoading } = useDocumentList({
     type: singularType as DocumentType,
     status: status as DocumentStatus | "all",
+    committee,
     search,
     page,
     pageSize,

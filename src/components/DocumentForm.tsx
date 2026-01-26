@@ -1,15 +1,15 @@
 
 import { useState, useEffect } from "react";
-import { useDocuments, DocumentType } from "@/contexts/DocumentContext";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
+import { useDocuments, DocumentType } from "@/contexts/DocumentContext.tsx";
+import { supabase } from "@/integrations/supabase/client.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import { toast } from "@/hooks/use-toast.ts";
 import { format } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { calculatePresentationDate } from "@/utils/documentUtils";
+import { Calendar } from "@/components/ui/calendar.tsx";
+import { calculatePresentationDate } from "@/utils/documentUtils.ts";
 
 interface DocumentFormProps {
   documentType: DocumentType;
@@ -140,6 +140,7 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
               <SelectValue placeholder="Select a committee" />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
+              <SelectItem value="All Committees">All Committees</SelectItem>
               {committees.map((committee) => (
                 <SelectItem key={committee.id} value={committee.name}>
                   {committee.name}

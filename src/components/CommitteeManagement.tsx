@@ -93,17 +93,44 @@ export const CommitteeManagement = () => {
     }
 
     try {
+      const oldName = committees.find(c => c.id === editingCommittee.id)?.name;
+      const newName = editingCommittee.name.trim();
+
+      // 1. Update Committee Name in Registry
       const { error } = await supabase
         .from("committees")
-        .update({ name: editingCommittee.name.trim() })
+        .update({ name: newName })
         .eq("id", editingCommittee.id);
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Committee updated successfully"
-      });
+      // 2. Smart Rename: Update Pending/Active Items Only
+      // We do NOT update concluded items to preserve history.
+      if (oldName && oldName !== newName) {
+         // Update Bills (Pending/Overdue/Frozen/UnderReview/Limbo)
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         await supabase.from("bills" as any)
+            .update({ committee: newName })
+            .eq("committee", oldName)
+            .neq("status", "concluded");
+
+         // Update Documents (Pending/Overdue/Frozen/UnderReview/Limbo)
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         await supabase.from("documents" as any)
+            .update({ committee: newName })
+            .eq("committee", oldName)
+            .neq("status", "concluded");
+            
+         toast({
+            title: "Smart Rename Applied",
+            description: "Active business items have been moved to the new committee name. Concluded items remain unchanged."
+         });
+      } else {
+         toast({
+            title: "Success",
+            description: "Committee updated successfully"
+         });
+      }
 
       setEditingCommittee(null);
       fetchCommittees();
