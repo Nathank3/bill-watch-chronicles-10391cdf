@@ -26,6 +26,7 @@ export interface Bill {
   daysAllocated: number; // Total cumulative days in the house
   currentCountdown: number; // Current countdown value (always decreasing)
   extensionsCount: number; // Number of times extended
+  statusReason?: string;
 }
 
 // Define bill context type
@@ -85,6 +86,7 @@ interface DbBillResult {
   days_allocated: number;
   current_countdown: number;
   extensions_count: number;
+  status_reason?: string;
   [key: string]: unknown;
 }
 
@@ -100,7 +102,8 @@ const mapDbToBill = (data: DbBillResult): Bill => ({
   updatedAt: new Date(data.updated_at),
   daysAllocated: data.days_allocated || 0,
   currentCountdown: data.current_countdown || 0,
-  extensionsCount: data.extensions_count || 0
+  extensionsCount: data.extensions_count || 0,
+  statusReason: data.status_reason
 });
 
 // Bill provider component
@@ -319,6 +322,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (updates.daysAllocated !== undefined) dbUpdates.days_allocated = updates.daysAllocated;
       if (updates.currentCountdown !== undefined) dbUpdates.current_countdown = updates.currentCountdown;
       if (updates.extensionsCount !== undefined) dbUpdates.extensions_count = updates.extensionsCount;
+      if (updates.statusReason !== undefined) dbUpdates.status_reason = updates.statusReason;
 
       // Specialized logic from original context: if dates changed, recalc presentation date
       const currentBill = bills.find(b => b.id === id);

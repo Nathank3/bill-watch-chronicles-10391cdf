@@ -45,6 +45,7 @@ interface DbDocumentResult {
   days_allocated: number;
   current_countdown: number;
   extensions_count: number;
+  status_reason?: string;
   [key: string]: unknown;
 }
 
@@ -61,7 +62,8 @@ const mapDbToDocument = (data: DbDocumentResult): Document => ({
   updatedAt: new Date(data.updated_at),
   daysAllocated: data.days_allocated || 0,
   currentCountdown: data.current_countdown || 0,
-  extensionsCount: data.extensions_count || 0
+  extensionsCount: data.extensions_count || 0,
+  statusReason: data.status_reason
 });
 
 // Document provider component
@@ -301,6 +303,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (updates.daysAllocated !== undefined) dbUpdates.days_allocated = updates.daysAllocated;
       if (updates.currentCountdown !== undefined) dbUpdates.current_countdown = updates.currentCountdown;
       if (updates.extensionsCount !== undefined) dbUpdates.extensions_count = updates.extensionsCount;
+      if (updates.statusReason !== undefined) dbUpdates.status_reason = updates.statusReason;
 
        // Specialized logic: recalc presentation date
       const currentDoc = dbDocuments.find(d => d.id === id);

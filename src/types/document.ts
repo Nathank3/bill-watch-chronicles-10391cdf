@@ -23,6 +23,7 @@ export interface Document {
   daysAllocated: number; // Total cumulative days in the house
   currentCountdown: number; // Current countdown value (always decreasing)
   extensionsCount: number; // Number of times extended
+  statusReason?: string;
 }
 
 // Define document filters interface

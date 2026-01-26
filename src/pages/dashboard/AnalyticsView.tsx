@@ -37,7 +37,10 @@ export default function AnalyticsView() {
         committee: string;
         status: string;
         created_at: string;
+        status: string;
+        created_at: string;
         type?: string;
+        status_reason?: string;
         [key: string]: unknown;
       }
 
@@ -96,12 +99,19 @@ export default function AnalyticsView() {
         doc.text(`Generated on: ${format(new Date(), "PPP")}`, 14, startY);
         startY += 10;
         
-        const tableData = data.map(item => [
-            item.title,
-            item.committee,
-            item.status,
-            format(new Date(item.created_at), "dd/MM/yyyy")
-        ]);
+        const tableData = data.map(item => {
+            let statusDisplay = item.status;
+            if (item.status === "limbo" && item.status_reason) {
+                statusDisplay = `Limbo - ${item.status_reason}`;
+            }
+            
+            return [
+                item.title,
+                item.committee,
+                statusDisplay,
+                format(new Date(item.created_at), "dd/MM/yyyy")
+            ];
+        });
 
         autoTable(doc, {
             startY,

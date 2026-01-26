@@ -22,7 +22,7 @@ interface BusinessItemData {
 export const convertBusinessItem = async (
   item: BusinessItemData,
   newType: "bill" | DocumentType,
-  newData: { title?: string; committee?: string; dateCommitted?: Date; status?: string }
+  newData: { title?: string; committee?: string; dateCommitted?: Date; status?: string; statusReason?: string }
 ) => {
   const currentType = item.type;
   const targetType = newType;
@@ -38,7 +38,8 @@ export const convertBusinessItem = async (
     pending_days: item.pendingDays,
     days_allocated: item.daysAllocated,
     extensions_count: item.extensionsCount,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+    status_reason: newData.statusReason // Include status reason
   };
 
   // 1. Simple Update (Same Table)

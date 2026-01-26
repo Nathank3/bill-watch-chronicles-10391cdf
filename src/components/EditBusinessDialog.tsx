@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
+import { Textarea } from "@/components/ui/textarea.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { Calendar } from "@/components/ui/calendar.tsx";
@@ -29,12 +30,15 @@ interface EditBusinessDialogProps {
     presentationDate: Date;
     daysAllocated: number;
     extensionsCount: number;
+    statusReason?: string;
   };
 }
 
 export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDialogProps) => {
   const [title, setTitle] = useState(item.title);
   const [committee, setCommittee] = useState(item.committee);
+  const [status, setStatus] = useState(item.status);
+  const [statusReason, setStatusReason] = useState(item.statusReason || "");
   const [type, setType] = useState<string>(item.type === "bill" ? "Bill" : item.type.charAt(0).toUpperCase() + item.type.slice(1));
   const [dateCommitted, setDateCommitted] = useState<Date>(item.dateCommitted);
   const [committees, setCommittees] = useState<string[]>([]);
@@ -46,6 +50,8 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
     if (open) {
       setTitle(item.title);
       setCommittee(item.committee);
+      setStatus(item.status);
+      setStatusReason(item.statusReason || "");
       setType(item.type === "bill" ? "Bill" : item.type.charAt(0).toUpperCase() + item.type.slice(1));
       setDateCommitted(item.dateCommitted);
     }
@@ -70,7 +76,9 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
         {
           title,
           committee,
-          dateCommitted
+          dateCommitted,
+          status,
+          statusReason: status === "limbo" ? statusReason : undefined // Only save if limbo
         }
       );
 
@@ -160,6 +168,40 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
               </SelectContent>
             </Select>
           </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="status" className="text-right">
+              Status
+            </Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="concluded">Concluded</SelectItem>
+                <SelectItem value="under_review">Under Review</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="frozen">Frozen</SelectItem>
+                <SelectItem value="limbo">Limbo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {status === "limbo" && (
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="reason" className="text-right">
+                Reason
+              </Label>
+              <Textarea
+                id="reason"
+                value={statusReason}
+                onChange={(e) => setStatusReason(e.target.value)}
+                className="col-span-3"
+                placeholder="Why is this item in Limbo? (e.g. Court Order)"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Committed</Label>
