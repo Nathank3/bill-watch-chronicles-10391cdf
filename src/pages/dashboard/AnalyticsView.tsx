@@ -37,8 +37,7 @@ export default function AnalyticsView() {
         committee: string;
         status: string;
         created_at: string;
-        status: string;
-        created_at: string;
+
         type?: string;
         status_reason?: string;
         [key: string]: unknown;
