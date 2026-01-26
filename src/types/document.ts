@@ -2,7 +2,7 @@
 
 
 // Define document types
-export type DocumentType = "bill" | "statement" | "report" | "regulation" | "policy" | "petition";
+export type DocumentType = "bill" | "statement" | "report" | "regulation" | "policy" | "petition" | "motion";
 
 // Define document status type
 // Define document status type

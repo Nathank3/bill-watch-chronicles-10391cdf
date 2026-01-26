@@ -9,6 +9,7 @@ import { calculateCurrentCountdown } from "@/utils/countdownUtils.ts";
 import { format } from "date-fns";
 import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
+import { logAuditAction } from "@/utils/auditLogger.ts";
 
 // Create the context
 const DocumentContext = createContext<DocumentContextType>({
@@ -325,6 +326,15 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         title: "Document updated",
         description: `Document has been successfully updated`,
       });
+
+      // Audit Log
+      logAuditAction({
+        action: "UPDATE_DOCUMENT",
+        entity_type: "document",
+        entity_id: id,
+        details: updates
+      });
+
     } catch (error) {
       console.error("Error updating document:", error);
       toast({
@@ -354,6 +364,14 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         title: "Document deleted",
         description: "Document has been successfully deleted",
       });
+
+      // Audit Log
+      logAuditAction({
+        action: "DELETE_DOCUMENT",
+        entity_type: "document",
+        entity_id: id
+      });
+
     } catch (error) {
       console.error("Error deleting document:", error);
       toast({ title: "Error", description: "Could not delete document.", variant: "destructive" });
@@ -412,6 +430,15 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         title: "Status updated",
         description: statusMessages[status] || "Status updated",
       });
+
+      /* Audit log logic inside catch/finally or here is fine */
+      logAuditAction({
+        action: "UPDATE_DOCUMENT_STATUS",
+        entity_type: "document",
+        entity_id: id,
+        details: { status }
+      });
+
     } catch (error) {
        console.error("Error updating status:", error);
        // Suppress toast if it was an automated freeze, or show generic

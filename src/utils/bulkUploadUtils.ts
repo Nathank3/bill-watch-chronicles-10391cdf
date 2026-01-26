@@ -34,7 +34,7 @@ export const validateBulkData = (
   existingDocs: Document[],
   committees: string[]
 ): ValidationResult[] => {
-  const types = ['Bill', 'Statement', 'Report', 'Regulation', 'Policy', 'Petition'];
+  const types = ['Bill', 'Statement', 'Report', 'Regulation', 'Policy', 'Petition', 'Motion'];
   const results: ValidationResult[] = [];
 
   data.forEach((row, index) => {

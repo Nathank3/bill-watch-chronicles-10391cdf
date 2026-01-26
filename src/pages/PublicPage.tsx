@@ -60,8 +60,9 @@ const PublicPage = () => {
 
   const documentTypes: { value: DocumentType, label: string }[] = [
     { value: "bill", label: "Bills" },
+    { value: "motion", label: "Motions" },
     { value: "statement", label: "Statements" },
-    { value: "report", label: "Reports" },
+    { value: "report", label: "Committee Reports" },
     { value: "regulation", label: "Regulations" },
     { value: "policy", label: "Policies" },
     { value: "petition", label: "Petitions" }

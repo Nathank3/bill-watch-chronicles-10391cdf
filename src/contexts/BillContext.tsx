@@ -7,6 +7,7 @@ import { adjustForSittingDay, calculatePresentationDate } from "@/utils/document
 import { calculateCurrentCountdown } from "@/utils/countdownUtils.ts";
 import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
+import { logAuditAction } from "@/utils/auditLogger.ts";
 
 // Define bill status type - Including frozen
 export type BillStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review" | "limbo";
@@ -282,6 +283,14 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         businessTitle: billData.title
       });
 
+      // Audit Log
+      logAuditAction({
+        action: "CREATE_BILL",
+        entity_type: "bill",
+        entity_id: "pending", 
+        details: { title: billData.title, committee: billData.committee }
+      });
+
     } catch (error) {
       console.error("Error adding bill:", error);
       toast({
@@ -335,6 +344,15 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: "Bill updated",
         description: `Bill has been successfully updated`,
       });
+
+      // Audit Log
+      logAuditAction({
+        action: "UPDATE_BILL",
+        entity_type: "bill",
+        entity_id: id,
+        details: updates
+      });
+
     } catch (error) {
       console.error("Error updating bill:", error);
       toast({
@@ -392,6 +410,15 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: "Status updated",
         description: statusMessages[status] || "Status updated",
       });
+
+      // Audit Log
+      logAuditAction({
+        action: "UPDATE_BILL_STATUS",
+        entity_type: "bill",
+        entity_id: id,
+        details: { status }
+      });
+
     } catch (error) {
       console.error("Error updating status:", error);
       if (!silent) {
@@ -438,6 +465,15 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: "Bill rescheduled",
         description: `Bill has been rescheduled to ${format(newDate, "PPP")}`,
       });
+
+      // Audit Log
+      logAuditAction({
+        action: "RESCHEDULE_BILL",
+        entity_type: "bill",
+        entity_id: id,
+        details: { newDate }
+      });
+
     } catch (error) {
       console.error("Error rescheduling bill:", error);
       toast({
@@ -461,6 +497,14 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       queryClient.invalidateQueries({ queryKey: ["bills-stats"] });
 
       toast({ title: "Bill deleted", description: "Bill has been successfully deleted" });
+
+      // Audit Log
+      logAuditAction({
+        action: "DELETE_BILL",
+        entity_type: "bill",
+        entity_id: id
+      });
+
     } catch (error) {
       console.error("Error deleting bill:", error);
       toast({ title: "Error", description: "Could not delete bill.", variant: "destructive" });
