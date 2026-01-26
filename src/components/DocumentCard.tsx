@@ -8,6 +8,8 @@ import { RescheduleDialog } from "./RescheduleDialog.tsx";
 import { formatDistanceToNow, format } from "date-fns";
 import { Calendar, Trash2, Snowflake } from "lucide-react";
 import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
+import { EditBusinessDialog } from "./EditBusinessDialog.tsx";
+import { Edit3 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +33,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [currentCountdown, setCurrentCountdown] = useState<number>(0);
   const [isOverdue, setIsOverdue] = useState<boolean>(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Update countdown in real-time
   useEffect(() => {
@@ -162,6 +165,12 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             </RescheduleDialog>
           )}
 
+          {/* Edit Button */}
+          <Button variant="outline" size="sm" onClick={() => setIsEditDialogOpen(true)}>
+            <Edit3 className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -186,6 +195,24 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           </AlertDialog>
         </div>
       )}
+      
+       {/* Edit Dialog */}
+      <EditBusinessDialog 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen} 
+        item={{
+          id: document.id,
+          title: document.title,
+          committee: document.committee,
+          type: document.type,
+          status: document.status,
+          dateCommitted: document.dateCommitted,
+          pendingDays: document.daysAllocated,
+          presentationDate: document.presentationDate,
+          daysAllocated: document.daysAllocated,
+          extensionsCount: document.extensionsCount
+        }}
+      />
     </Card>
   );
 };

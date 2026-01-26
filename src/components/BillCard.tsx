@@ -8,6 +8,8 @@ import { RescheduleDialog } from "./RescheduleDialog.tsx";
 import { formatDistanceToNow, format } from "date-fns";
 import { Calendar, Trash2, Snowflake } from "lucide-react";
 import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
+import { EditBusinessDialog } from "./EditBusinessDialog.tsx";
+import { Edit3 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +34,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [currentCountdown, setCurrentCountdown] = useState<number>(0);
   const [isOverdue, setIsOverdue] = useState<boolean>(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Update countdown in real-time
   useEffect(() => {
@@ -178,6 +181,12 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             </RescheduleDialog>
           )}
 
+          {/* Edit Button */}
+          <Button variant="outline" size="sm" onClick={() => setIsEditDialogOpen(true)}>
+             <Edit3 className="h-4 w-4 mr-1" />
+             Edit
+          </Button>
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -202,6 +211,24 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           </AlertDialog>
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <EditBusinessDialog 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen} 
+        item={{
+          id: bill.id,
+          title: bill.title,
+          committee: bill.committee,
+          type: "bill",
+          status: bill.status,
+          dateCommitted: bill.dateCommitted,
+          pendingDays: bill.daysAllocated, // Approximate mapping
+          presentationDate: bill.presentationDate,
+          daysAllocated: bill.daysAllocated,
+          extensionsCount: bill.extensionsCount
+        }}
+      />
     </Card>
   );
 };
