@@ -35,7 +35,7 @@ interface BillContextType {
   pendingBills: Bill[];
   concludedBills: Bill[];
   underReviewBills: Bill[];
-  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null }) => Promise<void>;
+  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: BillStatus }) => Promise<void>;
   updateBill: (id: string, updates: Partial<Bill>) => Promise<void>;
   updateBillStatus: (id: string, status: BillStatus, silent?: boolean) => Promise<void>;
   approveBill: (id: string) => Promise<void>;
@@ -97,7 +97,7 @@ const mapDbToBill = (data: DbBillResult): Bill => ({
   dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
   pendingDays: data.pending_days || 0,
   presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
-  status: data.status as BillStatus,
+  status: (data.status === "pending" && !data.presentation_date) ? "limbo" : data.status as BillStatus,
   createdAt: new Date(data.created_at),
   updatedAt: new Date(data.updated_at),
   daysAllocated: data.days_allocated || 0,
@@ -177,7 +177,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       bills.forEach((bill) => {
         const countdown = calculateCurrentCountdown(bill.presentationDate);
 
-        if ((bill.status === "pending" || bill.status === "overdue") && countdown <= 0) {
+        if ((bill.status === "pending" || bill.status === "overdue") && bill.presentationDate && countdown <= 0) {
           updateBillStatus(bill.id, "frozen", true).then(() => {
             addNotification({
               type: "action_required",
@@ -228,9 +228,15 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   // Add new bill
-  const addBill = async (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
+  const addBill = async (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: BillStatus }) => {
 
-    const presentationDate = calculatePresentationDate(billData.dateCommitted, billData.pendingDays);
+
+    // Use explicit presentationDate if provided, otherwise calculate it if possible
+    let presentationDate: Date | null = billData.presentationDate || null;
+    
+    if (!presentationDate && billData.dateCommitted) {
+       presentationDate = calculatePresentationDate(billData.dateCommitted, billData.pendingDays);
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -247,10 +253,10 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newBill = {
       title: billData.title,
       committee: billData.committee,
-      date_committed: billData.dateCommitted.toISOString(),
+      date_committed: billData.dateCommitted ? billData.dateCommitted.toISOString() : null,
       pending_days: billData.pendingDays,
-      status: isAdmin ? "pending" : "under_review",
-      presentation_date: presentationDate.toISOString(),
+      status: (billData.initialStatus === 'limbo' ? (isAdmin ? "pending" : "under_review") : billData.initialStatus) || (isAdmin ? "pending" : "under_review"),
+      presentation_date: presentationDate ? presentationDate.toISOString() : null,
       days_allocated: billData.pendingDays,
       current_countdown: billData.pendingDays,
       extensions_count: 0,

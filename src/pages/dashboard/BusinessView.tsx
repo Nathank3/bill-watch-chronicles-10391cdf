@@ -17,13 +17,20 @@ import { Plus } from "lucide-react";
 import { BillStatus, Bill } from "@/contexts/BillContext.tsx";
 import { DocumentType, DocumentStatus, Document } from "@/types/document.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
+import { useAuth } from "@/contexts/AuthContext.tsx";
 
 export default function BusinessView() {
   const { type = "bills" } = useParams();
   const navigate = useNavigate();
-  // Normalize type: remove 's' from end if present (e.g. bills -> bill) except 'business'
-  const singularType = type.endsWith("s") ? type.slice(0, -1) : type;
+  // Normalize type: Handle special plural cases
+  const singularType = (() => {
+      if (type === 'policies') return 'policy';
+      if (type === 'inquiries') return 'inquiry'; // Just in case
+      if (type.endsWith("s")) return type.slice(0, -1);
+      return type;
+  })();
   const isBill = singularType === "bill";
+  const { isAdmin } = useAuth();
 
   const [date, setDate] = useState<DateRange | undefined>();
   const [page, setPage] = useState(1);
@@ -147,6 +154,7 @@ export default function BusinessView() {
                 <SelectItem value="concluded">Concluded</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
                 <SelectItem value="frozen">Frozen</SelectItem>
+                <SelectItem value="limbo">Limbo</SelectItem>
                 {/* Add under_review if needed */}
               </SelectContent>
             </Select>
@@ -176,9 +184,9 @@ export default function BusinessView() {
             <div className="grid gap-4">
                 {listData.map((item) => (
                     isBill ? (
-                        <BillCard key={item.id} bill={item as Bill} />
+                        <BillCard key={item.id} bill={item as Bill} showActions={isAdmin} />
                     ) : (
-                        <DocumentCard key={item.id} document={item as Document} />
+                        <DocumentCard key={item.id} document={item as Document} showActions={isAdmin} />
                     )
                 ))}
             </div>

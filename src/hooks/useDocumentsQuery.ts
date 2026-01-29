@@ -33,10 +33,10 @@ const mapDbToDocument = (data: DbDocumentResult): Document => ({
   id: data.id,
   title: data.title,
   committee: data.committee,
-  dateCommitted: new Date(data.date_committed || data.created_at),
+  dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
   pendingDays: data.pending_days || 0,
-  presentationDate: new Date(data.presentation_date),
-  status: data.status as DocumentStatus,
+  presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
+  status: (data.status === "pending" && !data.presentation_date) ? "limbo" : data.status as DocumentStatus,
   type: data.type as DocumentType,
   createdAt: new Date(data.created_at),
   updatedAt: new Date(data.updated_at),
@@ -61,7 +61,13 @@ export const useDocumentList = (
       }
 
       if (status !== "all") {
-        query = query.eq("status", status);
+        if (status === "limbo") {
+            query = query.eq("status", "pending").is("presentation_date", null);
+        } else if (status === "pending") {
+            query = query.eq("status", "pending").not("presentation_date", "is", null);
+        } else {
+            query = query.eq("status", status);
+        }
       }
 
       // Apply committee filter
@@ -85,7 +91,9 @@ export const useDocumentList = (
 
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      query = query.range(from, to).order("created_at", { ascending: false });
+      query = query.range(from, to)
+        .order("presentation_date", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false });
 
       const { data, error, count } = await query;
 
@@ -105,23 +113,37 @@ export const useDocumentStats = (type?: DocumentType) => {
   return useQuery({
     queryKey: ["documents-stats", { type }],
     queryFn: async () => {
-      const baseQuery = supabase.from("documents");
-      
-      const getCount = async (status?: string) => {
-        let query = baseQuery.select("*", { count: "exact", head: true });
+      const getCount = async (status?: string, isLimbo: boolean = false) => {
+        // Use 'id' selection instead of head:true to ensure reliable counting while minimizing data transfer
+        // Also creates a fresh builder instance for each call to avoid any potential state reuse issues
+        let query = supabase.from("documents").select("id", { count: "exact" });
+        
         if (type) query = query.eq("type", type);
+        
         if (status) query = query.eq("status", status);
-        const { count } = await query;
+        
+        if (isLimbo) {
+            query = query.is("presentation_date", null).eq("status", "pending");
+        } else if (status === "pending") {
+            query = query.not("presentation_date", "is", null);
+        }
+        
+        const { count, error } = await query;
+        if (error) {
+            console.error(`Error fetching stats for ${type}/${status}:`, error);
+            return 0;
+        }
         return count || 0;
       };
 
-      const [total, pending, concluded, overdue, frozen, underReview] = await Promise.all([
-        getCount(),
-        getCount("pending"),
+      const [total, pending, concluded, overdue, frozen, underReview, limbo] = await Promise.all([
+        getCount(), // total
+        getCount("pending"), // pending (excluding limbo)
         getCount("concluded"),
         getCount("overdue"),
         getCount("frozen"),
         getCount("under_review"),
+        getCount("pending", true), // limbo
       ]);
 
       return {
@@ -131,6 +153,7 @@ export const useDocumentStats = (type?: DocumentType) => {
         overdue,
         frozen,
         underReview,
+        limbo,
       };
     },
   });

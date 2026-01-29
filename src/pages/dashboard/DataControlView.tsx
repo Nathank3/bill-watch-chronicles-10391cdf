@@ -4,17 +4,9 @@ import { Button } from "@/components/ui/button.tsx";
 import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
 import { Database, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/use-toast.ts";
+import { DeleteAllDataDialog } from "@/components/DeleteAllDataDialog.tsx";
 
 export default function DataControlView() {
-  
-  const handleNuke = () => {
-    // Placeholder for nuke functionality
-     toast({
-        title: "Database Reset",
-        description: "This feature is not yet fully implemented for safety.",
-        variant: "destructive"
-      });
-  };
 
   const handleSync = () => {
      toast({
@@ -77,9 +69,7 @@ export default function DataControlView() {
                 <div className="text-sm text-muted-foreground mb-4">
                     Permanently delete all data. This action cannot be undone.
                 </div>
-                <Button onClick={handleNuke} variant="destructive" className="w-full">
-                    Reset Database
-                </Button>
+                <DeleteAllDataDialog />
             </CardContent>
         </Card>
       </div>

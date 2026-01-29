@@ -53,10 +53,10 @@ const mapDbToDocument = (data: DbDocumentResult): Document => ({
   id: data.id,
   title: data.title,
   committee: data.committee,
-  dateCommitted: new Date(data.date_committed || data.created_at),
+  dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
   pendingDays: data.pending_days || 0,
-  presentationDate: new Date(data.presentation_date),
-  status: data.status as DocumentStatus,
+  presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
+  status: (data.status === "pending" && !data.presentation_date) ? "limbo" : data.status as DocumentStatus,
   type: data.type as DocumentType,
   createdAt: new Date(data.created_at),
   updatedAt: new Date(data.updated_at),
@@ -153,7 +153,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const checkFreezeStatus = () => {
       dbDocuments.forEach(doc => {
         const countdown = calculateCurrentCountdown(doc.presentationDate);
-        if ((doc.status === "pending" || doc.status === "overdue") && countdown <= 0) {
+        if ((doc.status === "pending" || doc.status === "overdue") && doc.presentationDate && countdown <= 0) {
           updateDocumentStatus(doc.id, "frozen", true).then(() => {
              addNotification({
               type: "action_required",
@@ -205,7 +205,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   // Add new document
-  const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
+  const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: DocumentStatus }) => {
     // If type is bill, we shouldn't be here ideally, but for safety:
     if (docData.type === "bill") {
       console.error("Cannot add bills via DocumentContext");
@@ -213,7 +213,13 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
 
-    const presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
+
+    // Use explicit presentationDate if provided, otherwise calculate it
+    let presentationDate: Date | null = docData.presentationDate || null;
+    
+    if (!presentationDate && docData.dateCommitted) {
+      presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -229,10 +235,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const newDocument = {
       title: docData.title,
       committee: docData.committee,
-      date_committed: docData.dateCommitted.toISOString(),
+      date_committed: docData.dateCommitted ? docData.dateCommitted.toISOString() : null,
       pending_days: docData.pendingDays,
-      status: isAdmin ? "pending" : "under_review",
-      presentation_date: presentationDate.toISOString(),
+      status: (docData.initialStatus === 'limbo' ? (isAdmin ? "pending" : "under_review") : docData.initialStatus) || (isAdmin ? "pending" : "under_review"),
+      presentation_date: presentationDate ? presentationDate.toISOString() : null,
       type: docData.type,
       days_allocated: docData.pendingDays,
       current_countdown: docData.pendingDays,
@@ -259,8 +265,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         businessTitle: docData.title
       });
 
+      const capitalizedType = docData.type.charAt(0).toUpperCase() + docData.type.slice(1);
       toast({
-        title: isAdmin ? "Document published" : "Document submitted for review",
+        title: isAdmin ? `${capitalizedType} published` : `${capitalizedType} submitted for review`,
         description: isAdmin
           ? `"${docData.title}" has been successfully added`
           : `"${docData.title}" is now under review by an admin.`,

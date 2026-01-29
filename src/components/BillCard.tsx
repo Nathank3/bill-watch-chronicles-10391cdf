@@ -45,7 +45,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
       setCurrentCountdown(countdown);
       setIsOverdue(overdue);
 
-      if (bill.status === "concluded") {
+      if (bill.status === "concluded" || !bill.presentationDate) {
         setTimeLeft("");
       } else {
         const distance = formatDistanceToNow(bill.presentationDate, { addSuffix: true });

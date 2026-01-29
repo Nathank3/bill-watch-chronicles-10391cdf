@@ -33,10 +33,10 @@ const mapDbToBill = (data: DbBillResult): Bill => ({
   id: data.id,
   title: data.title,
   committee: data.committee,
-  dateCommitted: new Date(data.date_committed || data.created_at),
+  dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
   pendingDays: data.pending_days || 0,
-  presentationDate: new Date(data.presentation_date),
-  status: data.status as BillStatus,
+  presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
+  status: (data.status === "pending" && !data.presentation_date) ? "limbo" : data.status as BillStatus,
   createdAt: new Date(data.created_at),
   updatedAt: new Date(data.updated_at),
   daysAllocated: data.days_allocated || 0,
@@ -57,7 +57,13 @@ export const useBillList = (
 
       // Apply status filter
       if (status !== "all") {
-        query = query.eq("status", status);
+        if (status === "limbo") {
+            query = query.eq("status", "pending").is("presentation_date", null);
+        } else if (status === "pending") {
+            query = query.eq("status", "pending").not("presentation_date", "is", null);
+        } else {
+            query = query.eq("status", status);
+        }
       }
 
       // Apply committee filter
@@ -85,7 +91,9 @@ export const useBillList = (
       // Apply pagination
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      query = query.range(from, to).order("created_at", { ascending: false });
+      query = query.range(from, to)
+        .order("presentation_date", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false });
 
       const { data, error, count } = await query;
 
@@ -108,13 +116,14 @@ export const useBillStats = () => {
       // Parallel requests for counts to be super fast
       // Or we could do one query and group by, but Supabase API for group-by count is tricky via JS client
       // straightforward method:
-      const [all, pending, concluded, overdue, frozen, underReview] = await Promise.all([
+      const [all, pending, concluded, overdue, frozen, underReview, limbo] = await Promise.all([
         supabase.from("bills").select("*", { count: "exact", head: true }),
-        supabase.from("bills").select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("bills").select("*", { count: "exact", head: true }).eq("status", "pending").not("presentation_date", "is", null),
         supabase.from("bills").select("*", { count: "exact", head: true }).eq("status", "concluded"),
         supabase.from("bills").select("*", { count: "exact", head: true }).eq("status", "overdue"),
         supabase.from("bills").select("*", { count: "exact", head: true }).eq("status", "frozen"),
         supabase.from("bills").select("*", { count: "exact", head: true }).eq("status", "under_review"),
+        supabase.from("bills").select("*", { count: "exact", head: true }).is("presentation_date", null).eq("status", "pending"),
       ]);
 
       return {
@@ -124,6 +133,7 @@ export const useBillStats = () => {
         overdue: overdue.count || 0,
         frozen: frozen.count || 0,
         underReview: underReview.count || 0,
+        limbo: limbo.count || 0,
       };
     },
   });

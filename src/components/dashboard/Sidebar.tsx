@@ -83,7 +83,7 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {["Bills", "Statements", "Reports", "Regulations", "Policies", "Petitions"].map((item) => (
+                      {["Bills", "Motions", "Statements", "Reports", "Regulations", "Policies", "Petitions"].map((item) => (
                         <SidebarMenuSubItem key={item}>
                           <SidebarMenuSubButton onClick={() => navigate(`/dashboard/view/${item.toLowerCase()}`)} className="text-gray-300 hover:text-white hover:bg-white/5">
                             <span>{item}</span>

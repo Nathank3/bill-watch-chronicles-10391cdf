@@ -25,7 +25,9 @@ export const adjustForSittingDay = (date: Date): Date => {
 export const adjustForWeekend = adjustForSittingDay;
 
 // Calculate presentation date based on date committed and pending days
-export const calculatePresentationDate = (dateCommitted: Date, pendingDays: number): Date => {
+// Calculate presentation date based on date committed and pending days
+export const calculatePresentationDate = (dateCommitted: Date | null, pendingDays: number): Date | null => {
+  if (!dateCommitted) return null;
   const calculatedDate = addDays(new Date(dateCommitted), pendingDays);
   return adjustForSittingDay(calculatedDate);
 };

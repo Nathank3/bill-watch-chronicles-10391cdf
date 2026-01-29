@@ -22,7 +22,16 @@ interface BusinessItemData {
 export const convertBusinessItem = async (
   item: BusinessItemData,
   newType: "bill" | DocumentType,
-  newData: { title?: string; committee?: string; dateCommitted?: Date; status?: string; statusReason?: string }
+  newData: { 
+    title?: string; 
+    committee?: string; 
+    dateCommitted?: Date; 
+    status?: string; 
+    statusReason?: string;
+    pendingDays?: number;
+    presentationDate?: Date;
+    extensionsCount?: number;
+  }
 ) => {
   const currentType = item.type;
   const targetType = newType;
@@ -33,11 +42,11 @@ export const convertBusinessItem = async (
     committee: newData.committee || item.committee,
     status: newData.status || item.status,
     // Use ISO strings for DB
-    date_committed: (newData.dateCommitted || item.dateCommitted).toISOString(),
-    presentation_date: item.presentationDate.toISOString(), // Usually derived, but keeping simple for migration
-    pending_days: item.pendingDays,
-    days_allocated: item.daysAllocated,
-    extensions_count: item.extensionsCount,
+    date_committed: (newData.dateCommitted || item.dateCommitted)?.toISOString() || null,
+    presentation_date: (newData.presentationDate || item.presentationDate)?.toISOString() || null, 
+    pending_days: newData.pendingDays !== undefined ? newData.pendingDays : item.pendingDays,
+    days_allocated: newData.pendingDays !== undefined ? newData.pendingDays : item.daysAllocated, // Assuming allocated tracks total current pending days
+    extensions_count: newData.extensionsCount !== undefined ? newData.extensionsCount : item.extensionsCount,
     updated_at: new Date().toISOString(),
     status_reason: newData.statusReason // Include status reason
   };

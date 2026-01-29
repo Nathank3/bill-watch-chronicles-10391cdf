@@ -57,9 +57,7 @@ export const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-4">
-          <Link to="/" className="text-sm font-medium text-blue-600 hover:text-green-600">
-            Home
-          </Link>
+
 
           <NavigationMenu>
             <NavigationMenuList>
@@ -141,13 +139,7 @@ export const Navbar = () => {
       {/* Mobile Menu Content */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t mt-4 p-4 space-y-4 bg-white animate-in slide-in-from-top-5">
-           <Link 
-             to="/" 
-             className="block text-sm font-medium text-blue-600 hover:text-green-600"
-             onClick={() => setIsMobileMenuOpen(false)}
-           >
-             Home
-           </Link>
+
            
            <div className="space-y-2">
              <div className="text-sm font-medium text-gray-900">Committees</div>

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Download } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 // import jsPDF from "jspdf";
-// import autoTable, { UserOptions } from "jspdf-autotable";
+import type { UserOptions } from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast.ts";
 import { calculateCurrentCountdown, determineItemStatus } from "@/utils/countdownUtils.ts";
 import { addHeaderImage, drawDivider } from "@/utils/pdfUtils.ts";
@@ -22,11 +22,20 @@ interface PdfItem {
     title: string;
     committee: string;
     status: string;
-    dateCommitted: Date;
-    presentationDate: Date;
+    dateCommitted: Date | null;
+    presentationDate: Date | null;
     pendingDays: number;
     extensionsCount: number;
     itemType?: string; // Optional discriminator
+}
+
+interface Stats {
+  pending: number;
+  concluded: number;
+  overdue: number;
+  frozen: number;
+  underReview: number;
+  limbo?: number;
 }
 
 const HomePage = () => {
@@ -51,40 +60,45 @@ const HomePage = () => {
     { type: "petition", label: "Petitions" }
   ];
 
+  const getActiveCount = (stats: Stats | undefined) => {
+    return (stats?.pending || 0) + (stats?.overdue || 0) + (stats?.frozen || 0) + (stats?.limbo || 0);
+  };
+
   const getPendingCount = (type: DocumentType | "business") => {
     if (type === "business") {
-      return (billStats?.pending || 0) +
-        (statementStats?.pending || 0) +
-        (reportStats?.pending || 0) +
-        (regulationStats?.pending || 0) +
-        (policyStats?.pending || 0) +
-        (petitionStats?.pending || 0) +
-        (motionStats?.pending || 0);
+      return getActiveCount(billStats) +
+        getActiveCount(statementStats) +
+        getActiveCount(reportStats) +
+        getActiveCount(regulationStats) +
+        getActiveCount(policyStats) +
+        getActiveCount(petitionStats) +
+        getActiveCount(motionStats);
     }
-    if (type === "bill") return billStats?.pending || 0;
-    if (type === "statement") return statementStats?.pending || 0;
-    if (type === "report") return reportStats?.pending || 0;
-    if (type === "regulation") return regulationStats?.pending || 0;
-    if (type === "policy") return policyStats?.pending || 0;
-    if (type === "petition") return petitionStats?.pending || 0;
-    if (type === "motion") return motionStats?.pending || 0;
+    if (type === "bill") return getActiveCount(billStats);
+    if (type === "statement") return getActiveCount(statementStats);
+    if (type === "report") return getActiveCount(reportStats);
+    if (type === "regulation") return getActiveCount(regulationStats);
+    if (type === "policy") return getActiveCount(policyStats);
+    if (type === "petition") return getActiveCount(petitionStats);
+    if (type === "motion") return getActiveCount(motionStats);
     return 0;
   };
 
   const fetchAllPendingFiles = async (type: DocumentType | "business"): Promise<PdfItem[]> => {
     const fetchLimit = 1000; // Cap for PDF export
+    const activeStatuses = ["pending", "overdue", "frozen", "limbo"];
 
     if (type === "business") {
-        const { data: bills } = await supabase.from("bills").select("*").in("status", ["pending", "overdue", "frozen"]).limit(fetchLimit);
-        const { data: docs } = await supabase.from("documents").select("*").in("status", ["pending", "overdue", "frozen"]).limit(fetchLimit);
+        const { data: bills } = await supabase.from("bills").select("*").in("status", activeStatuses).limit(fetchLimit);
+        const { data: docs } = await supabase.from("documents").select("*").in("status", activeStatuses).limit(fetchLimit);
         
         const mappedBills: PdfItem[] = (bills || []).map(b => ({
             id: b.id,
             title: b.title,
             committee: b.committee,
             status: b.status,
-            dateCommitted: new Date(b.date_committed), 
-            presentationDate: new Date(b.presentation_date), 
+            dateCommitted: b.date_committed ? new Date(b.date_committed) : null, 
+            presentationDate: b.presentation_date ? new Date(b.presentation_date) : null, 
             pendingDays: b.pending_days || 0, 
             extensionsCount: b.extensions_count || 0,
             itemType: "Bill"
@@ -95,8 +109,8 @@ const HomePage = () => {
             title: d.title,
             committee: d.committee,
             status: d.status,
-            dateCommitted: new Date(d.date_committed || d.created_at), // Fallback if needed
-            presentationDate: new Date(d.presentation_date), 
+            dateCommitted: d.date_committed ? new Date(d.date_committed) : null, 
+            presentationDate: d.presentation_date ? new Date(d.presentation_date) : null, 
             pendingDays: d.pending_days || 0, 
             extensionsCount: d.extensions_count || 0,
             itemType: d.type.charAt(0).toUpperCase() + d.type.slice(1)
@@ -104,31 +118,30 @@ const HomePage = () => {
         
         return [...mappedBills, ...mappedDocs];
     } else if (type === "bill") {
-        const { data } = await supabase.from("bills").select("*").in("status", ["pending", "overdue", "frozen"]).limit(fetchLimit);
+        const { data } = await supabase.from("bills").select("*").in("status", activeStatuses).limit(fetchLimit);
         return (data || []).map(b => ({ 
             id: b.id,
             title: b.title,
             committee: b.committee,
             status: b.status,
-            dateCommitted: new Date(b.date_committed), 
-            presentationDate: new Date(b.presentation_date), 
+            dateCommitted: b.date_committed ? new Date(b.date_committed) : null, 
+            presentationDate: b.presentation_date ? new Date(b.presentation_date) : null, 
             pendingDays: b.pending_days || 0, 
             extensionsCount: b.extensions_count || 0
         }));
     } else {
-        const { data } = await supabase.from("documents").select("*").eq("type", type).in("status", ["pending", "overdue", "frozen"]).limit(fetchLimit);
+        const { data } = await supabase.from("documents").select("*").eq("type", type).in("status", activeStatuses).limit(fetchLimit);
         return (data || []).map(d => ({ 
             id: d.id,
             title: d.title,
             committee: d.committee,
             status: d.status,
-            dateCommitted: new Date(d.date_committed || d.created_at), 
-            presentationDate: new Date(d.presentation_date), 
+            dateCommitted: d.date_committed ? new Date(d.date_committed) : null, 
+            presentationDate: d.presentation_date ? new Date(d.presentation_date) : null, 
             pendingDays: d.pending_days || 0, 
             extensionsCount: d.extensions_count || 0
         }));
-    }
-  };
+    } }
 
   const generatePDF = async (type: DocumentType | "business") => {
     try {
@@ -173,10 +186,10 @@ const HomePage = () => {
         const row = [
           String(item.title || "N/A"),
           String(item.committee || "N/A"),
-          item.dateCommitted ? format(item.dateCommitted, "EEE, dd/MM/yyyy") : "N/A",
+          item.dateCommitted ? format(item.dateCommitted, "EEE, dd/MM/yyyy") : "In Limbo",
           displayDays,
           statusText,
-          item.presentationDate ? format(item.presentationDate, "EEE, dd/MM/yyyy") : "N/A"
+          item.presentationDate ? format(item.presentationDate, "EEE, dd/MM/yyyy") : "TBD"
         ];
 
         if (includeTypeColumn) {
@@ -229,7 +242,7 @@ const HomePage = () => {
       const columnStylesConfig = includeTypeColumn
           ? {
              0: { overflow: 'linebreak' }, 
-             1: { overflow: 'linebreak', cellWidth: 40 }, 
+             1: { overflow: 'linebreak', cellWidth: 28 }, // Reduced from 40 to 28
              2: { cellWidth: 32, minCellWidth: 32 }, 
              3: { cellWidth: 15, minCellWidth: 15 }, 
              4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
@@ -238,7 +251,7 @@ const HomePage = () => {
           }
           : {
              0: { overflow: 'linebreak' },
-             1: { overflow: 'linebreak', cellWidth: 45 },
+             1: { overflow: 'linebreak', cellWidth: 33 }, // Reduced from 45 to 33
              2: { cellWidth: 32, minCellWidth: 32 },
              3: { cellWidth: 15, minCellWidth: 15 },
              4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
@@ -256,6 +269,7 @@ const HomePage = () => {
           margin: { top: 20, right: 15, bottom: 10, left: 15 },
           tableWidth: 'auto',
           didParseCell: function (data) {
+             if (data.section === 'head') return;
              const rowIndex = data.row.index;
              const originalItem = sortedItems[rowIndex];
              if (!originalItem) return;

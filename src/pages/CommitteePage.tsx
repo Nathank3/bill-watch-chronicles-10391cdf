@@ -1,30 +1,53 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useBills, Bill } from "@/contexts/BillContext.tsx";
-import { useDocuments, DocumentType, Document } from "@/contexts/DocumentContext.tsx";
 import { Navbar } from "@/components/Navbar.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Download, ArrowLeft } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
-import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import jsPDF from "jspdf";
 import { toast } from "@/components/ui/use-toast.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
-import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
+import { calculateCurrentCountdown, determineItemStatus } from "@/utils/countdownUtils.ts";
+import { addHeaderImage, drawDivider } from "@/utils/pdfUtils.ts";
+import { DocumentType } from "@/types/document.ts";
+
+interface CommitteeItem {
+  id: string;
+  title: string;
+  committee: string;
+  status: string;
+  type?: string;
+  dateCommitted?: string | null;
+  presentationDate?: string | null;
+  date_committed?: string | null;
+  presentation_date?: string | null;
+  pending_days?: number;
+  extensions_count?: number;
+  pendingDays?: number;
+  extensionsCount?: number;
+  itemType?: string;
+}
 
 const CommitteePage = () => {
   const { committeeId } = useParams();
   const navigate = useNavigate();
-  const { pendingBills } = useBills();
-  const { pendingDocuments } = useDocuments();
   const [committeeName, setCommitteeName] = useState<string>("");
+  const [stats, setStats] = useState<Record<string, number>>({});
+  // const [loadingStats, setLoadingStats] = useState(false); // Removed unused loaded state
 
   useEffect(() => {
     if (committeeId) {
       fetchCommitteeName(committeeId);
     }
   }, [committeeId]);
+
+  useEffect(() => {
+    if (committeeName) {
+      fetchCommitteeStats(committeeName);
+    }
+  }, [committeeName]);
 
   const fetchCommitteeName = async (id: string) => {
     try {
@@ -46,10 +69,45 @@ const CommitteePage = () => {
     }
   };
 
+  const fetchCommitteeStats = async (name: string) => {
+    // setLoadingStats(true); // Unused
+    const types: (DocumentType | "bill")[] = ["bill", "statement", "report", "regulation", "policy", "petition", "motion"];
+    const newStats: Record<string, number> = {};
+    const activeStatuses = ["pending", "overdue", "frozen", "limbo"];
+
+    try {
+        for (const type of types) {
+            const table = type === "bill" ? "bills" : "documents";
+            let query = supabase
+                .from(table)
+                .select("id", { count: "exact" })
+                .eq("committee", name)
+                .in("status", activeStatuses);
+            
+            if (type !== "bill") {
+                // @ts-ignore - fixing "excessively deep" type error
+                query = query.eq("type", type);
+            }
+
+            const { count, error } = await query;
+            if (error) {
+                console.error(`Error fetching stats for ${type}:`, error);
+            }
+            newStats[type] = count || 0;
+        }
+        setStats(newStats);
+    } catch (e) {
+        console.error("Error loading stats", e);
+    } finally {
+        // setLoadingStats(false); // Unused
+    }
+  };
+
   const documentTypes: { type: DocumentType | "business", label: string }[] = [
     { type: "business", label: "Business" },
     { type: "bill", label: "Bills" },
     { type: "statement", label: "Statements" },
+    { type: "motion", label: "Motions" },
     { type: "report", label: "Reports" },
     { type: "regulation", label: "Regulations" },
     { type: "policy", label: "Policies" },
@@ -58,60 +116,95 @@ const CommitteePage = () => {
 
   const getPendingCount = (type: DocumentType | "business") => {
     if (type === "business") {
-      const billsCount = (pendingBills || []).filter(b => b.committee === committeeName).length;
-      const statementsCount = (pendingDocuments("statement") || []).filter(d => d.committee === committeeName).length;
-      const reportsCount = (pendingDocuments("report") || []).filter(d => d.committee === committeeName).length;
-      const regulationsCount = (pendingDocuments("regulation") || []).filter(d => d.committee === committeeName).length;
-      const policiesCount = (pendingDocuments("policy") || []).filter(d => d.committee === committeeName).length;
-      const petitionsCount = (pendingDocuments("petition") || []).filter(d => d.committee === committeeName).length;
-      
-      return billsCount + statementsCount + reportsCount + regulationsCount + policiesCount + petitionsCount;
+        return Object.values(stats).reduce((a, b) => a + b, 0);
     }
-    if (type === "bill") {
-      return (pendingBills || []).filter(b => b.committee === committeeName).length;
-    }
-    return (pendingDocuments(type) || []).filter(d => d.committee === committeeName).length;
+    return stats[type] || 0;
   };
 
-  const generatePDF = (type: DocumentType | "business") => {
-    try {
-      type PrintableItem = (Bill | Document) & { itemType?: string };
-      let pendingItems: PrintableItem[];
-      let typeLabel: string;
-      let includeTypeColumn = false;
+  const fetchItemsForPDF = async (type: DocumentType | "business") => {
+      const activeStatuses = ["pending", "overdue", "frozen", "limbo"];
+      const fetchLimit = 1000;
+      let items: CommitteeItem[] = [];
 
       if (type === "business") {
-        const allBills = (pendingBills || [])
-          .filter(b => b.committee === committeeName)
-          .map(item => ({ ...item, itemType: "Bill" }));
-        const allStatements = (pendingDocuments("statement") || [])
-          .filter(d => d.committee === committeeName)
-          .map(item => ({ ...item, itemType: "Statement" }));
-        const allReports = (pendingDocuments("report") || [])
-          .filter(d => d.committee === committeeName)
-          .map(item => ({ ...item, itemType: "Report" }));
-        const allRegulations = (pendingDocuments("regulation") || [])
-          .filter(d => d.committee === committeeName)
-          .map(item => ({ ...item, itemType: "Regulation" }));
-        const allPolicies = (pendingDocuments("policy") || [])
-          .filter(d => d.committee === committeeName)
-          .map(item => ({ ...item, itemType: "Policy" }));
-        const allPetitions = (pendingDocuments("petition") || [])
-          .filter(d => d.committee === committeeName)
-          .map(item => ({ ...item, itemType: "Petition" }));
-        
-        pendingItems = [...allBills, ...allStatements, ...allReports, ...allRegulations, ...allPolicies, ...allPetitions];
-        typeLabel = "Business";
-        includeTypeColumn = true;
-      } else if (type === "bill") {
-        pendingItems = (pendingBills || []).filter(b => b.committee === committeeName);
-        typeLabel = "Bills";
-      } else {
-        pendingItems = (pendingDocuments(type) || []).filter(d => d.committee === committeeName);
-        typeLabel = type.charAt(0).toUpperCase() + type.slice(1) + "s";
-      }
+          // Fetch bills
+          const { data: bills } = await supabase
+            .from("bills")
+            .select("*")
+            .eq("committee", committeeName)
+            .in("status", activeStatuses)
+            .limit(fetchLimit);
+            
+          const mappedBills = (bills || []).map(b => ({
+              ...b,
+              itemType: "Bill",
+              dateCommitted: b.date_committed,
+              presentationDate: b.presentation_date,
+              pendingDays: b.pending_days,
+              extensionsCount: b.extensions_count
+          }));
 
-      if (pendingItems.length === 0) {
+          // Fetch docs
+          const { data: docs } = await supabase
+            .from("documents")
+            .select("*")
+            .eq("committee", committeeName)
+            .in("status", activeStatuses)
+            .limit(fetchLimit);
+            
+          const mappedDocs = (docs || []).map(d => ({ 
+              ...d, 
+              itemType: d.type.charAt(0).toUpperCase() + d.type.slice(1),
+              dateCommitted: d.date_committed,
+              presentationDate: d.presentation_date,
+              pendingDays: d.pending_days,
+              extensionsCount: d.extensions_count
+          }));
+
+          items = [...mappedBills, ...mappedDocs];
+      } else if (type === "bill") {
+          const { data } = await supabase
+            .from("bills")
+            .select("*")
+            .eq("committee", committeeName)
+            .in("status", activeStatuses)
+            .limit(fetchLimit);
+          items = (data || []).map(b => ({
+              ...b,
+              dateCommitted: b.date_committed,
+              presentationDate: b.presentation_date,
+              pendingDays: b.pending_days,
+              extensionsCount: b.extensions_count
+          }));
+      } else {
+          const { data } = await supabase
+            .from("documents")
+            .select("*")
+            .eq("committee", committeeName)
+            .eq("type", type)
+            .in("status", activeStatuses)
+            .limit(fetchLimit);
+          items = (data || []).map(d => ({
+              ...d,
+              dateCommitted: d.date_committed,
+              presentationDate: d.presentation_date,
+              pendingDays: d.pending_days,
+              extensionsCount: d.extensions_count
+          }));
+      }
+      return items;
+  };
+
+  const generatePDF = async (type: DocumentType | "business") => {
+    try {
+      toast({ title: "Generating PDF...", description: "Fetching committee data..." });
+      
+      const pendingItemsRaw = await fetchItemsForPDF(type);
+      
+      const typeLabel = type === "business" ? "Business" : (type === "bill" ? "Bills" : type.charAt(0).toUpperCase() + type.slice(1) + "s");
+      const includeTypeColumn = type === "business";
+
+      if (!pendingItemsRaw || pendingItemsRaw.length === 0) {
         toast({
           title: "No data to export",
           description: `No pending ${typeLabel.toLowerCase()} found for this committee.`,
@@ -120,13 +213,16 @@ const CommitteePage = () => {
         return;
       }
 
-      const sortedItems = [...pendingItems].sort((a, b) => {
+      const sortedItems = [...pendingItemsRaw].sort((a, b) => {
         const now = new Date();
-        const aDays = differenceInDays(a.presentationDate, now);
-        const bDays = differenceInDays(b.presentationDate, now);
+        const aDate = a.presentationDate ? new Date(a.presentationDate) : null;
+        const bDate = b.presentationDate ? new Date(b.presentationDate) : null;
         
-        const aIsOverdue = a.status === "overdue" || aDays < 0;
-        const bIsOverdue = b.status === "overdue" || bDays < 0;
+        const aDays = aDate ? differenceInDays(aDate, now) : -9999; // Treat null date (Limbo) as distinct
+        const bDays = bDate ? differenceInDays(bDate, now) : -9999;
+        
+        const aIsOverdue = a.status === "overdue" || (aDate && aDays < 0);
+        const bIsOverdue = b.status === "overdue" || (bDate && bDays < 0);
         
         if (aIsOverdue && !bIsOverdue) return -1;
         if (!aIsOverdue && bIsOverdue) return 1;
@@ -135,18 +231,25 @@ const CommitteePage = () => {
       });
 
       const tableData = sortedItems.map(item => {
-        const countdown = calculateCurrentCountdown(item.presentationDate);
+        const pDate = item.presentationDate ? new Date(item.presentationDate) : null;
+        const dDate = item.dateCommitted ? new Date(item.dateCommitted) : null;
+
+        const countdown = calculateCurrentCountdown(pDate);
         const displayDays = String(Math.abs(countdown));
-        const currentStatus = determineItemStatus(item.status, item.presentationDate, item.extensionsCount);
-        const statusText = currentStatus === "frozen" ? "Frozen" : (currentStatus === "overdue" ? "Overdue" : "Pending");
+        const currentStatus = determineItemStatus(item.status, pDate, item.extensionsCount);
+        
+        let statusText = "Pending";
+        if (currentStatus === "frozen") statusText = "Frozen";
+        else if (currentStatus === "overdue") statusText = "Overdue";
+        else if (currentStatus === "limbo") statusText = "Limbo";
         
         const row = [
           String(item.title || "N/A"),
           String(item.committee || "N/A"),
-          item.dateCommitted ? format(new Date(item.dateCommitted), "dd/MM/yyyy") : "N/A",
+          dDate ? format(dDate, "dd/MM/yyyy") : "N/A",
           displayDays,
           statusText,
-          item.presentationDate ? format(new Date(item.presentationDate), "dd/MM/yyyy") : "N/A"
+          pDate ? format(pDate, "dd/MM/yyyy") : "N/A"
         ];
         
         if (includeTypeColumn) {
@@ -166,52 +269,66 @@ const CommitteePage = () => {
       }
 
       const doc = new jsPDF();
+      const headerHeight = await addHeaderImage(doc, "/header_logo.png");
       const currentDate = new Date();
       const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
       
-      const startY = 20;
+      let startY = headerHeight > 0 ? headerHeight + 5 : 20;
+      
+      // Draw divider line below header
+      if (headerHeight > 0) {
+          startY = drawDivider(doc, startY, 15, 15); // 15mm margins
+          startY += 10; // Extra spacing after divider
+      }
 
-      doc.setFontSize(16);
+      doc.setFontSize(14);
       doc.setFont("times", "bold");
       doc.setTextColor(0, 0, 0);
       
-      const titleText = `Makueni County Assembly ${committeeName} Pending ${typeLabel} as at ${formattedDate}`;
+      const titleText = `MAKUENI COUNTY ASSEMBLY ${committeeName.toUpperCase()} PENDING ${typeLabel.toUpperCase()} AS AT ${formattedDate.toUpperCase()}`;
       const pageWidth = doc.internal.pageSize.getWidth();
-      const maxWidth = pageWidth - 20;
+      const marginLeft = 15;
+      const maxWidth = pageWidth - (marginLeft * 2);
       const splitTitle = doc.splitTextToSize(titleText, maxWidth);
       
       // Center align the text
       doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
+
+      const titleLines = splitTitle.length;
+      const lineY = startY + (titleLines * 6) + 2;
+
+      // Draw line below title (Implicitly green due to drawDivider state)
+      doc.setLineWidth(0.5);
+      doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
 
       try {
         const headers = includeTypeColumn 
           ? [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date', 'Type']]
           : [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
         
-        const titleHeight = splitTitle.length * 7;
-        
         // Define column styles - wrap text columns, fixed width for date/number columns
+        // Standard A4 width ~210mm. Margins 15mm each -> 180mm available.
         const columnStylesConfig = includeTypeColumn 
           ? {
-              0: { overflow: 'linebreak' as const, cellWidth: 60 },  // Title - allow wrapping with max width
-              1: { overflow: 'linebreak' as const, cellWidth: 30 },  // Committee - allow wrapping
-              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed - no wrap
-              3: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Days Remaining - no wrap
-              4: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Status - no wrap
-              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Due Date - no wrap
-              6: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }  // Type - no wrap
+              0: { overflow: 'linebreak' as const, cellWidth: 50 },  // Title (Increased)
+              1: { overflow: 'linebreak' as const, cellWidth: 25 },  // Committee (Decreased from 35)
+              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
+              3: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
+              4: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }, // Status
+              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Due Date
+              6: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }  // Type
             }
           : {
-              0: { overflow: 'linebreak' as const, cellWidth: 70 },  // Title - allow wrapping with max width
-              1: { overflow: 'linebreak' as const, cellWidth: 35 },  // Committee - allow wrapping
-              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed - no wrap
-              3: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Days Remaining - no wrap
-              4: { cellWidth: 20, minCellWidth: 20, overflow: 'visible' as const }, // Status - no wrap
-              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date - no wrap
+              0: { overflow: 'linebreak' as const, cellWidth: 70 },  // Title (Increased)
+              1: { overflow: 'linebreak' as const, cellWidth: 30 },  // Committee (Decreased from 40)
+              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
+              3: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
+              4: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }, // Status
+              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date
             };
         
         autoTable(doc, {
-          startY: startY + titleHeight - 2,
+          startY: lineY + 5,
           head: headers,
           body: validTableData,
           theme: 'grid',
@@ -228,8 +345,8 @@ const CommitteePage = () => {
             halign: 'left'
           },
           columnStyles: columnStylesConfig,
-          margin: { top: 20, right: 20, bottom: 10, left: 10 },
-          tableWidth: 'wrap',
+          margin: { top: 20, right: 15, bottom: 10, left: 15 },
+          tableWidth: 'auto',
           didParseCell: function(data) {
             const rowIndex = data.row.index;
             const originalItem = sortedItems[rowIndex];

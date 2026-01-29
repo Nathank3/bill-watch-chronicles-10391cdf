@@ -41,7 +41,7 @@ export interface DocumentContextType {
   pendingDocuments: (type: DocumentType) => Document[];
   concludedDocuments: (type: DocumentType) => Document[];
   underReviewDocuments: (type: DocumentType) => Document[];
-  addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => void;
+  addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: DocumentStatus }) => void;
   updateDocument: (id: string, updates: Partial<Document>) => void;
   deleteDocument: (id: string) => void;
   updateDocumentStatus: (id: string, status: DocumentStatus, silent?: boolean) => void;

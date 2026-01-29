@@ -44,7 +44,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
       setCurrentCountdown(countdown);
       setIsOverdue(overdue);
 
-      if (document.status === "concluded") {
+      if (document.status === "concluded" || !document.presentationDate) {
         setTimeLeft("");
       } else {
         const distance = formatDistanceToNow(document.presentationDate, { addSuffix: true });
@@ -85,6 +85,8 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
         );
       case "overdue":
         return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
+      case "limbo":
+        return <Badge variant="secondary" className="bg-gray-200 text-gray-700">In Limbo</Badge>;
       default:
         return <Badge className="bg-bill-pending">Pending</Badge>;
     }
@@ -113,7 +115,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           </p>
           <div className="mt-2 space-y-1">
             <p className="text-sm">
-              <span className="font-medium">Date Committed:</span> {formatDate(document.dateCommitted)}
+              <span className="font-medium">Date Committed:</span> {document.dateCommitted ? formatDate(document.dateCommitted) : "TBD (In Limbo)"}
             </p>
             {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
               <>
@@ -125,13 +127,21 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
                 </p>
               </>
             )}
+            
+            {/* Limbo Message */}
+            {effectiveStatus === "limbo" && (
+                 <p className="text-sm text-muted-foreground italic">
+                    Awaiting court judgment or further action.
+                 </p>
+            )}
+
             {document.extensionsCount > 0 && (
               <p className="text-sm text-amber-600">
                 <span className="font-medium">Extensions:</span> {document.extensionsCount} time(s)
               </p>
             )}
             <p className="text-sm">
-              <span className="font-medium">Date Due:</span> {formatDate(document.presentationDate)}
+              <span className="font-medium">Date Due:</span> {document.presentationDate ? formatDate(document.presentationDate) : "TBD"}
             </p>
           </div>
           <div className="flex items-center gap-2 mt-2">
