@@ -36,7 +36,7 @@ const mapDbToDocument = (data: DbDocumentResult): Document => ({
   dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
   pendingDays: data.pending_days || 0,
   presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
-  status: (data.status === "pending" && !data.presentation_date) ? "limbo" : data.status as DocumentStatus,
+  status: (data.status === "pending" && !data.presentation_date) ? "tbd" : data.status as DocumentStatus,
   type: data.type as DocumentType,
   createdAt: new Date(data.created_at),
   updatedAt: new Date(data.updated_at),
@@ -61,7 +61,7 @@ export const useDocumentList = (
       }
 
       if (status !== "all") {
-        if (status === "limbo") {
+        if (status === "limbo" as DocumentStatus) {
             query = query.eq("status", "pending").is("presentation_date", null);
         } else if (status === "pending") {
             query = query.eq("status", "pending").not("presentation_date", "is", null);
@@ -113,48 +113,83 @@ export const useDocumentStats = (type?: DocumentType) => {
   return useQuery({
     queryKey: ["documents-stats", { type }],
     queryFn: async () => {
-      const getCount = async (status?: string, isLimbo: boolean = false) => {
-        // Use 'id' selection instead of head:true to ensure reliable counting while minimizing data transfer
-        // Also creates a fresh builder instance for each call to avoid any potential state reuse issues
-        let query = supabase.from("documents").select("id", { count: "exact" });
+      const now = new Date();
+      
+      let query = supabase
+        .from("documents")
+        .select("id, status, type, presentation_date, extensions_count, created_at");
         
-        if (type) query = query.eq("type", type);
-        
-        if (status) query = query.eq("status", status);
-        
-        if (isLimbo) {
-            query = query.is("presentation_date", null).eq("status", "pending");
-        } else if (status === "pending") {
-            query = query.not("presentation_date", "is", null);
-        }
-        
-        const { count, error } = await query;
-        if (error) {
-            console.error(`Error fetching stats for ${type}/${status}:`, error);
-            return 0;
-        }
-        return count || 0;
+      if (type) {
+        query = query.eq("type", type);
+      }
+      
+      const { data: docs, error } = await query;
+      
+      if (error) {
+        console.error(`Error fetching stats for ${type}:`, error);
+        throw error;
       };
 
-      const [total, pending, concluded, overdue, frozen, underReview, limbo] = await Promise.all([
-        getCount(), // total
-        getCount("pending"), // pending (excluding limbo)
-        getCount("concluded"),
-        getCount("overdue"),
-        getCount("frozen"),
-        getCount("under_review"),
-        getCount("pending", true), // limbo
-      ]);
-
-      return {
-        total,
-        pending,
-        concluded,
-        overdue,
-        frozen,
-        underReview,
-        limbo,
+      const stats = {
+        total: 0,
+        pending: 0,
+        concluded: 0,
+        overdue: 0,
+        frozen: 0,
+        underReview: 0,
+        limbo: 0,
+        tbd: 0,
       };
+
+      if (!docs) return stats;
+
+      stats.total = docs.length;
+
+      docs.forEach((doc) => {
+        // Normalize status
+        const status = doc.status as string;
+        
+        if (status === "concluded") {
+          stats.concluded++;
+          return;
+        }
+
+        if (status === "under_review") {
+            stats.underReview++;
+            return;
+        }
+
+        if (status === "frozen") {
+            stats.frozen++;
+            return;
+        }
+
+        // Check for TBD/Limbo
+        if (status === "limbo" || status === "tbd" || (status === "pending" && !doc.presentation_date)) {
+            stats.tbd++;
+            // stats.limbo++; // Removed to prevent double counting
+            return;
+        }
+
+        // Check for Overdue
+        let isOverdue = false;
+        if (status === "overdue") {
+            isOverdue = true;
+        } else if (doc.presentation_date) {
+            const presDate = new Date(doc.presentation_date);
+            if (presDate < now) isOverdue = true;
+        }
+        
+        if (doc.extensions_count && doc.extensions_count > 0) isOverdue = true;
+
+        if (isOverdue) {
+            stats.overdue++;
+        } else {
+            stats.pending++;
+        }
+      });
+
+      return stats;
     },
   });
 };

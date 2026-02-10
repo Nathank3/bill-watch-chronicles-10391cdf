@@ -13,6 +13,7 @@ interface BusinessItemData {
   presentationDate: Date;
   daysAllocated: number;
   extensionsCount: number;
+  concludedAt?: Date | null;
 }
 
 /**
@@ -31,6 +32,7 @@ export const convertBusinessItem = async (
     pendingDays?: number;
     presentationDate?: Date;
     extensionsCount?: number;
+    concludedAt?: Date | null;
   }
 ) => {
   const currentType = item.type;
@@ -48,7 +50,8 @@ export const convertBusinessItem = async (
     days_allocated: newData.pendingDays !== undefined ? newData.pendingDays : item.daysAllocated, // Assuming allocated tracks total current pending days
     extensions_count: newData.extensionsCount !== undefined ? newData.extensionsCount : item.extensionsCount,
     updated_at: new Date().toISOString(),
-    status_reason: newData.statusReason // Include status reason
+    status_reason: newData.statusReason, // Include status reason
+    concluded_at: (newData.concludedAt !== undefined ? newData.concludedAt : item.concludedAt)?.toISOString() || null
   };
 
   // 1. Simple Update (Same Table)

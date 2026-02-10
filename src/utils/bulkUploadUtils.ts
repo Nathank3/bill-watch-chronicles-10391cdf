@@ -36,7 +36,8 @@ export interface ValidationResult {
     dateCommitted: Date | null;
     pendingDays: number;
     presentationDate?: Date | null;
-    status: 'pending' | 'limbo';
+    status: 'pending' | 'tbd' | 'concluded';
+    concludedAt?: Date | null;
   } | null;
 }
 
@@ -106,7 +107,6 @@ export const validateBulkData = (
     type = finalType;
 
     if (!type) errors.push('Missing Type of Business (and could not infer from content)');
-    // REMOVED: if (!dateCommittedStr) errors.push('Missing Date of Committing'); (Handled in logic below)
 
     // Parse Date of Committing
     let dateCommitted: Date | null = null;
@@ -136,9 +136,9 @@ export const validateBulkData = (
     let isLimbo = false;
 
     if (!hasCommittedDate && !hasDeadline) {
-        // Scenario A: Limbo (No dates at all)
+        // Scenario A: TBD (No dates at all)
         isLimbo = true;
-        warnings.push("Limbo State: No dates provided. Item will be uploaded as 'Limbo'.");
+        warnings.push("TBD State: No dates provided. Item will be uploaded as 'TBD'.");
     } else if (hasCommittedDate && hasDeadline) {
         // Scenario B: Active (Both dates exist)
         // Proceed to calculate days/validate dates
@@ -169,13 +169,13 @@ export const validateBulkData = (
         }
 
     } else {
-        // Scenario C: Half-Baked (Partial Data = Limbo)
-        // Instead of rejecting, we classify these as Limbo because they are incomplete but likely valid records
+        // Scenario C: Half-Baked (Partial Data = TBD)
+        // Instead of rejecting, we classify these as TBD because they are incomplete but likely valid records
         isLimbo = true;
         if (hasCommittedDate && !hasDeadline) {
-             warnings.push('Incomplete: "Date of Committing" provided but missing deadline. Item set to Limbo.');
+             warnings.push('Incomplete: "Date of Committing" provided but missing deadline. Item set to TBD.');
         } else if (!hasCommittedDate && hasDeadline) {
-             warnings.push('Incomplete: Deadline provided but missing "Date of Committing". Item set to Limbo.');
+             warnings.push('Incomplete: Deadline provided but missing "Date of Committing". Item set to TBD.');
         }
     }
 
@@ -191,12 +191,6 @@ export const validateBulkData = (
        if (committees.includes(committee)) {
            finalCommittee = committee;
        } else {
-           // Fuzzy match: Check if any known committee is "contained" in the input or vice versa
-           // e.g. Input: "Health Committee", Known: "Health" -> Match
-           // e.g. Input: "Budget", Known: "Budget and Appropriations" -> Partial match? Maybe risky.
-           // Let's stick to "Known committee name is substring of Input" or "Input is substring of Known".
-           // Better: "Input includes Known Name" (e.g. "Committee on Health" includes "Health")
-           
            // Sort committees by length descending to match specific ones first ("Health and Sanitation" vs "Health")
            const sortedCommittees = [...committees].sort((a, b) => b.length - a.length);
            
@@ -248,7 +242,7 @@ export const validateBulkData = (
         dateCommitted: isLimbo ? null : (dateCommitted as Date),
         pendingDays: isLimbo ? 0 : days,
         presentationDate: (hasDueDate && dueDateStr) ? parseExcelDate(dueDateStr) : null,
-        status: isLimbo ? 'limbo' : 'pending'
+        status: isLimbo ? 'tbd' : 'pending'
       } : null
     });
   });

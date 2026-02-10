@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext.tsx"
+import { SettingsDialog } from "@/components/SettingsDialog.tsx"
 
 import logo from "@/assets/makueni-county.png";
 
@@ -83,13 +84,16 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {["Bills", "Motions", "Statements", "Reports", "Regulations", "Policies", "Petitions"].map((item) => (
-                        <SidebarMenuSubItem key={item}>
-                          <SidebarMenuSubButton onClick={() => navigate(`/dashboard/view/${item.toLowerCase()}`)} className="text-gray-300 hover:text-white hover:bg-white/5">
-                            <span>{item}</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                      {["Bills", "Motions", "Statements", "Reports", "Regulations", "Policies & Guidelines", "Petitions"].map((item) => {
+                          const path = item === "Policies & Guidelines" ? "policies" : item.toLowerCase();
+                          return (
+                            <SidebarMenuSubItem key={item}>
+                              <SidebarMenuSubButton onClick={() => navigate(`/dashboard/view/${path}`)} className="text-gray-300 hover:text-white hover:bg-white/5">
+                                <span>{item}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          );
+                      })}
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
@@ -140,6 +144,10 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                       <ShieldAlert />
                       <span>System Audit</span>
                     </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                   <SidebarMenuItem>
+                    <SettingsDialog />
                   </SidebarMenuItem>
                 </>
               )}

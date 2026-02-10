@@ -31,6 +31,7 @@ interface EditBusinessDialogProps {
     daysAllocated: number;
     extensionsCount: number;
     statusReason?: string;
+    concludedAt?: Date | null;
   };
 }
 
@@ -121,11 +122,16 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
           committee,
           dateCommitted: dateCommitted,
           status,
-          statusReason: (status === "limbo" || status === "concluded") ? statusReason : undefined,
+          statusReason: (status === "tbd" || status === "concluded") ? statusReason : undefined,
           pendingDays,
           presentationDate: presentationDate,
-          // If status isn't limbo, ensure we have valid dates? 
-          // Database might require them for 'pending'.
+          // Calculate concludedAt:
+          // 1. If status is becoming 'concluded', use existing or new Date()
+          // 2. If status was 'concluded' and stays 'concluded', keep existing or default (handled by converter if undefined, but explicit here is safer)
+          // 3. If status logic changes away from concluded, we pass null (or handled by converter)
+          concludedAt: status === "concluded" 
+            ? (item.concludedAt ? item.concludedAt : new Date()) 
+            : null
         }
       );
 
@@ -156,68 +162,73 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Business Item</DialogTitle>
           <DialogDescription>
              Modify details, manage dates, or change the category.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="flex flex-col gap-8 py-6 px-2">
           
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right">
+          {/* Title Section: Full Width */}
+          <div className="flex flex-col gap-3 w-full">
+            <Label htmlFor="title" className="font-bold text-lg">
               Title
             </Label>
-            <Input
+            <Textarea
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="col-span-3"
+              className="w-full min-h-[180px] text-base"
+              placeholder="Enter the full title here..."
             />
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="type" className="text-right">
-              Type
-            </Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Bill">Bill</SelectItem>
-                <SelectItem value="Motion">Motion</SelectItem>
-                <SelectItem value="Statement">Statement</SelectItem>
-                <SelectItem value="Report">Report</SelectItem>
-                <SelectItem value="Petition">Petition</SelectItem>
-                <SelectItem value="Regulation">Regulation</SelectItem>
-                <SelectItem value="Policy">Policy</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Details Section: Two Columns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+            <div className="flex flex-col gap-3">
+              <Label htmlFor="type" className="font-medium">
+                Type
+              </Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bill">Bill</SelectItem>
+                  <SelectItem value="Motion">Motion</SelectItem>
+                  <SelectItem value="Statement">Statement</SelectItem>
+                  <SelectItem value="Report">Report</SelectItem>
+                  <SelectItem value="Petition">Petition</SelectItem>
+                  <SelectItem value="Regulation">Regulation</SelectItem>
+                  <SelectItem value="Policy">Policy</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="committee" className="text-right">
-              Committee
-            </Label>
-            <Select value={committee} onValueChange={setCommittee}>
-              <SelectTrigger className="col-span-3">
-                <SelectValue placeholder="Select committee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All Committees">All Committees</SelectItem>
-                {committees.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col gap-3">
+              <Label htmlFor="committee" className="font-medium">
+                Committee
+              </Label>
+              <Select value={committee} onValueChange={setCommittee}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select committee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All Committees">All Committees</SelectItem>
+                  {committees.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Date Management Section */}
-          <div className="col-span-4 border-t border-b py-4 my-2 space-y-4 bg-muted/20 -mx-6 px-6">
+          <div className="border-t border-b py-6 my-2 space-y-6 bg-muted/20 -mx-6 px-6">
               <h4 className="font-medium text-sm text-muted-foreground mb-2">Timeline Management</h4>
               
               <div className="grid grid-cols-4 items-center gap-4">
@@ -316,25 +327,23 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
               <SelectContent>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="concluded">Concluded</SelectItem>
-                <SelectItem value="under_review">Under Review</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="frozen">Frozen</SelectItem>
-                <SelectItem value="limbo">Limbo</SelectItem>
+                <SelectItem value="tbd">TBD</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {(status === "limbo" || status === "concluded") && (
+          {(status === "tbd" || status === "concluded") && (
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="reason" className="text-right">
-                {status === "concluded" ? "Conclusion Details" : "Limbo Reason"}
+                {status === "concluded" ? "Conclusion Details" : "TBD Reason"}
               </Label>
               <Textarea
                 id="reason"
                 value={statusReason}
                 onChange={(e) => setStatusReason(e.target.value)}
                 className="col-span-3"
-                placeholder={status === "concluded" ? "Final outcome summary..." : "Why is this in Limbo?"}
+                placeholder={status === "concluded" ? "Final outcome summary..." : "Why is this TBD/Limbo?"}
               />
             </div>
           )}

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.t
 import { Button } from "@/components/ui/button.tsx";
 import { Download, ArrowLeft } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
-import autoTable from "jspdf-autotable";
+import autoTable, { UserOptions } from "jspdf-autotable";
 import jsPDF from "jspdf";
 import { toast } from "@/components/ui/use-toast.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
@@ -73,7 +73,7 @@ const CommitteePage = () => {
     // setLoadingStats(true); // Unused
     const types: (DocumentType | "bill")[] = ["bill", "statement", "report", "regulation", "policy", "petition", "motion"];
     const newStats: Record<string, number> = {};
-    const activeStatuses = ["pending", "overdue", "frozen", "limbo"];
+    const activeStatuses = ["pending", "overdue", "frozen", "limbo", "tbd"];
 
     try {
         for (const type of types) {
@@ -110,7 +110,7 @@ const CommitteePage = () => {
     { type: "motion", label: "Motions" },
     { type: "report", label: "Reports" },
     { type: "regulation", label: "Regulations" },
-    { type: "policy", label: "Policies" },
+    { type: "policy", label: "Policies & Guidelines" },
     { type: "petition", label: "Petitions" }
   ];
 
@@ -122,7 +122,7 @@ const CommitteePage = () => {
   };
 
   const fetchItemsForPDF = async (type: DocumentType | "business") => {
-      const activeStatuses = ["pending", "overdue", "frozen", "limbo"];
+      const activeStatuses = ["pending", "overdue", "frozen", "limbo", "tbd"];
       const fetchLimit = 1000;
       let items: CommitteeItem[] = [];
 
@@ -154,7 +154,7 @@ const CommitteePage = () => {
             
           const mappedDocs = (docs || []).map(d => ({ 
               ...d, 
-              itemType: d.type.charAt(0).toUpperCase() + d.type.slice(1),
+              itemType: (d.type || "").toLowerCase() === 'policy' ? 'Policies & Guidelines' : (d.type ? (d.type.charAt(0).toUpperCase() + d.type.slice(1)) : ""),
               dateCommitted: d.date_committed,
               presentationDate: d.presentation_date,
               pendingDays: d.pending_days,
@@ -201,7 +201,7 @@ const CommitteePage = () => {
       
       const pendingItemsRaw = await fetchItemsForPDF(type);
       
-      const typeLabel = type === "business" ? "Business" : (type === "bill" ? "Bills" : type.charAt(0).toUpperCase() + type.slice(1) + "s");
+      const typeLabel = type === "business" ? "Business" : (type === "bill" ? "Bills" : (type === "policy" ? "Policies & Guidelines" : type.charAt(0).toUpperCase() + type.slice(1) + "s"));
       const includeTypeColumn = type === "business";
 
       if (!pendingItemsRaw || pendingItemsRaw.length === 0) {
@@ -214,19 +214,23 @@ const CommitteePage = () => {
       }
 
       const sortedItems = [...pendingItemsRaw].sort((a, b) => {
+        // TBD Check - Push to bottom
+        const isATbd = a.status === 'tbd' || a.status === 'limbo' as string || !a.presentationDate;
+        const isBTbd = b.status === 'tbd' || b.status === 'limbo' as string || !b.presentationDate;
+
+        if (isATbd && !isBTbd) return 1;
+        if (!isATbd && isBTbd) return -1;
+        if (isATbd && isBTbd) return 0;
+
         const now = new Date();
-        const aDate = a.presentationDate ? new Date(a.presentationDate) : null;
-        const bDate = b.presentationDate ? new Date(b.presentationDate) : null;
+        const aDate = a.presentationDate ? new Date(a.presentationDate) : new Date();
+        const bDate = b.presentationDate ? new Date(b.presentationDate) : new Date();
         
-        const aDays = aDate ? differenceInDays(aDate, now) : -9999; // Treat null date (Limbo) as distinct
-        const bDays = bDate ? differenceInDays(bDate, now) : -9999;
-        
-        const aIsOverdue = a.status === "overdue" || (aDate && aDays < 0);
-        const bIsOverdue = b.status === "overdue" || (bDate && bDays < 0);
-        
-        if (aIsOverdue && !bIsOverdue) return -1;
-        if (!aIsOverdue && bIsOverdue) return 1;
-        
+        const aDays = differenceInDays(aDate, now);
+        const bDays = differenceInDays(bDate, now);
+
+        // Sort by urgency (overdue first, then pending)
+        // Ascending sort: -10 (overdue) < 10 (pending)
         return aDays - bDays;
       });
 
@@ -239,27 +243,33 @@ const CommitteePage = () => {
         const currentStatus = determineItemStatus(item.status, pDate, item.extensionsCount);
         
         let statusText = "Pending";
-        if (currentStatus === "frozen") statusText = "Frozen";
+        if (currentStatus === "frozen" as string) statusText = "Frozen"; // Legacy check
         else if (currentStatus === "overdue") statusText = "Overdue";
-        else if (currentStatus === "limbo") statusText = "Limbo";
+        else if (currentStatus === "limbo" as string) statusText = "TBD";
+        else if (currentStatus === "tbd") statusText = "TBD";
+        else if (currentStatus === "concluded") statusText = "Concluded";
         
+        // Structure: Title -> [Type] -> Date -> Days -> Status -> Due Date
         const row = [
           String(item.title || "N/A"),
-          String(item.committee || "N/A"),
-          dDate ? format(dDate, "dd/MM/yyyy") : "N/A",
+          // Committee column removed
+        ];
+
+        if (includeTypeColumn) {
+           row.push(String(item.itemType || "N/A"));
+        }
+
+        row.push(
+          dDate ? format(dDate, "dd/MM/yyyy") : "TBD",
           displayDays,
           statusText,
           pDate ? format(pDate, "dd/MM/yyyy") : "N/A"
-        ];
-        
-        if (includeTypeColumn) {
-          row.push(String(item.itemType || "N/A"));
-        }
+        );
         
         return row;
       });
 
-      const expectedColumns = includeTypeColumn ? 7 : 6;
+      const expectedColumns = includeTypeColumn ? 6 : 5;
       const validTableData = tableData.filter(row => 
         Array.isArray(row) && row.length === expectedColumns && row.every(cell => typeof cell === 'string')
       );
@@ -303,28 +313,27 @@ const CommitteePage = () => {
 
       try {
         const headers = includeTypeColumn 
-          ? [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date', 'Type']]
-          : [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
+          ? [['Title', 'Type', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']]
+          : [['Title', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
         
         // Define column styles - wrap text columns, fixed width for date/number columns
         // Standard A4 width ~210mm. Margins 15mm each -> 180mm available.
+        // Removed Committee Width (25-30) -> Added to Title
         const columnStylesConfig = includeTypeColumn 
           ? {
-              0: { overflow: 'linebreak' as const, cellWidth: 50 },  // Title (Increased)
-              1: { overflow: 'linebreak' as const, cellWidth: 25 },  // Committee (Decreased from 35)
-              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
-              3: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
-              4: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }, // Status
-              5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Due Date
-              6: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }  // Type
-            }
-          : {
-              0: { overflow: 'linebreak' as const, cellWidth: 70 },  // Title (Increased)
-              1: { overflow: 'linebreak' as const, cellWidth: 30 },  // Committee (Decreased from 40)
+              0: { overflow: 'linebreak' as const, cellWidth: 70 },  // Title (Big increase)
+              1: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const },  // Type
               2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
               3: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
               4: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }, // Status
               5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date
+            }
+          : {
+              0: { overflow: 'linebreak' as const, cellWidth: 95 },  // Title (Huge increase)
+              1: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
+              2: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
+              3: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }, // Status
+              4: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date
             };
         
         autoTable(doc, {
@@ -344,7 +353,7 @@ const CommitteePage = () => {
             fontStyle: 'bold',
             halign: 'left'
           },
-          columnStyles: columnStylesConfig,
+          columnStyles: columnStylesConfig as UserOptions["columnStyles"], // Type cast to avoid ts index issues
           margin: { top: 20, right: 15, bottom: 10, left: 15 },
           tableWidth: 'auto',
           didParseCell: function(data) {
@@ -352,22 +361,25 @@ const CommitteePage = () => {
             const originalItem = sortedItems[rowIndex];
             if (!originalItem) return;
 
-            const currentStatus = determineItemStatus(originalItem.status, originalItem.presentationDate, originalItem.extensionsCount);
+            const currentStatus = determineItemStatus(originalItem.status, originalItem.presentationDate ? new Date(originalItem.presentationDate) : null, originalItem.extensionsCount);
 
-            // Color status in red if overdue or frozen
-            if (data.column.index === 4 && (currentStatus === "overdue" || currentStatus === "frozen")) {
+            const statusIndex = includeTypeColumn ? 4 : 3;
+            const daysIndex = includeTypeColumn ? 3 : 2;
+
+            // Color status in red if overdue or frozen (legacy)
+            if (data.column.index === statusIndex && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
               data.cell.styles.textColor = [255, 0, 0];
               data.cell.styles.fontStyle = 'bold';
             }
             
             // Urgency: Color name (title) in red if frozen
-            if (data.column.index === 0 && currentStatus === "frozen") {
+            if (data.column.index === 0 && currentStatus === "frozen" as string) {
               data.cell.styles.textColor = [255, 0, 0];
               data.cell.styles.fontStyle = 'bold';
             }
 
             // Color days column in red if overdue/frozen
-            if (data.column.index === 3 && (currentStatus === "overdue" || currentStatus === "frozen")) {
+            if (data.column.index === daysIndex && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
               data.cell.styles.textColor = [255, 0, 0];
               data.cell.styles.fontStyle = 'bold';
             }
@@ -459,7 +471,7 @@ const CommitteePage = () => {
                       {pendingCount}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Pending {label.toLowerCase()}
+                      Pending {label === "Policies & Guidelines" ? "Policies & Guidelines" : label.toLowerCase()}
                     </div>
                   </div>
                 </CardContent>

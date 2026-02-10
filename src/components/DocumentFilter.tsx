@@ -69,7 +69,7 @@ export const DocumentFilter = ({ onSearchChange, onStatusChange, onCommitteeChan
                                 <SelectItem value="pending">Pending</SelectItem>
                                 <SelectItem value="concluded">Concluded</SelectItem>
                                 <SelectItem value="overdue">Overdue</SelectItem>
-                                <SelectItem value="frozen">Frozen</SelectItem>
+                                <SelectItem value="tbd">TBD</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

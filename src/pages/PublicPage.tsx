@@ -83,7 +83,7 @@ const PublicPage = () => {
     { value: "statement", label: "Statements" },
     { value: "report", label: "Committee Reports" },
     { value: "regulation", label: "Regulations" },
-    { value: "policy", label: "Policies" },
+    { value: "policy", label: "Policies & Guidelines" },
     { value: "petition", label: "Petitions" }
   ];
 
@@ -147,8 +147,7 @@ const PublicPage = () => {
                             <SelectItem value="pending">Pending</SelectItem>
                             <SelectItem value="concluded">Concluded</SelectItem>
                             <SelectItem value="overdue">Overdue</SelectItem>
-                            <SelectItem value="frozen">Frozen</SelectItem>
-                            <SelectItem value="limbo">Limbo</SelectItem>
+                            <SelectItem value="limbo">TBD</SelectItem>
                         </SelectContent>
                     </Select>
 

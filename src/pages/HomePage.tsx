@@ -36,6 +36,7 @@ interface Stats {
   frozen: number;
   underReview: number;
   limbo?: number;
+  tbd?: number;
 }
 
 const HomePage = () => {
@@ -56,12 +57,12 @@ const HomePage = () => {
     { type: "statement", label: "Statements" },
     { type: "report", label: "Committee Reports" },
     { type: "regulation", label: "Regulations" },
-    { type: "policy", label: "Policies" },
+    { type: "policy", label: "Policies & Guidelines" },
     { type: "petition", label: "Petitions" }
   ];
 
   const getActiveCount = (stats: Stats | undefined) => {
-    return (stats?.pending || 0) + (stats?.overdue || 0) + (stats?.frozen || 0) + (stats?.limbo || 0);
+    return (stats?.pending || 0) + (stats?.overdue || 0) + (stats?.frozen || 0) + (stats?.limbo || 0) + (stats?.tbd || 0);
   };
 
   const getPendingCount = (type: DocumentType | "business") => {
@@ -86,7 +87,7 @@ const HomePage = () => {
 
   const fetchAllPendingFiles = async (type: DocumentType | "business"): Promise<PdfItem[]> => {
     const fetchLimit = 1000; // Cap for PDF export
-    const activeStatuses = ["pending", "overdue", "frozen", "limbo"];
+    const activeStatuses = ["pending", "overdue", "frozen", "limbo", "tbd"];
 
     if (type === "business") {
         const { data: bills } = await supabase.from("bills").select("*").in("status", activeStatuses).limit(fetchLimit);
@@ -113,7 +114,7 @@ const HomePage = () => {
             presentationDate: d.presentation_date ? new Date(d.presentation_date) : null, 
             pendingDays: d.pending_days || 0, 
             extensionsCount: d.extensions_count || 0,
-            itemType: d.type.charAt(0).toUpperCase() + d.type.slice(1)
+            itemType: (d.type || "").toLowerCase() === 'policy' ? 'Policies & Guidelines' : (d.type ? (d.type.charAt(0).toUpperCase() + d.type.slice(1)) : "")
         }));
         
         return [...mappedBills, ...mappedDocs];
@@ -149,7 +150,7 @@ const HomePage = () => {
       
       const pendingItemsRaw = await fetchAllPendingFiles(type);
       
-      const typeLabel = type === "business" ? "Business" : (type === "bill" ? "Bills" : type.charAt(0).toUpperCase() + type.slice(1) + "s");
+      const typeLabel = type === "business" ? "Business" : (type === "bill" ? "Bills" : (type === "policy" ? "Policies & Guidelines" : type.charAt(0).toUpperCase() + type.slice(1) + "s"));
       const includeTypeColumn = type === "business";
 
       if (!pendingItemsRaw || pendingItemsRaw.length === 0) {
@@ -163,16 +164,23 @@ const HomePage = () => {
 
       // Sort
       const sortedItems = [...pendingItemsRaw].sort((a, b) => {
+        // TBD Check - Push to bottom
+        const isATbd = a.status === 'tbd' || a.status === 'limbo' as string || !a.presentationDate;
+        const isBTbd = b.status === 'tbd' || b.status === 'limbo' as string || !b.presentationDate;
+
+        if (isATbd && !isBTbd) return 1;
+        if (!isATbd && isBTbd) return -1;
+        if (isATbd && isBTbd) return 0;
+
         const now = new Date();
-        const aDays = differenceInDays(a.presentationDate, now);
-        const bDays = differenceInDays(b.presentationDate, now);
+        const aDate = a.presentationDate ? new Date(a.presentationDate) : new Date();
+        const bDate = b.presentationDate ? new Date(b.presentationDate) : new Date();
+        
+        const aDays = differenceInDays(aDate, now);
+        const bDays = differenceInDays(bDate, now);
 
-        const aIsOverdue = a.status === "overdue" || aDays < 0;
-        const bIsOverdue = b.status === "overdue" || bDays < 0;
-
-        if (aIsOverdue && !bIsOverdue) return -1;
-        if (!aIsOverdue && bIsOverdue) return 1;
-
+        // Sort by urgency (overdue first, then pending)
+        // Ascending sort: -10 (overdue) < 10 (pending)
         return aDays - bDays;
       });
 
@@ -181,20 +189,27 @@ const HomePage = () => {
         const countdown = calculateCurrentCountdown(item.presentationDate);
         const displayDays = String(Math.abs(countdown));
         const currentStatus = determineItemStatus(item.status as BillStatus | DocumentStatus, item.presentationDate, item.extensionsCount);
-        const statusText = currentStatus === "frozen" ? "Frozen" : (currentStatus === "overdue" ? "Overdue" : "Pending");
+        
+        let statusText = "Pending";
+        if (currentStatus === "frozen" as string) statusText = "Frozen";
+        else if (currentStatus === "overdue") statusText = "Overdue";
+        else if (currentStatus === "tbd" || currentStatus === "limbo" as string) statusText = "TBD";
 
         const row = [
           String(item.title || "N/A"),
           String(item.committee || "N/A"),
-          item.dateCommitted ? format(item.dateCommitted, "EEE, dd/MM/yyyy") : "In Limbo",
-          displayDays,
-          statusText,
-          item.presentationDate ? format(item.presentationDate, "EEE, dd/MM/yyyy") : "TBD"
         ];
 
         if (includeTypeColumn) {
           row.push(String(item.itemType || "N/A"));
         }
+
+        row.push(
+          item.dateCommitted ? format(item.dateCommitted, "EEE, dd/MM/yyyy") : "TBD",
+          displayDays,
+          statusText,
+          item.presentationDate ? format(item.presentationDate, "EEE, dd/MM/yyyy") : "TBD"
+        );
 
         return row;
       });
@@ -236,18 +251,18 @@ const HomePage = () => {
       doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
 
       const headers = includeTypeColumn
-          ? [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date', 'Type']]
+          ? [['Title', 'Committee', 'Type', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']]
           : [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
       
       const columnStylesConfig = includeTypeColumn
           ? {
              0: { overflow: 'linebreak' }, 
-             1: { overflow: 'linebreak', cellWidth: 28 }, // Reduced from 40 to 28
-             2: { cellWidth: 32, minCellWidth: 32 }, 
-             3: { cellWidth: 15, minCellWidth: 15 }, 
-             4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
-             5: { cellWidth: 32, minCellWidth: 32 },
-             6: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' }
+             1: { overflow: 'linebreak', cellWidth: 28 }, 
+             2: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' }, // Type moved here
+             3: { cellWidth: 32, minCellWidth: 32 }, 
+             4: { cellWidth: 15, minCellWidth: 15 }, 
+             5: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
+             6: { cellWidth: 32, minCellWidth: 32 }
           }
           : {
              0: { overflow: 'linebreak' },
@@ -276,15 +291,21 @@ const HomePage = () => {
 
              const currentStatus = determineItemStatus(originalItem.status as BillStatus | DocumentStatus, originalItem.presentationDate, originalItem.extensionsCount);
 
-             if (data.column.index === 4 && (currentStatus === "overdue" || currentStatus === "frozen")) {
+             // Adjusted column indices for styling
+             // Status column: Was 4, now 5 if type included
+             const statusIdx = includeTypeColumn ? 5 : 4;
+             // Days column: Was 3, now 4 if type included
+             const daysIdx = includeTypeColumn ? 4 : 3;
+
+             if (data.column.index === statusIdx && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
                data.cell.styles.textColor = [255, 0, 0];
                data.cell.styles.fontStyle = 'bold';
              }
-             if (data.column.index === 0 && currentStatus === "frozen") {
+             if (data.column.index === 0 && currentStatus === "frozen" as string) {
                data.cell.styles.textColor = [255, 0, 0];
                data.cell.styles.fontStyle = 'bold';
              }
-             if (data.column.index === 3 && (currentStatus === "overdue" || currentStatus === "frozen")) {
+             if (data.column.index === daysIdx && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
                data.cell.styles.textColor = [255, 0, 0];
                data.cell.styles.fontStyle = 'bold';
              }

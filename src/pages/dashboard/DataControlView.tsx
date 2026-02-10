@@ -2,7 +2,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
-import { Database, Trash2, RefreshCw } from "lucide-react";
+import { ConcludedUploadDialog } from "@/components/ConcludedUploadDialog.tsx";
+import { Database, Trash2, RefreshCw, Archive } from "lucide-react";
 import { toast } from "@/components/ui/use-toast.ts";
 import { DeleteAllDataDialog } from "@/components/DeleteAllDataDialog.tsx";
 
@@ -35,7 +36,25 @@ export default function DataControlView() {
                 <div className="text-sm text-muted-foreground mb-4">
                     Import bills, statements, and other documents in bulk using the standard template.
                 </div>
-                <BulkUploadDialog />
+                <div className="flex flex-col gap-2">
+                    <BulkUploadDialog />
+                </div>
+            </CardContent>
+        </Card>
+
+        {/* Concluded Business Upload */}
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Archive className="h-5 w-5" /> Import Concluded
+                </CardTitle>
+                <CardDescription>Upload historical data.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="text-sm text-muted-foreground mb-4">
+                    Import historical concluded business using the new migration template.
+                </div>
+                <ConcludedUploadDialog />
             </CardContent>
         </Card>
 

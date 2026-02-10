@@ -46,25 +46,40 @@ interface DbDocumentResult {
   current_countdown: number;
   extensions_count: number;
   status_reason?: string;
+  concluded_at?: string;
   [key: string]: unknown;
 }
 
-const mapDbToDocument = (data: DbDocumentResult): Document => ({
-  id: data.id,
-  title: data.title,
-  committee: data.committee,
-  dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
-  pendingDays: data.pending_days || 0,
-  presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
-  status: (data.status === "pending" && !data.presentation_date) ? "limbo" : data.status as DocumentStatus,
-  type: data.type as DocumentType,
-  createdAt: new Date(data.created_at),
-  updatedAt: new Date(data.updated_at),
-  daysAllocated: data.days_allocated || 0,
-  currentCountdown: data.current_countdown || 0,
-  extensionsCount: data.extensions_count || 0,
-  statusReason: data.status_reason
-});
+const mapDbToDocument = (data: DbDocumentResult): Document => {
+  let status: DocumentStatus = data.status as DocumentStatus; // Default cast
+
+  // Map legacy statuses or invalid states
+  if (data.status === 'limbo' || data.status === 'frozen') {
+     status = 'tbd';
+  } else if (data.status === 'under_review') {
+     status = 'pending';
+  } else if (data.status === 'pending' && !data.presentation_date) {
+     status = 'tbd';
+  }
+
+  return {
+    id: data.id,
+    title: data.title,
+    committee: data.committee,
+    dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
+    pendingDays: data.pending_days || 0,
+    presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
+    status: status,
+    type: data.type as DocumentType,
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at),
+    daysAllocated: data.days_allocated || 0,
+    currentCountdown: data.current_countdown || 0,
+    extensionsCount: data.extensions_count || 0,
+    statusReason: data.status_reason,
+    concludedAt: data.concluded_at ? new Date(data.concluded_at) : null
+  };
+};
 
 // Document provider component
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -135,7 +150,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dateCommitted: bill.dateCommitted,
       pendingDays: bill.pendingDays,
       presentationDate: bill.presentationDate,
-      status: bill.status === "under_review" ? "under_review" : bill.status, // bill status matches document status
+      status: bill.status, // bill status matches document status
       type: "bill",
       createdAt: bill.createdAt,
       updatedAt: bill.updatedAt,
@@ -149,63 +164,28 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 
   // Hook up freeze checker for DB documents (Using local state to check, but triggering DB updates)
-  useEffect(() => {
-    const checkFreezeStatus = () => {
-      dbDocuments.forEach(doc => {
-        const countdown = calculateCurrentCountdown(doc.presentationDate);
-        if ((doc.status === "pending" || doc.status === "overdue") && doc.presentationDate && countdown <= 0) {
-          updateDocumentStatus(doc.id, "frozen", true).then(() => {
-             addNotification({
-              type: "action_required",
-              title: "Document Frozen",
-              message: `"${doc.title}" has been frozen due to expired deadline.`,
-              businessId: doc.id,
-              businessType: "document",
-              businessTitle: doc.title
-            });
-          }).catch(() => {
-            // Persistent notification even if RLS blocks update
-            addNotification({
-              type: "action_required",
-              title: "Document Frozen",
-              message: `"${doc.title}" has been frozen due to expired deadline.`,
-              businessId: doc.id,
-              businessType: "document",
-              businessTitle: doc.title
-            });
-          });
-        } else if (doc.status === "concluded" || (doc.status === "pending" && countdown > 0)) {
-          clearBusinessNotifications(doc.id);
-        }
-      });
-    };
-    
-    // Check immediately
-    checkFreezeStatus();
-    
-    // Check periodically
-    const interval = setInterval(checkFreezeStatus, 60000);
-    return () => clearInterval(interval);
-  }, [dbDocuments, addNotification]);
+  /*
+  // Frozen status checker removed. Overdue logic handled in UI/Components.
+  */
 
   // Helper functions to filter docs by type
   const getDocumentsByType = (type: DocumentType) => documents.filter(doc => doc.type === type);
 
   // Filtered documents by type and status
+  // Filtered documents by type and status
   const pendingDocuments = (type: DocumentType) => documents
-    .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue" || doc.status === "frozen"))
-    .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime());
+    .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue" || doc.status === "tbd"))
+    .sort((a, b) => a.presentationDate ? a.presentationDate.getTime() - b.presentationDate.getTime() : 0);
 
   const concludedDocuments = (type: DocumentType) => documents
     .filter(doc => doc.type === type && doc.status === "concluded")
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
-  const underReviewDocuments = (type: DocumentType) => documents
-    .filter(doc => doc.type === type && doc.status === "under_review")
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  // Under review merged into pending
+  const underReviewDocuments = (type: DocumentType): Document[] => [];
 
   // Add new document
-  const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: DocumentStatus }) => {
+  const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: DocumentStatus, concludedAt?: Date | null }) => {
     // If type is bill, we shouldn't be here ideally, but for safety:
     if (docData.type === "bill") {
       console.error("Cannot add bills via DocumentContext");
@@ -232,18 +212,28 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       throw new Error("User not authenticated");
     }
 
+    // Determine status
+    let initialStatus: DocumentStatus = "pending";
+    if (!presentationDate) {
+        initialStatus = "tbd";
+    }
+    if (docData.initialStatus === 'concluded' || docData.initialStatus === 'overdue' || docData.initialStatus === 'tbd') {
+        initialStatus = docData.initialStatus;
+    }
+
     const newDocument = {
       title: docData.title,
       committee: docData.committee,
       date_committed: docData.dateCommitted ? docData.dateCommitted.toISOString() : null,
       pending_days: docData.pendingDays,
-      status: (docData.initialStatus === 'limbo' ? (isAdmin ? "pending" : "under_review") : docData.initialStatus) || (isAdmin ? "pending" : "under_review"),
+      status: initialStatus,
       presentation_date: presentationDate ? presentationDate.toISOString() : null,
       type: docData.type,
       days_allocated: docData.pendingDays,
       current_countdown: docData.pendingDays,
       extensions_count: 0,
-      created_by: user.id
+      created_by: user.id,
+      concluded_at: docData.concludedAt ? docData.concludedAt.toISOString() : null
     };
 
     try {
@@ -311,6 +301,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (updates.currentCountdown !== undefined) dbUpdates.current_countdown = updates.currentCountdown;
       if (updates.extensionsCount !== undefined) dbUpdates.extensions_count = updates.extensionsCount;
       if (updates.statusReason !== undefined) dbUpdates.status_reason = updates.statusReason;
+      if (updates.concludedAt !== undefined) dbUpdates.concluded_at = updates.concludedAt ? updates.concludedAt.toISOString() : null;
 
        // Specialized logic: recalc presentation date
       const currentDoc = dbDocuments.find(d => d.id === id);
@@ -404,9 +395,18 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (id.startsWith('bill-')) return; 
 
     try {
+      const updates: any = { status, updated_at: new Date().toISOString() };
+      
+      // If marking as concluded, set the concluded_at date
+      if (status === "concluded") {
+         updates.concluded_at = new Date().toISOString();
+      } else {
+         updates.concluded_at = null; 
+      }
+
       const { data, error } = await supabase
         .from('documents')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update(updates)
         .eq('id', id)
         .select();
 
@@ -433,7 +433,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         pending: "Document has been marked as pending",
         concluded: "Document has been marked as concluded",
         overdue: "Document has been marked as overdue",
-        frozen: "Document has been marked as frozen",
+        tbd: "Document has been marked as TBD",
       };
 
       toast({

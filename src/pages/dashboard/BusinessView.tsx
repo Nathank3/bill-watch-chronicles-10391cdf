@@ -92,14 +92,17 @@ export default function BusinessView() {
     globalThis.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const title = type.charAt(0).toUpperCase() + type.slice(1);
+  const title = (() => {
+      if (type === 'policies') return 'Policies & Guidelines';
+      return type.charAt(0).toUpperCase() + type.slice(1);
+  })();
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{title} Management</h1>
         <Button onClick={() => navigate(`/dashboard/add/${type}`)}>
-          <Plus className="mr-2 h-4 w-4" /> Add {singularType}
+          <Plus className="mr-2 h-4 w-4" /> Add {singularType === 'policy' ? 'Policy & Guideline' : singularType}
         </Button>
       </div>
 
@@ -153,8 +156,7 @@ export default function BusinessView() {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="concluded">Concluded</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="frozen">Frozen</SelectItem>
-                <SelectItem value="limbo">Limbo</SelectItem>
+                <SelectItem value="limbo">TBD</SelectItem>
                 {/* Add under_review if needed */}
               </SelectContent>
             </Select>

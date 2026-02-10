@@ -7,6 +7,7 @@ import { BillCard } from "@/components/BillCard.tsx";
 import { BillFilter } from "@/components/BillFilter.tsx";
 import { BillFormDialog } from "@/components/BillFormDialog.tsx";
 import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
+import { ConcludedUploadDialog } from "@/components/ConcludedUploadDialog.tsx";
 import { DocumentManagement } from "@/components/DocumentManagement.tsx";
 import { useDocuments } from "@/contexts/DocumentContext.tsx";
 import { DocumentType } from "@/types/document.ts";
@@ -111,6 +112,7 @@ const AdminPage = () => {
           </p>
           <div className="absolute right-0 top-0 flex gap-2">
             <BulkUploadDialog />
+            <ConcludedUploadDialog />
             <DataMigrationDialog />
             <DeleteAllDataDialog />
           </div>
@@ -128,7 +130,7 @@ const AdminPage = () => {
             <TabsTrigger value="statements" className="min-w-fit px-4">Statements</TabsTrigger>
             <TabsTrigger value="reports" className="min-w-fit px-4">Reports</TabsTrigger>
             <TabsTrigger value="regulations" className="min-w-fit px-4">Regulations</TabsTrigger>
-            <TabsTrigger value="policies" className="min-w-fit px-4">Policies</TabsTrigger>
+            <TabsTrigger value="policies" className="min-w-fit px-4">Policies & Guidelines</TabsTrigger>
             <TabsTrigger value="petitions" className="min-w-fit px-4">Petitions</TabsTrigger>
             <TabsTrigger value="committees" className="min-w-fit px-4">Committees</TabsTrigger>
             <TabsTrigger value="users" className="min-w-fit px-4">Users</TabsTrigger>
@@ -366,7 +368,7 @@ const AdminPage = () => {
           </TabsContent>
 
           <TabsContent value="policies" className="mt-6">
-            <DocumentManagement documentType="policy" title="Policies" />
+            <DocumentManagement documentType="policy" title="Policies & Guidelines" />
           </TabsContent>
 
           <TabsContent value="petitions" className="mt-6">

@@ -4,14 +4,15 @@ import { Button } from "@/components/ui/button.tsx";
 import { toast } from "@/components/ui/use-toast.ts";
 import { FileUp, Download, CheckCircle2, AlertCircle, Loader2, ClipboardPaste } from "lucide-react";
 import { generateTemplate } from "@/utils/templateGenerator.ts";
-import { validateBulkData, ValidationResult, BulkRow } from "@/utils/bulkUploadUtils.ts";
+import { validateConcludedMigrationData } from "@/utils/concludedMigrationUtils.ts";
+import { ValidationResult, BulkRow } from "@/utils/bulkUploadUtils.ts";
 import { useBills } from "@/contexts/BillContext.tsx";
 import { useDocuments, DocumentType } from "@/contexts/DocumentContext.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 
-export const BulkUploadDialog = () => {
+export const ConcludedUploadDialog = () => {
   const [open, setOpen] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -138,7 +139,7 @@ export const BulkUploadDialog = () => {
         return;
     }
 
-    const results = validateBulkData(data, bills, documents, committees);
+    const results = validateConcludedMigrationData(data, bills, documents, committees);
     setValidationResults(results);
     setIsParsing(false);
   };
@@ -233,12 +234,15 @@ export const BulkUploadDialog = () => {
       <DialogTrigger asChild>
         <Button variant="outline" className="flex items-center gap-2">
           <FileUp className="h-4 w-4" />
-          Bulk Upload
+          Import Concluded Business
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Bulk Business Upload</DialogTitle>
+          <DialogTitle>Import Historical Concluded Business</DialogTitle>
+           <p className="text-sm text-muted-foreground mt-2">
+            Upload historical data. Required columns: <strong>Business Name</strong>, <strong>Committee</strong>, <strong>Type</strong>, and <strong>Approved Date</strong> (Concluded Date).
+          </p>
         </DialogHeader>
 
         {showResultsPhase ? (

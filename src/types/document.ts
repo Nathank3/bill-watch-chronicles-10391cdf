@@ -6,7 +6,7 @@ export type DocumentType = "bill" | "statement" | "report" | "regulation" | "pol
 
 // Define document status type
 // Define document status type
-export type DocumentStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review" | "limbo";
+export type DocumentStatus = "pending" | "concluded" | "overdue" | "tbd";
 
 // Define document interface
 export interface Document {
@@ -24,6 +24,7 @@ export interface Document {
   currentCountdown: number; // Current countdown value (always decreasing)
   extensionsCount: number; // Number of times extended
   statusReason?: string;
+  concludedAt?: Date | null;
 }
 
 // Define document filters interface

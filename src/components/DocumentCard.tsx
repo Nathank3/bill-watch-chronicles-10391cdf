@@ -76,17 +76,10 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     switch (effectiveStatus) {
       case "concluded":
         return <Badge className="bg-bill-passed">Concluded</Badge>;
-      case "frozen":
-        return (
-          <Badge className="bg-bill-frozen text-blue-900 border-blue-200">
-            <Snowflake className="h-3 w-3 mr-1" />
-            Frozen
-          </Badge>
-        );
+      case "tbd":
+        return <Badge variant="secondary" className="bg-gray-200 text-gray-700">TBD</Badge>;
       case "overdue":
         return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
-      case "limbo":
-        return <Badge variant="secondary" className="bg-gray-200 text-gray-700">In Limbo</Badge>;
       default:
         return <Badge className="bg-bill-pending">Pending</Badge>;
     }
@@ -96,17 +89,17 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
     return format(date, "dd/MM/yyyy");
   };
 
-  const isActionable = isOverdue || effectiveStatus === "overdue" || effectiveStatus === "frozen";
+  const isActionable = isOverdue || effectiveStatus === "overdue";
   const documentType = document.type.charAt(0).toUpperCase() + document.type.slice(1);
-  const shouldShowCountdown = (effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && timeLeft;
+  const shouldShowCountdown = (effectiveStatus === "pending" || effectiveStatus === "overdue") && timeLeft;
 
   return (
-    <Card className={`document-card document-${effectiveStatus} p-4 ${effectiveStatus === "frozen" ? "bill-frozen" : ""}`}>
+    <Card className={`document-card document-${effectiveStatus} p-4`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-start gap-2 mb-1 flex-wrap">
             <Badge variant="outline" className="shrink-0">{documentType}</Badge>
-            <h3 className={`font-medium text-lg break-words flex-1 min-w-0 ${effectiveStatus === "frozen" ? "text-destructive" : ""}`}>
+            <h3 className={`font-medium text-lg break-words flex-1 min-w-0`}>
               {document.title}
             </h3>
           </div>
@@ -115,21 +108,21 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           </p>
           <div className="mt-2 space-y-1">
             <p className="text-sm">
-              <span className="font-medium">Date Committed:</span> {document.dateCommitted ? formatDate(document.dateCommitted) : "TBD (In Limbo)"}
+              <span className="font-medium">Date Committed:</span> {document.dateCommitted ? formatDate(document.dateCommitted) : "TBD"}
             </p>
-            {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
+            {(effectiveStatus === "pending" || effectiveStatus === "overdue") && (
               <>
                 <p className="text-sm">
                   <span className="font-medium">Days Allocated:</span> {document.daysAllocated} days
                 </p>
-                <p className={`text-sm ${isOverdue || effectiveStatus === "frozen" ? "text-destructive font-semibold" : ""}`}>
-                  <span className="font-medium">{isOverdue || effectiveStatus === "frozen" ? "Days Overdue" : "Days Remaining"}:</span> {Math.abs(currentCountdown)} days
+                <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
+                  <span className="font-medium">{isOverdue ? "Days Overdue" : "Days Remaining"}:</span> {Math.abs(currentCountdown)} days
                 </p>
               </>
             )}
             
-            {/* Limbo Message */}
-            {effectiveStatus === "limbo" && (
+            {/* TBD Message */}
+            {effectiveStatus === "tbd" && (
                  <p className="text-sm text-muted-foreground italic">
                     Awaiting court judgment or further action.
                  </p>
@@ -143,11 +136,24 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             <p className="text-sm">
               <span className="font-medium">Date Due:</span> {document.presentationDate ? formatDate(document.presentationDate) : "TBD"}
             </p>
+            {effectiveStatus === "concluded" && (
+              <p className="text-sm">
+                <span className="font-medium">Date Concluded:</span> {document.concludedAt ? formatDate(document.concludedAt) : (document.updatedAt ? formatDate(document.updatedAt) : "N/A")}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 mt-2">
             {getStatusBadge()}
+            
+            {/* Show Concluded Date */}
+            {effectiveStatus === "concluded" && document.concludedAt && (
+              <span className="text-sm text-green-700 font-medium">
+                on {formatDate(document.concludedAt)}
+              </span>
+            )}
+
             {shouldShowCountdown && (
-              <span className={`countdown text-sm ${isOverdue || effectiveStatus === "frozen" ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
+              <span className={`countdown text-sm ${isOverdue ? "countdown-urgent text-destructive font-medium" : "text-muted-foreground"}`}>
                 {timeLeft}
               </span>
             )}
@@ -166,7 +172,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             </Badge>
           )}
 
-          {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
+          {(effectiveStatus === "pending" || effectiveStatus === "overdue") && (
             <RescheduleDialog onReschedule={handleReschedule}>
               <Button variant="outline" size="sm">
                 <Calendar className="h-4 w-4 mr-1" />
@@ -220,7 +226,8 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           pendingDays: document.daysAllocated,
           presentationDate: document.presentationDate,
           daysAllocated: document.daysAllocated,
-          extensionsCount: document.extensionsCount
+          extensionsCount: document.extensionsCount,
+          concludedAt: document.concludedAt
         }}
       />
     </Card>
