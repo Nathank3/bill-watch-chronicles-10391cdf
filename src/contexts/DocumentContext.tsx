@@ -169,21 +169,24 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Frozen status checker removed. Overdue logic handled in UI/Components.
   */
 
-  // Helper functions to filter docs by type
-  const getDocumentsByType = (type: DocumentType) => documents.filter(doc => doc.type === type);
+  // Helper functions to filter docs by type - Memoized for performance
+  const getDocumentsByType = useCallback((type: DocumentType) => documents.filter(doc => doc.type === type), [documents]);
 
-  // Filtered documents by type and status
-  // Filtered documents by type and status
-  const pendingDocuments = (type: DocumentType) => documents
+  // Filtered documents by type and status - Memoized for performance
+  const pendingDocuments = useCallback((type: DocumentType) => documents
     .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue" || doc.status === "tbd"))
-    .sort((a, b) => a.presentationDate ? a.presentationDate.getTime() - b.presentationDate.getTime() : 0);
+    .sort((a, b) => a.presentationDate ? a.presentationDate.getTime() - b.presentationDate.getTime() : 0),
+    [documents]
+  );
 
-  const concludedDocuments = (type: DocumentType) => documents
+  const concludedDocuments = useCallback((type: DocumentType) => documents
     .filter(doc => doc.type === type && doc.status === "concluded")
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
+    [documents]
+  );
 
   // Under review merged into pending
-  const underReviewDocuments = (type: DocumentType): Document[] => [];
+  const underReviewDocuments = useCallback((type: DocumentType): Document[] => [], []);
 
   // Add new document
   const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: DocumentStatus, concludedAt?: Date | null }) => {
@@ -502,13 +505,13 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Get document by ID
-  const getDocumentById = (id: string) => {
+  // Get document by ID - Memoized
+  const getDocumentById = useCallback((id: string) => {
     return documents.find(doc => doc.id === id);
-  };
+  }, [documents]);
 
-  // Search documents
-  const searchDocuments = (query: string, type?: DocumentType) => {
+  // Search documents - Memoized
+  const searchDocuments = useCallback((query: string, type?: DocumentType) => {
     const lowercaseQuery = query.toLowerCase();
     return documents.filter(
       doc =>
@@ -516,10 +519,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         (doc.title.toLowerCase().includes(lowercaseQuery) ||
           doc.committee.toLowerCase().includes(lowercaseQuery))
     );
-  };
+  }, [documents]);
 
-  // Filter documents
-  const filterDocuments = (filters: {
+  // Filter documents - Memoized
+  const filterDocuments = useCallback((filters: {
     type?: DocumentType;
     year?: number;
     committee?: string;
@@ -554,7 +557,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       return true;
     });
-  };
+  }, [documents]);
 
   return (
     <DocumentContext.Provider

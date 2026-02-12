@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { BillCard } from "@/components/BillCard.tsx";
 import { DocumentCard } from "@/components/DocumentCard.tsx";
+import { BillListSkeleton } from "@/components/BillCardSkeleton.tsx";
+import { useDebounce } from "@/hooks/useDebounce.ts";
 import { Navbar } from "@/components/Navbar.tsx";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -19,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client.ts";
 const PublicPage = () => {
   const [documentType, setDocumentType] = useState<DocumentType>("bill");
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300); // Debounce search by 300ms
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
@@ -48,7 +51,7 @@ const PublicPage = () => {
   // Fetch Bills
   const { data: billsData, isLoading: billsLoading } = useBillList({
     status: status as BillStatus | "all",
-    search: searchQuery,
+    search: debouncedSearch, // Use debounced search
     committee,
     page,
     pageSize,
@@ -63,7 +66,7 @@ const PublicPage = () => {
     type: documentType !== "bill" ? documentType : undefined,
     status: status as DocumentStatus | "all",
     committee,
-    search: searchQuery,
+    search: debouncedSearch, // Use debounced search
     page,
     pageSize,
     startDate: date?.from,
@@ -171,7 +174,9 @@ const PublicPage = () => {
         {/* List Content */}
         <div className="space-y-4">
             {isLoading ? (
-                <div className="text-center py-10">Loading...</div>
+                <div className="grid gap-4 md:grid-cols-2">
+                    <BillListSkeleton count={5} />
+                </div>
             ) : listData && listData.length > 0 ? (
                 <>
                     <div className="grid gap-4 md:grid-cols-2">

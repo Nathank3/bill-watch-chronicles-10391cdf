@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext } from "react";
+import React, { createContext, useState, useContext, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
@@ -191,14 +191,20 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Overdue status is now derived from date calculations in UI.
   */
 
-  // Filtered bills getters
-  const pendingBills = bills
-    .filter(bill => bill.status === "pending" || bill.status === "overdue" || bill.status === "tbd")
-    .sort((a, b) => a.presentationDate ? a.presentationDate.getTime() - b.presentationDate.getTime() : 0);
+  // Filtered bills getters - Memoized for performance
+  const pendingBills = useMemo(() =>
+    bills
+      .filter(bill => bill.status === "pending" || bill.status === "overdue" || bill.status === "tbd")
+      .sort((a, b) => a.presentationDate ? a.presentationDate.getTime() - b.presentationDate.getTime() : 0),
+    [bills]
+  );
 
-  const concludedBills = bills
-    .filter(bill => bill.status === "concluded")
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  const concludedBills = useMemo(() =>
+    bills
+      .filter(bill => bill.status === "concluded")
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
+    [bills]
+  );
 
   // Under review merged into pending
   const underReviewBills: Bill[] = []; // Deprecated list, kept empty to satisfy interface for now or should typically be removed from interface.
@@ -525,17 +531,18 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const getBillById = (id: string) => bills.find(bill => bill.id === id);
-  const searchBills = (query: string) => {
+  const getBillById = useCallback((id: string) => bills.find(bill => bill.id === id), [bills]);
+  
+  const searchBills = useCallback((query: string) => {
     const lowercaseQuery = query.toLowerCase();
     return bills.filter(
       bill =>
         bill.title.toLowerCase().includes(lowercaseQuery) ||
         bill.committee.toLowerCase().includes(lowercaseQuery)
     );
-  };
+  }, [bills]);
 
-  const filterBills = (filters: {
+  const filterBills = useCallback((filters: {
     year?: number;
     committee?: string;
     pendingDays?: number;
@@ -548,7 +555,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (filters.status && bill.status !== filters.status) return false;
       return true;
     });
-  };
+  }, [bills]);
 
   return (
     <BillContext.Provider
