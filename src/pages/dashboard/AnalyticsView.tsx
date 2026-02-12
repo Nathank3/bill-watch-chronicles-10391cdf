@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker.tsx";
 import { Tabs, TabsContent } from "@/components/ui/tabs.tsx";
+import { ManagerialAnalytics } from "./ManagerialAnalytics.tsx";
 import { DateRange } from "react-day-picker";
 import { Download, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client.ts";
@@ -719,8 +720,6 @@ export default function AnalyticsView() {
       <h1 className="text-3xl font-bold tracking-tight">Analytics & Reports</h1>
       
       <Tabs value={currentTab} onValueChange={(val) => navigate(`/dashboard/analytics/${val}`)} className="w-full">
-
-
         <TabsContent value="standard">
             <Card>
                 <CardHeader>
@@ -981,6 +980,9 @@ export default function AnalyticsView() {
                     </Button>
                 </CardContent>
             </Card>
+        </TabsContent>
+        <TabsContent value="managerial">
+            <ManagerialAnalytics />
         </TabsContent>
       </Tabs>
     </div>

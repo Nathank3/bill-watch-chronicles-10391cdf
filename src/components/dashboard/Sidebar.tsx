@@ -163,6 +163,11 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                               <span>Exception Reports</span>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/managerial")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Managerial Reports</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </SidebarMenuItem>
