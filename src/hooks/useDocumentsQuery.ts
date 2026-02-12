@@ -107,6 +107,8 @@ export const useDocumentList = (
       };
     },
     placeholderData: keepPreviousData,
+    staleTime: 2 * 60 * 1000, // Data considered fresh for 2 minutes
+    gcTime: 5 * 60 * 1000, // Garbage collection time: 5 minutes
     ...options
   });
 };
@@ -193,5 +195,7 @@ export const useDocumentStats = (type?: DocumentType) => {
 
       return stats;
     },
+    staleTime: 3 * 60 * 1000, // Stats fresh for 3 minutes
+    gcTime: 10 * 60 * 1000, // Garbage collection time: 10 minutes
   });
 };

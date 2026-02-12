@@ -533,7 +533,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // Filter by year if specified
-      if (filters.year && doc.presentationDate.getFullYear() !== filters.year) {
+      if (filters.year && doc.presentationDate?.getFullYear() !== filters.year) {
         return false;
       }
 

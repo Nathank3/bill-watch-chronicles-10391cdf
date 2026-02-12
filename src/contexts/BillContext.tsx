@@ -542,7 +542,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     status?: BillStatus;
   }) => {
     return bills.filter(bill => {
-      if (filters.year && bill.presentationDate.getFullYear() !== filters.year) return false;
+      if (filters.year && bill.presentationDate?.getFullYear() !== filters.year) return false;
       if (filters.committee && bill.committee !== filters.committee) return false;
       if (filters.pendingDays && bill.pendingDays !== filters.pendingDays) return false;
       if (filters.status && bill.status !== filters.status) return false;
