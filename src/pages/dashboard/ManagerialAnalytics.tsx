@@ -177,10 +177,28 @@ export const ManagerialAnalytics = () => {
                 
                 {/* PART 1: SUMMARY & CHARTS (Page 1) */}
                 <div id="managerial-summary" className="p-8 space-y-10 bg-white">
-                    {/* Header */}
-                    <div className="border-b pb-6">
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Executive Managerial Report</h1>
-                        <p className="text-gray-500 mt-2">Generated on {format(new Date(), "MMMM do, yyyy")}</p>
+                    {/* Header with Makueni Logo */}
+                    <div className="space-y-4">
+                        {/* Logo/Header Image */}
+                        <div className="flex justify-center mb-4">
+                            <img 
+                                src="/header-banner.png" 
+                                alt="Makueni County Header" 
+                                className="h-24 object-contain"
+                            />
+                        </div>
+                        
+                        {/* Blue and Green Divider Line */}
+                        <div className="flex h-1.5 mb-6">
+                            <div className="flex-1 bg-blue-600"></div>
+                            <div className="flex-1 bg-green-600"></div>
+                        </div>
+                        
+                        {/* Report Title */}
+                        <div className="border-b pb-6">
+                            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Executive Managerial Report</h1>
+                            <p className="text-gray-500 mt-2">Generated on {format(new Date(), "MMMM do, yyyy")}</p>
+                        </div>
                     </div>
 
                     {/* 1. Monthly Insights */}
