@@ -5,8 +5,7 @@
 export type DocumentType = "bill" | "statement" | "report" | "regulation" | "policy" | "petition" | "motion";
 
 // Define document status type
-// Define document status type
-export type DocumentStatus = "pending" | "concluded" | "overdue" | "tbd";
+export type DocumentStatus = "pending" | "concluded" | "overdue" | "tbd" | "frozen" | "limbo";
 
 // Define document interface
 export interface Document {

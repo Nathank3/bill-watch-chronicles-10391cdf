@@ -5,8 +5,9 @@ import { Card } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { RescheduleDialog } from "./RescheduleDialog.tsx";
+import { CountdownProgress } from "./CountdownProgress.tsx";
 import { formatDistanceToNow, format } from "date-fns";
-import { Calendar, Trash2, Snowflake } from "lucide-react";
+import { Calendar, Trash2, Snowflake, Clock, AlertCircle, HelpCircle, CheckCircle2 } from "lucide-react";
 import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
 import { EditBusinessDialog } from "./EditBusinessDialog.tsx";
 import { Edit3 } from "lucide-react";
@@ -77,13 +78,40 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge className="bg-bill-pending">Pending</Badge>;
+        return (
+          <Badge className="bg-blue-500 text-white flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            Pending
+          </Badge>
+        );
       case "overdue":
-        return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
+        return (
+          <Badge className="bg-red-600 text-white flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            Overdue
+          </Badge>
+        );
       case "tbd":
-        return <Badge variant="secondary" className="bg-gray-200 text-gray-700">TBD</Badge>;
+        return (
+          <Badge variant="secondary" className="bg-gray-200 text-gray-700 flex items-center gap-1">
+            <HelpCircle className="h-3 w-3" />
+            TBD
+          </Badge>
+        );
       case "concluded":
-        return <Badge className="bg-bill-passed">Concluded</Badge>;
+        return (
+          <Badge className="bg-green-600 text-white flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            Concluded
+          </Badge>
+        );
+      case "frozen":
+        return (
+          <Badge className="bg-cyan-500 text-white flex items-center gap-1">
+            <Snowflake className="h-3 w-3" />
+            Frozen
+          </Badge>
+        );
       default:
         return null;
     }
@@ -121,6 +149,15 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
                 <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
                   <span className="font-medium">Days Remaining:</span> {Math.abs(currentCountdown)} days
                 </p>
+                
+                {/* Visual Progress Indicator */}
+                <div className="mt-3">
+                  <CountdownProgress 
+                    daysRemaining={currentCountdown} 
+                    totalDays={bill.daysAllocated}
+                    isOverdue={isOverdue}
+                  />
+                </div>
               </>
             )}
             

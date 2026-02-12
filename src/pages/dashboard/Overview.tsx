@@ -76,50 +76,67 @@ export default function Overview() {
       
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pending Business</CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Pending Business</CardTitle>
+            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <AlertCircle className="h-5 w-5 text-blue-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalPending}</div>
-            <p className="text-xs text-muted-foreground">Across all categories</p>
+            <div className="text-3xl font-bold text-blue-600">{totalPending}</div>
+            <p className="text-xs text-muted-foreground mt-1">Across all categories</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bills in Progress</CardTitle>
-            <ScrollText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Bills in Progress</CardTitle>
+            <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+              <ScrollText className="h-5 w-5 text-purple-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{getActiveCount(billStats)}</div>
-             <p className="text-xs text-muted-foreground">
-                {billStats?.overdue || 0} overdue, {(billStats?.limbo || 0) + (billStats?.tbd || 0)} TBD
-             </p>
+            <div className="text-3xl font-bold text-purple-600">{getActiveCount(billStats)}</div>
+            <div className="flex items-center gap-3 mt-2">
+              {(billStats?.overdue || 0) > 0 && (
+                <span className="text-xs text-red-600 font-medium flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {billStats?.overdue} overdue
+                </span>
+              )}
+              {((billStats?.limbo || 0) + (billStats?.tbd || 0)) > 0 && (
+                <span className="text-xs text-gray-600 font-medium">
+                  {(billStats?.limbo || 0) + (billStats?.tbd || 0)} TBD
+                </span>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-amber-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Statements / Motions</CardTitle>
-             <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Statements / Motions</CardTitle>
+            <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+              <FileText className="h-5 w-5 text-amber-600" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{getActiveCount(statementStats) + getActiveCount(motionStats)}</div>
-            <p className="text-xs text-muted-foreground">Statements & Motions pending</p>
+            <div className="text-3xl font-bold text-amber-600">{getActiveCount(statementStats) + getActiveCount(motionStats)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Statements & Motions pending</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Concluded This Month</CardTitle>
-            <FileCheck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Concluded This Month</CardTitle>
+            <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+              <FileCheck className="h-5 w-5 text-green-600" />
+            </div>
           </CardHeader>
           <CardContent>
-             {/* Placeholder for monthly stat */}
-            <div className="text-2xl font-bold">{concludedThisMonth ?? "--"}</div> 
-            <p className="text-xs text-muted-foreground">Items finalized</p>
+            <div className="text-3xl font-bold text-green-600">{concludedThisMonth ?? "--"}</div>
+            <p className="text-xs text-muted-foreground mt-1">Items finalized</p>
           </CardContent>
         </Card>
       </div>
