@@ -108,7 +108,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           </p>
           <div className="mt-2 space-y-1">
             <p className="text-sm">
-              <span className="font-medium">Date Committed:</span> {document.dateCommitted ? formatDate(document.dateCommitted) : "TBD"}
+              <span className="font-medium">Date Committed:</span> {document.dateCommitted ? formatDate(document.dateCommitted) : (effectiveStatus === "concluded" ? "N/A" : "TBD")}
             </p>
             {(effectiveStatus === "pending" || effectiveStatus === "overdue") && (
               <>
@@ -138,7 +138,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
             </p>
             {effectiveStatus === "concluded" && (
               <p className="text-sm">
-                <span className="font-medium">Date Concluded:</span> {document.concludedAt ? formatDate(document.concludedAt) : (document.updatedAt ? formatDate(document.updatedAt) : "N/A")}
+                <span className="font-medium">Date Concluded:</span> {document.concludedAt ? formatDate(document.concludedAt) : "N/A"}
               </p>
             )}
           </div>

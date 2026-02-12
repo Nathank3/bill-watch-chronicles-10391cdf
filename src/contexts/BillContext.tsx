@@ -1,10 +1,9 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, { createContext, useState, useContext } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { adjustForSittingDay, calculatePresentationDate } from "@/utils/documentUtils.ts";
-import { calculateCurrentCountdown } from "@/utils/countdownUtils.ts";
 import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
 import { logAuditAction } from "@/utils/auditLogger.ts";
@@ -252,7 +251,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       current_countdown: billData.pendingDays,
       extensions_count: 0,
       created_by: user.id, 
-      created_by: user.id, 
+
       department: "Legal", // Default value as it's required
       mca: "System", // Default value as it's required
       concluded_at: billData.concludedAt ? billData.concludedAt.toISOString() : null
@@ -383,7 +382,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update bill status
   const updateBillStatus = async (id: string, status: BillStatus, silent: boolean = false) => {
     try {
-      const updates: any = { status, updated_at: new Date().toISOString() };
+      const updates: { status: BillStatus; updated_at: string; concluded_at?: string | null } = { status, updated_at: new Date().toISOString() };
       
       // If marking as concluded, set the concluded_at date
       if (status === "concluded") {

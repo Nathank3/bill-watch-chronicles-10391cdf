@@ -27,6 +27,7 @@ interface DbDocumentResult {
   days_allocated: number | null;
   current_countdown: number | null;
   extensions_count: number | null;
+  concluded_at?: string | null;
 }
 
 const mapDbToDocument = (data: DbDocumentResult): Document => ({
@@ -42,7 +43,8 @@ const mapDbToDocument = (data: DbDocumentResult): Document => ({
   updatedAt: new Date(data.updated_at),
   daysAllocated: data.days_allocated || 0,
   currentCountdown: data.current_countdown || 0,
-  extensionsCount: data.extensions_count || 0
+  extensionsCount: data.extensions_count || 0,
+  concludedAt: data.concluded_at ? new Date(data.concluded_at) : null
 });
 
 export const useDocumentList = (

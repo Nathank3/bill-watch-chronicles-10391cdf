@@ -45,8 +45,8 @@ export const ConcludedUploadDialog = () => {
     if (data) setCommittees(data.map(c => c.name));
   };
 
-  const handleDownloadTemplate = (type: 'days' | 'date') => {
-    generateTemplate(committees, type);
+  const handleDownloadTemplate = () => {
+    generateTemplate(committees, 'concluded');
   };
 // ...
 
@@ -241,7 +241,7 @@ export const ConcludedUploadDialog = () => {
         <DialogHeader>
           <DialogTitle>Import Historical Concluded Business</DialogTitle>
            <p className="text-sm text-muted-foreground mt-2">
-            Upload historical data. Required columns: <strong>Business Name</strong>, <strong>Committee</strong>, <strong>Type</strong>, and <strong>Approved Date</strong> (Concluded Date).
+            Upload historical data. Required columns: <strong>Business Name</strong>, <strong>Committee</strong>, <strong>Type</strong>, <strong>Sitting Date</strong>, and <strong>Approved Date</strong>.
           </p>
         </DialogHeader>
 
@@ -316,21 +316,9 @@ export const ConcludedUploadDialog = () => {
                    <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
                        <div className="flex justify-between items-center">
                             <h3 className="font-medium">File Upload</h3>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="gap-2 h-8">
-                                        <Download className="h-3 w-3" /> Template
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleDownloadTemplate('days')}>
-                                        With Pending Days
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDownloadTemplate('date')}>
-                                        With Due Date
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button variant="ghost" size="sm" className="gap-2 h-8" onClick={handleDownloadTemplate}>
+                                <Download className="h-3 w-3" /> Download Template
+                            </Button>
                        </div>
                        <Input
                          type="file"
@@ -345,25 +333,13 @@ export const ConcludedUploadDialog = () => {
                   <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
                        <div className="flex justify-between items-center">
                             <h3 className="font-medium">Paste Data</h3>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="gap-2 h-8">
-                                        <Download className="h-3 w-3" /> Template
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleDownloadTemplate('days')}>
-                                        With Pending Days
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleDownloadTemplate('date')}>
-                                        With Due Date
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button variant="ghost" size="sm" className="gap-2 h-8" onClick={handleDownloadTemplate}>
+                                <Download className="h-3 w-3" /> Download Template
+                            </Button>
                        </div>
                        <textarea 
                            className="w-full h-32 p-3 text-xs font-mono border rounded-md focus:ring-2 ring-primary/20 outline-none resize-none"
-                           placeholder={`Paste headers and rows here...\nExample:\nBusiness Name\tCommittee\tType of Business\t...\nMy Motion\tHealth\tMotion\t...`}
+                           placeholder={`Paste headers and rows here...\nExample:\nBusiness Name\tCommittee\tType of Business\tSitting Date\tApproved Date\nMy Motion\tHealth\tMotion\t01/01/2026\t10/01/2026`}
                            value={pasteContent}
                            onChange={(e) => setPasteContent(e.target.value)}
                        />

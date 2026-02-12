@@ -115,7 +115,7 @@ const PublicPage = () => {
             onValueChange={handleTypeChange}
             className="w-full"
           >
-            <TabsList className="w-full justify-start overflow-x-auto h-auto flex-nowrap pb-1 no-scrollbar bg-background border">
+            <TabsList className="w-full justify-between overflow-x-auto h-auto flex-nowrap pb-1 no-scrollbar bg-background border">
               {documentTypes.map(type => (
                 <TabsTrigger key={type.value} value={type.value} className="min-w-fit px-4 py-2">
                   {type.label}

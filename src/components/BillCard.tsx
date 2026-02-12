@@ -111,7 +111,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           </p>
           <div className="mt-2 space-y-1">
             <p className="text-sm">
-              <span className="font-medium">Date Committed:</span> {bill.dateCommitted ? formatDate(bill.dateCommitted) : "TBD"}
+              <span className="font-medium">Date Committed:</span> {bill.dateCommitted ? formatDate(bill.dateCommitted) : (effectiveStatus === "concluded" ? "N/A" : "TBD")}
             </p>
             {(effectiveStatus === "pending" || effectiveStatus === "overdue") && (
               <>
@@ -141,7 +141,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             </p>
             {effectiveStatus === "concluded" && (
               <p className="text-sm">
-                <span className="font-medium">Date Concluded:</span> {bill.concludedAt ? formatDate(bill.concludedAt) : (bill.updatedAt ? formatDate(bill.updatedAt) : "N/A")}
+                <span className="font-medium">Date Concluded:</span> {bill.concludedAt ? formatDate(bill.concludedAt) : "N/A"}
               </p>
             )}
           </div>
@@ -232,7 +232,8 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           pendingDays: bill.daysAllocated, // Approximate mapping
           presentationDate: bill.presentationDate,
           daysAllocated: bill.daysAllocated,
-          extensionsCount: bill.extensionsCount
+          extensionsCount: bill.extensionsCount,
+          concludedAt: bill.concludedAt
         }}
       />
     </Card>

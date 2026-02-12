@@ -156,7 +156,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       updatedAt: bill.updatedAt,
       daysAllocated: bill.daysAllocated,
       currentCountdown: bill.currentCountdown,
-      extensionsCount: bill.extensionsCount
+      extensionsCount: bill.extensionsCount,
+      concludedAt: bill.concludedAt
     }));
 
     return [...dbDocuments, ...billDocuments];

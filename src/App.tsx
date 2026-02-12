@@ -36,6 +36,7 @@ const queryClient = new QueryClient();
 
 import { SystemGuard } from "@/components/SystemGuard.tsx";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard.tsx";
+import { ProtectedRoute } from "@/components/ProtectedRoute.tsx";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -58,7 +59,11 @@ const App = () => (
                     <Route path="/login" element={<LoginPage />} />
 
                     {/* Dashboard Routes */}
-                    <Route path="/dashboard" element={<DashboardLayout />}>
+                    <Route path="/dashboard" element={
+                      <ProtectedRoute>
+                        <DashboardLayout />
+                      </ProtectedRoute>
+                    }>
                         <Route index element={<Overview />} />
                         <Route path="overview" element={<Overview />} />
                         <Route path="view/:type" element={<BusinessView />} />
@@ -67,7 +72,7 @@ const App = () => (
                         <Route path="data-control" element={<DataControlView />} />
                         <Route path="users" element={<UserManagementView />} />
                         <Route path="committees" element={<CommitteeManagementView />} />
-                        <Route path="analytics" element={<AnalyticsView />} />
+                        <Route path="analytics/:tab?" element={<AnalyticsView />} />
                         <Route path="audit" element={<SystemAuditView />} />
                     </Route>
 

@@ -295,7 +295,11 @@ const CommitteePage = () => {
       doc.setFont("times", "bold");
       doc.setTextColor(0, 0, 0);
       
-      const titleText = `MAKUENI COUNTY ASSEMBLY ${committeeName.toUpperCase()} PENDING ${typeLabel.toUpperCase()} AS AT ${formattedDate.toUpperCase()}`;
+      const displayCommitteeName = committeeName.toUpperCase().endsWith("COMMITTEE") 
+        ? committeeName.toUpperCase() 
+        : `${committeeName.toUpperCase()} COMMITTEE`;
+
+      const titleText = `MAKUENI COUNTY ASSEMBLY ${displayCommitteeName} PENDING ${typeLabel.toUpperCase()} AS AT ${formattedDate.toUpperCase()}`;
       const pageWidth = doc.internal.pageSize.getWidth();
       const marginLeft = 15;
       const maxWidth = pageWidth - (marginLeft * 2);

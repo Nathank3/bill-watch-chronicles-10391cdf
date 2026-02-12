@@ -110,7 +110,6 @@ export function DatePickerWithRange({
             selected={date}
             onSelect={setDate}
             numberOfMonths={2}
-            captionLayout="dropdown-buttons"
             fromYear={2010}
             toYear={2030}
           />

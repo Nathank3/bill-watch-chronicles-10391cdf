@@ -132,12 +132,41 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton tooltip="Analytics" onClick={() => navigate("/dashboard/analytics")} className="text-white hover:bg-white/10 hover:text-white">
-                      <BarChart />
-                      <span>Analytics</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <Collapsible asChild className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip="Analytics" className="text-white hover:bg-white/10 hover:text-white">
+                          <BarChart />
+                          <span>Analytics</span>
+                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/standard")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Standard Reports</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/daily")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Daily Business</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/concluded")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Concluded Business</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/exception")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Exception Reports</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
 
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="System Audit" onClick={() => navigate("/dashboard/audit")} className="text-white hover:bg-white/10 hover:text-white">

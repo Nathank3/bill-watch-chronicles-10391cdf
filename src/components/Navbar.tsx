@@ -1,5 +1,5 @@
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useState, useEffect } from "react";
@@ -14,7 +14,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { UserIcon } from "./UserIcon.tsx";
 import { NotificationBell } from "./NotificationBell.tsx";
-import { Menu, X, Lock } from "lucide-react";
+import { Menu, X } from "lucide-react";
 const makueniLogoUrl = "/lovable-uploads/4e53edd2-c5d5-441a-8e85-dd6d8a88c97d.png";
 
 interface Committee {
@@ -26,7 +26,6 @@ interface Committee {
 
 export const Navbar = () => {
   const { user, logout, isAuthenticated, isAdmin, isClerk } = useAuth();
-  const navigate = useNavigate();
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -115,12 +114,7 @@ export const Navbar = () => {
                 <UserIcon username={user?.username} onLogout={logout} />
               </div>
             </>
-          ) : (
-            <Button variant="ghost" size="icon" onClick={() => navigate("/login")} className="text-gray-400 hover:text-gray-900">
-              <Lock className="h-4 w-4" />
-              <span className="sr-only">Login</span>
-            </Button>
-          )}
+          ) : null}
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -192,12 +186,7 @@ export const Navbar = () => {
                  </Button>
                </div>
              </div>
-           ) : (
-             <Button variant="ghost" className="w-full justify-start text-gray-400" onClick={() => { navigate("/login"); setIsMobileMenuOpen(false); }}>
-               <Lock className="h-4 w-4 mr-2" />
-               <span className="sr-only">Login</span>
-             </Button>
-           )}
+           ) : null}
         </div>
       )}
     </nav>

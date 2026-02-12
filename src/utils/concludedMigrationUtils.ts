@@ -26,12 +26,17 @@ const parseExcelDate = (val: string | number): Date | null => {
     const date = new Date((val - 25569) * 86400 * 1000);
     return isNaN(date.getTime()) ? null : date;
   } else if (typeof val === 'string') {
-    // Try DD/MM/YYYY
-    const parts = val.split('/');
+    // Try delimiters: /, -, .
+    // Split by any of these characters
+    const parts = val.split(/[/\-.]/);
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1; 
       const year = parseInt(parts[2], 10);
+      
+      // Basic validation for day/month range to avoid "valid" but wrong dates (e.g. month 13)
+      if (month < 0 || month > 11 || day < 1 || day > 31) return null;
+
       const date = new Date(year, month, day);
       return isNaN(date.getTime()) ? null : date;
     }
@@ -122,12 +127,12 @@ export const validateConcludedMigrationData = (
         }
     }
 
-    // 3. Date Committed - Optional for historical/concluded
+    // 3. Date Committed - Force to NULL for historical/concluded as per requirement
+    // "Date committed: Blank"
+    dateCommitted = null;
     if (dateCommittedStr) {
-        dateCommitted = parseExcelDate(dateCommittedStr);
-        if (!dateCommitted) {
-            warnings.push(`Invalid 'Date of Committing': "${dateCommittedStr}". Ignored.`);
-        }
+         // Optionally warn that we are ignoring it
+         // warnings.push(`'Date of Committing' provided but ignored for concluded import. Setting to Blank.`);
     }
 
     if (concludedAt && presentationDate) {

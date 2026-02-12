@@ -46,6 +46,7 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
   // Date Logic
   const [pendingDays, setPendingDays] = useState<number>(item.pendingDays || 0);
   const [presentationDate, setPresentationDate] = useState<Date | undefined>(item.presentationDate || undefined);
+  const [concludedAt, setConcludedAt] = useState<Date | undefined>(item.concludedAt || undefined);
 
   const [committees, setCommittees] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -62,6 +63,7 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
       setDateCommitted(item.dateCommitted || undefined);
       setPendingDays(item.pendingDays || 0);
       setPresentationDate(item.presentationDate || undefined);
+      setConcludedAt(item.concludedAt || undefined);
     }
   }, [open, item]);
 
@@ -127,10 +129,10 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
           presentationDate: presentationDate,
           // Calculate concludedAt:
           // 1. If status is becoming 'concluded', use existing or new Date()
-          // 2. If status was 'concluded' and stays 'concluded', keep existing or default (handled by converter if undefined, but explicit here is safer)
-          // 3. If status logic changes away from concluded, we pass null (or handled by converter)
+          // 2. If status was 'concluded' and stays 'concluded', use the user-selected date or keep existing. If user clears it, warn or default to today?
+          // We'll trust the user's selection in the UI (concludedAt state). If null/undefined and status is concluded, default to today.
           concludedAt: status === "concluded" 
-            ? (item.concludedAt ? item.concludedAt : new Date()) 
+            ? (concludedAt ? concludedAt : new Date()) 
             : null
         }
       );
@@ -334,17 +336,50 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
           </div>
 
           {(status === "tbd" || status === "concluded") && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="reason" className="text-right">
-                {status === "concluded" ? "Conclusion Details" : "TBD Reason"}
-              </Label>
-              <Textarea
-                id="reason"
-                value={statusReason}
-                onChange={(e) => setStatusReason(e.target.value)}
-                className="col-span-3"
-                placeholder={status === "concluded" ? "Final outcome summary..." : "Why is this TBD/Limbo?"}
-              />
+            <div className="space-y-4 col-span-4 border-t pt-4">
+                {status === "concluded" && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right font-medium text-green-700">Date Concluded</Label>
+                        <div className="col-span-3">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                    variant="outline"
+                                    className={cn(
+                                        "w-[240px] justify-start text-left font-normal border-green-200 bg-green-50 hover:bg-green-100",
+                                        !concludedAt && "text-muted-foreground"
+                                    )}
+                                    >
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-green-600" />
+                                    {concludedAt ? format(concludedAt, "PPP") : <span>Pick Concluded Date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                    mode="single"
+                                    selected={concludedAt}
+                                    onSelect={setConcludedAt}
+                                    initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <p className="text-xs text-muted-foreground mt-1">If empty, today's date will be used on save.</p>
+                        </div>
+                    </div>
+                )}
+                
+                <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="reason" className="text-right">
+                    {status === "concluded" ? "Conclusion Details" : "TBD Reason"}
+                </Label>
+                <Textarea
+                    id="reason"
+                    value={statusReason}
+                    onChange={(e) => setStatusReason(e.target.value)}
+                    className="col-span-3"
+                    placeholder={status === "concluded" ? "Final outcome summary..." : "Why is this TBD/Limbo?"}
+                />
+                </div>
             </div>
           )}
           

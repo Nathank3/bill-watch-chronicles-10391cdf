@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker.tsx";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { Tabs, TabsContent } from "@/components/ui/tabs.tsx";
 import { DateRange } from "react-day-picker";
 import { Download, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client.ts";
@@ -15,8 +15,28 @@ import { Calendar } from "@/components/ui/calendar.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils.ts";
+import { useNavigate, useParams } from "react-router-dom";
+
+export interface ReportItem {
+  id?: string;
+  title: string;
+  committee: string;
+  type?: string;
+  typeLabel?: string;
+  status: string;
+  status_reason?: string;
+  presentation_date?: string | null;
+  date_committed?: string | null;
+  concluded_at?: string | null;
+  extensions_count?: number;
+  [key: string]: unknown;
+}
 
 export default function AnalyticsView() {
+  const { tab } = useParams();
+  const navigate = useNavigate();
+  const currentTab = tab || "standard";
+
   const [committees, setCommittees] = useState<{name: string}[]>([]);
 
   // Standard Report State
@@ -52,20 +72,9 @@ export default function AnalyticsView() {
     toast({ title: "Generating Standard Report...", description: "Please wait." });
     try {
       // Variables for data accumulation
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let data: any[] | null = null;
-      // error variable used in multiple scopes, keep as let
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let error: any = null;
+      let data: ReportItem[] | null = null;
+      let error: Error | null = null;
       
-      if (stdType === "all_business") {
-        // We need to fetch both tables if it's all business, which is complex with single query variable.
-        // Strategy: If "all_business", we might need to fetch bills and docs separately and merge, 
-        // OR just decide to fetch Documents table and Bills table parallelly.
-        // Current simple implementation: 
-        // For simplicity in this tool, let's just support single table queries or merge them if "all_business"
-      }
-
       const fetchBills = supabase.from("bills").select("*").limit(1000);
       const fetchDocs = supabase.from("documents").select("*").limit(1000);
 
@@ -83,10 +92,8 @@ export default function AnalyticsView() {
         return q;
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let billsData: any[] = [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let docsData: any[] = [];
+      let billsData: ReportItem[] = [];
+      let docsData: ReportItem[] = [];
 
       if (stdType === "bills" || stdType === "all_business") {
           let q = fetchBills;
@@ -138,8 +145,6 @@ export default function AnalyticsView() {
 
       doc.setFontSize(14);
       doc.setFont("times", "bold");
-      doc.setFontSize(14);
-      doc.setFont("times", "bold");
       
       const statusText = stdStatus === "all" ? "All" : stdStatus.charAt(0).toUpperCase() + stdStatus.slice(1);
       const typeText = stdType === "all_business" ? "Business" : stdType.charAt(0).toUpperCase() + stdType.slice(1);
@@ -152,7 +157,8 @@ export default function AnalyticsView() {
           dateRangeText = `As at ${format(new Date(), "dd/MM/yyyy")}`;
       }
 
-      const titleText = `Makueni County Assembly ${statusText} ${typeText} ${dateRangeText}`.toUpperCase();
+      const committeeText = stdCommittee === "all" ? "" : (stdCommittee.toUpperCase().endsWith("COMMITTEE") ? stdCommittee.toUpperCase() : stdCommittee.toUpperCase() + " COMMITTEE");
+      const titleText = `Makueni County Assembly ${committeeText} ${statusText} ${typeText} ${dateRangeText}`.trim().replace(/\s+/g, ' ').toUpperCase();
 
       const pageWidth = doc.internal.pageSize.getWidth();
       const marginLeft = 15;
@@ -168,7 +174,6 @@ export default function AnalyticsView() {
       startY += 20;
       
       doc.setFontSize(10);
-      // doc.text(`Generated on: ${format(new Date(), "PPP")}`, 14, startY); // Redundant with date range in title? kept for record
       startY += 10;
       
       const showTypeCol = stdType === 'all_business';
@@ -196,26 +201,25 @@ export default function AnalyticsView() {
       if (showTypeCol) headers.push('Type');
       headers.push('Committee');
       if (showStatusCol) headers.push('Status');
-      headers.push('Date Committed'); // Changed header to be clearer
+      headers.push('Date Committed');
 
-      // Total page width ~180mm
-      const columnStyles: any = {
-          0: { cellWidth: showTypeCol ? 70 : (showStatusCol ? 90 : 115), overflow: 'linebreak' } // Title takes remaining space
+      const columnStyles: { [key: string]: { cellWidth: number; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
+          0: { cellWidth: showTypeCol ? 70 : (showStatusCol ? 90 : 115), overflow: 'linebreak' } 
       };
       
       let colIndex = 1;
       if (showTypeCol) {
-          columnStyles[colIndex] = { cellWidth: 20 }; // Type
+          columnStyles[colIndex] = { cellWidth: 20 };
           colIndex++;
       }
-      columnStyles[colIndex] = { cellWidth: 40, overflow: 'linebreak' }; // Committee
+      columnStyles[colIndex] = { cellWidth: 40, overflow: 'linebreak' };
       colIndex++;
       
       if (showStatusCol) {
-          columnStyles[colIndex] = { cellWidth: 25 }; // Status
+          columnStyles[colIndex] = { cellWidth: 25 }; 
           colIndex++;
       }
-      columnStyles[colIndex] = { cellWidth: 25 }; // Date
+      columnStyles[colIndex] = { cellWidth: 25 }; 
 
       autoTable(doc, {
           startY,
@@ -237,7 +241,7 @@ export default function AnalyticsView() {
       } else if (stdDate?.from) {
           filenameDate = `From_${format(stdDate.from, "dd-MM-yyyy")}`;
       }
-
+      
       let filenameCommittee = "";
       if (stdCommittee !== "all") {
           filenameCommittee = `_${stdCommittee.replace(/ /g, "_")}`;
@@ -253,7 +257,6 @@ export default function AnalyticsView() {
      }
   };
 
-
   const generateDailyReport = async () => {
       if (!dailyDate) {
           toast({ title: "Date required", description: "Please select a date.", variant: "destructive" });
@@ -262,10 +265,8 @@ export default function AnalyticsView() {
 
       toast({ title: "Generating Daily Report...", description: "Please wait." });
       try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let data: any[] | null = null;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let error: any = null;
+      let data: ReportItem[] | null = null;
+      let error: Error | null = null;
 
           const startOfDay = new Date(dailyDate);
           startOfDay.setHours(0, 0, 0, 0);
@@ -280,17 +281,22 @@ export default function AnalyticsView() {
               if (dailyStatus !== "all") q = q.eq("status", dailyStatus);
               if (dailyCommittee !== "all") q = q.eq("committee", dailyCommittee);
               
-              // Filter strict date range for the single day using presentation_date
-              q = q.gte("presentation_date", startOfDay.toISOString());
-              q = q.lte("presentation_date", endOfDay.toISOString());
+              // Filter strict date range for the single day
+              if (dailyStatus === "concluded") {
+                  // For concluded items, filter by the concluded date
+                  q = q.gte("concluded_at", startOfDay.toISOString());
+                  q = q.lte("concluded_at", endOfDay.toISOString());
+              } else {
+                  // For pending/all items, filter by presentation date (Order Paper)
+                  q = q.gte("presentation_date", startOfDay.toISOString());
+                  q = q.lte("presentation_date", endOfDay.toISOString());
+              }
               
               return q;
           };
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let billsData: any[] = [];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let docsData: any[] = [];
+          let billsData: ReportItem[] = [];
+          let docsData: ReportItem[] = [];
 
           if (dailyType === "bills" || dailyType === "all_business") {
               let q = fetchBills;
@@ -343,7 +349,8 @@ export default function AnalyticsView() {
           const typeText = dailyType === "all_business" ? "Business" : dailyType.charAt(0).toUpperCase() + dailyType.slice(1);
           const dateText = format(dailyDate, "dd/MM/yyyy");
 
-          const titleText = `Makueni County Assembly ${statusText} ${typeText} On ${dateText}`.toUpperCase();
+          const committeeText = dailyCommittee === "all" ? "" : (dailyCommittee.toUpperCase().endsWith("COMMITTEE") ? dailyCommittee.toUpperCase() : dailyCommittee.toUpperCase() + " COMMITTEE");
+          const titleText = `Makueni County Assembly ${committeeText} ${statusText} ${typeText} On ${dateText}`.trim().replace(/\s+/g, ' ').toUpperCase();
 
           const pageWidth = doc.internal.pageSize.getWidth();
           const marginLeft = 15;
@@ -365,8 +372,11 @@ export default function AnalyticsView() {
               if (showTypeCol) row.push(item.typeLabel || "N/A");
               row.push(item.committee);
               
-              // Daily report shows specific presentation date (should match filter)
-              row.push(item.presentation_date ? format(new Date(item.presentation_date as string | number | Date), "dd/MM/yyyy") : "TBD");
+              const dateToDisplay = dailyStatus === "concluded" && item.concluded_at 
+                  ? item.concluded_at 
+                  : item.presentation_date;
+              
+              row.push(dateToDisplay ? format(new Date(dateToDisplay as string | number | Date), "dd/MM/yyyy") : "TBD");
               
               return row;
           });
@@ -376,21 +386,18 @@ export default function AnalyticsView() {
           headers.push('Committee');
           headers.push('Date');
 
-          // Total page width ~180mm (A4 210mm - 15mm margins)
-          // Fixed widths: Date(30), Committee(45), Type(25)
-          // Remaining for Title: 80 (with Type) or 105 (without Type)
-          const columnStyles: any = {
+          const columnStyles: { [key: string]: { cellWidth: number; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
               0: { cellWidth: showTypeCol ? 80 : 105, overflow: 'linebreak' } 
           };
           
           let colIndex = 1;
           if (showTypeCol) {
-              columnStyles[colIndex] = { cellWidth: 25 }; // Type
+              columnStyles[colIndex] = { cellWidth: 25 }; 
               colIndex++;
           }
-          columnStyles[colIndex] = { cellWidth: 45, overflow: 'linebreak' }; // Committee
+          columnStyles[colIndex] = { cellWidth: 45, overflow: 'linebreak' }; 
           colIndex++;
-          columnStyles[colIndex] = { cellWidth: 30 }; // Date
+          columnStyles[colIndex] = { cellWidth: 30 }; 
 
           autoTable(doc, {
               startY,
@@ -425,25 +432,22 @@ export default function AnalyticsView() {
   const generateConcludedReport = async () => {
     toast({ title: "Generating Concluded Report...", description: "Please wait." });
     try {
-        // Define interface for combined items
         interface ConcludedItem {
             title: string;
             committee: string;
             concluded_at?: string;
+            presentation_date?: string;
             type?: string; 
             itemType: string;
         }
 
         let allItems: ConcludedItem[] = [];
         
-        // Helper to query one table
         const queryTable = async (table: "bills" | "documents") => {
             let query = supabase.from(table).select("*").eq("status", "concluded");
             
-            // Filter Committee
             if (concCommittee !== "all") query = query.eq("committee", concCommittee);
             
-            // Strict type filtering if not 'all_business'
             if (concType !== "all_business") {
                 if (table === "bills" && concType !== "bills") return [];
                 if (table === "documents" && concType === "bills") return [];
@@ -457,12 +461,11 @@ export default function AnalyticsView() {
             const { data, error } = await query;
             if (error) throw error;
             
-            // Cast and map to ConcludedItem
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (data || []).map((d: any) => ({
+            return (data || []).map((d: ReportItem) => ({
                 title: d.title,
                 committee: d.committee,
                 concluded_at: d.concluded_at,
+                presentation_date: d.presentation_date,
                 type: d.type,
                 itemType: table === "bills" ? "Bill" : ((d.type || "").toLowerCase() === "policy" ? "Policies & Guidelines" : d.type) 
             })) as ConcludedItem[];
@@ -472,13 +475,10 @@ export default function AnalyticsView() {
         const documents = await queryTable("documents");
         allItems = [...bills, ...documents];
 
-        // Sort by concluded date (descending)
-        // Sort by concluded date (descending) - Most recent first
         allItems.sort((a, b) => {
             const timeA = a.concluded_at ? new Date(a.concluded_at).getTime() : 0;
             const timeB = b.concluded_at ? new Date(b.concluded_at).getTime() : 0;
             
-            // Treat invalid dates as 0 (epoch)
             const validA = !isNaN(timeA) ? timeA : 0;
             const validB = !isNaN(timeB) ? timeB : 0;
 
@@ -496,7 +496,6 @@ export default function AnalyticsView() {
         const headerHeight = await addHeaderImage(doc, "/header_logo.png");
         let startY = headerHeight > 0 ? headerHeight + 5 : 20;
 
-        // Draw divider line below header
         if (headerHeight > 0) {
             startY = drawDivider(doc, startY, 15, 15);
             startY += 10;
@@ -507,7 +506,8 @@ export default function AnalyticsView() {
         
         const typeText = concType === "all_business" ? "Business" : (concType === "policies" ? "Policies & Guidelines" : (concType.charAt(0).toUpperCase() + concType.slice(1)));
         const dateText = format(new Date(), "EEEE, do MMMM yyyy");
-        const titleText = `MAKUENI COUNTY ASSEMBLY CONCLUDED ${typeText.toUpperCase()} AS AT ${dateText.toUpperCase()}`;
+        const committeeText = concCommittee === "all" ? "" : (concCommittee.toUpperCase().endsWith("COMMITTEE") ? concCommittee.toUpperCase() : concCommittee.toUpperCase() + " COMMITTEE");
+        const titleText = `MAKUENI COUNTY ASSEMBLY ${committeeText} CONCLUDED ${typeText.toUpperCase()} AS AT ${dateText.toUpperCase()}`.trim().replace(/\s+/g, ' ');
         
         const pageWidth = doc.internal.pageSize.getWidth();
         const marginLeft = 15;
@@ -522,28 +522,28 @@ export default function AnalyticsView() {
 
         startY += 20;
 
-        // Removed "Filter: all" text as it was being cut off and is redundant if "all"
-
         const tableData = allItems.map(item => ([
             item.title,
-            item.itemType, // "Bill" or "motion/statement/etc"
+            item.itemType, 
             item.committee,
+            item.presentation_date ? format(new Date(item.presentation_date), "dd/MM/yyyy") : "N/A",
             item.concluded_at ? format(new Date(item.concluded_at), "dd/MM/yyyy") : "N/A"
         ]));
 
         autoTable(doc, {
             startY,
-            head: [['Title', 'Type', 'Committee', 'Date Concluded']],
+            head: [['Title', 'Type', 'Committee', 'Sitting Date', 'Date Concluded']],
             body: tableData,
             theme: 'grid',
             styles: { fontSize: 9, cellPadding: 3 },
             headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
             margin: { top: 20, right: 15, bottom: 10, left: 15 },
             columnStyles: { 
-                0: { cellWidth: 80, overflow: 'linebreak' }, // Title (Maximized)
-                1: { cellWidth: 25 }, // Type
-                2: { cellWidth: 45, overflow: 'linebreak' }, // Committee
-                3: { cellWidth: 30 } // Date
+                0: { cellWidth: 60, overflow: 'linebreak' }, 
+                1: { cellWidth: 20 }, 
+                2: { cellWidth: 40, overflow: 'linebreak' }, 
+                3: { cellWidth: 25 }, 
+                4: { cellWidth: 25 } 
             }
         });
 
@@ -567,27 +567,23 @@ export default function AnalyticsView() {
   const generateExceptionReport = async () => {
     toast({ title: "Generating Exception Report...", description: "Please wait." });
     try {
-        // Define interface for combined items
         interface ExceptionItem {
             title: string;
             committee: string;
             status: string;
             status_reason?: string;
             type?: string; 
-            itemType: string; // "Bill" or document type
+            itemType: string; 
             overdueDays?: number | null;
         }
 
         let allItems: ExceptionItem[] = [];
         
-        // Helper to query one table
         const queryTable = async (table: "bills" | "documents") => {
             let query = supabase.from(table).select("*");
             
-            // Filter Committee
             if (excCommittee !== "all") query = query.eq("committee", excCommittee);
             
-            // Strict type filtering if not 'all_business'
             if (excType !== "all_business") {
                 if (table === "bills" && excType !== "bills") return [];
                 if (table === "documents" && excType === "bills") return [];
@@ -603,10 +599,7 @@ export default function AnalyticsView() {
             
             const now = new Date();
 
-            // Cast and map to ExceptionItem with In-Memory Filtering
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (data || []).map((d: any) => {
-                // Determine dynamic status
+            return (data || []).map((d: ReportItem) => {
                 let dynamicStatus = "pending";
                 const dbStatus = d.status;
                 const presDate = d.presentation_date ? new Date(d.presentation_date) : null;
@@ -622,14 +615,13 @@ export default function AnalyticsView() {
                 return {
                     title: d.title,
                     committee: d.committee,
-                    status: dynamicStatus, // Use calculated status
+                    status: dynamicStatus, 
                     status_reason: d.status_reason,
                     type: d.type,
                     itemType: table === "bills" ? "Bill" : ((d.type || "").toLowerCase() === "policy" ? "Policies & Guidelines" : d.type),
                     overdueDays: (dynamicStatus === "overdue" && presDate) ? Math.floor((now.getTime() - presDate.getTime()) / (1000 * 60 * 60 * 24)) : null
                 };
             }).filter((item: ExceptionItem) => {
-                // Apply the status filter here on the calculated status
                 if (excStatus === "all") return true;
                 return item.status === excStatus;
             }) as ExceptionItem[];
@@ -639,7 +631,6 @@ export default function AnalyticsView() {
         const documents = await queryTable("documents");
         allItems = [...bills, ...documents];
 
-        // Sort by overdue days (descending) so most urgent appear first
         if (excStatus === "overdue") {
             allItems.sort((a, b) => (b.overdueDays || 0) - (a.overdueDays || 0));
         }
@@ -655,7 +646,6 @@ export default function AnalyticsView() {
         const headerHeight = await addHeaderImage(doc, "/header_logo.png");
         let startY = headerHeight > 0 ? headerHeight + 5 : 20;
 
-        // Draw divider line below header
         if (headerHeight > 0) {
             startY = drawDivider(doc, startY, 15, 15);
             startY += 10;
@@ -663,7 +653,8 @@ export default function AnalyticsView() {
 
         doc.setFontSize(14);
         doc.setFont("times", "bold");
-        const titleText = `EXCEPTION REPORT: ${excStatus.toUpperCase()} BUSINESS`;
+        const committeeText = excCommittee === "all" ? "" : (excCommittee.toUpperCase().endsWith("COMMITTEE") ? excCommittee.toUpperCase() : excCommittee.toUpperCase() + " COMMITTEE");
+        const titleText = `EXCEPTION REPORT: ${committeeText} ${excStatus.toUpperCase()} BUSINESS`.trim().replace(/\s+/g, ' ');
         const pageWidth = doc.internal.pageSize.getWidth();
         const marginLeft = 15;
         const maxWidth = pageWidth - (marginLeft * 2);
@@ -682,12 +673,11 @@ export default function AnalyticsView() {
 
         const tableData = allItems.map(item => ([
             item.title,
-            item.itemType, // "Bill" or "motion/statement/etc"
+            item.itemType, 
             item.committee,
             item.status === 'overdue' ? `${item.overdueDays || 0} days` : (item.status_reason || "No reason recorded")
         ]));
         
-        // Define headers based on status type
         const lastColHeader = excStatus === 'overdue' ? 'Overdue By' : 'Reason / Details';
 
         autoTable(doc, {
@@ -699,10 +689,10 @@ export default function AnalyticsView() {
             headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
             margin: { top: 20, right: 15, bottom: 10, left: 15 },
             columnStyles: { 
-                0: { cellWidth: 80, overflow: 'linebreak' }, // Title (Maximized)
-                1: { cellWidth: 25 }, // Type
-                2: { cellWidth: 35, overflow: 'linebreak' }, // Committee
-                3: { cellWidth: 40, overflow: 'linebreak' } // Reason or Overdue days
+                0: { cellWidth: 80, overflow: 'linebreak' }, 
+                1: { cellWidth: 25 }, 
+                2: { cellWidth: 35, overflow: 'linebreak' }, 
+                3: { cellWidth: 40, overflow: 'linebreak' } 
             }
         });
 
@@ -728,13 +718,8 @@ export default function AnalyticsView() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Analytics & Reports</h1>
       
-      <Tabs defaultValue="standard" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="standard">Standard Reports</TabsTrigger>
-            <TabsTrigger value="daily">Daily Business</TabsTrigger>
-            <TabsTrigger value="concluded">Concluded Business</TabsTrigger>
-            <TabsTrigger value="exception">Exception Reports</TabsTrigger>
-        </TabsList>
+      <Tabs value={currentTab} onValueChange={(val) => navigate(`/dashboard/analytics/${val}`)} className="w-full">
+
 
         <TabsContent value="standard">
             <Card>
@@ -800,8 +785,6 @@ export default function AnalyticsView() {
                 </CardContent>
             </Card>
         </TabsContent>
-
-
 
         <TabsContent value="daily">
             <Card className="border-l-4 border-l-blue-400">
@@ -875,6 +858,8 @@ export default function AnalyticsView() {
                                         mode="single"
                                         selected={dailyDate}
                                         onSelect={setDailyDate}
+                                        fromYear={2013}
+                                        toYear={2030}
                                         initialFocus
                                     />
                                 </PopoverContent>

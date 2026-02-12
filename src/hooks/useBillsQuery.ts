@@ -26,6 +26,7 @@ interface DbBillResult {
   days_allocated: number;
   current_countdown: number;
   extensions_count: number;
+  concluded_at?: string | null;
   [key: string]: unknown;
 }
 
@@ -41,7 +42,8 @@ const mapDbToBill = (data: DbBillResult): Bill => ({
   updatedAt: new Date(data.updated_at),
   daysAllocated: data.days_allocated || 0,
   currentCountdown: data.current_countdown || 0,
-  extensionsCount: data.extensions_count || 0
+  extensionsCount: data.extensions_count || 0,
+  concludedAt: data.concluded_at ? new Date(data.concluded_at) : null
 });
 
 export const useBillList = (
