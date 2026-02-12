@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useMemo } from "react";
+import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
 import { useBills } from "./BillContext.tsx";
@@ -30,116 +30,39 @@ const DocumentContext = createContext<DocumentContextType>({
   getDocumentsByType: () => []
 });
 
-// Helper to map DB result to App type
-interface DbDocumentResult {
-  id: string;
-  title: string;
-  committee: string;
-  date_committed: string;
-  created_at: string;
-  pending_days: number;
-  presentation_date: string;
-  status: string;
-  type: string;
-  updated_at: string;
-  days_allocated: number;
-  current_countdown: number;
-  extensions_count: number;
-  status_reason?: string;
-  concluded_at?: string;
-  [key: string]: unknown;
-}
 
-const mapDbToDocument = (data: DbDocumentResult): Document => {
-  let status: DocumentStatus = data.status as DocumentStatus; // Default cast
+// Legacy DbDocumentResult and mapDbToDocument removed in favor of React Query
 
-  // Map legacy statuses or invalid states
-  if (data.status === 'limbo' || data.status === 'frozen') {
-     status = 'tbd';
-  } else if (data.status === 'under_review') {
-     status = 'pending';
-  } else if (data.status === 'pending' && !data.presentation_date) {
-     status = 'tbd';
-  }
-
-  return {
-    id: data.id,
-    title: data.title,
-    committee: data.committee,
-    dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
-    pendingDays: data.pending_days || 0,
-    presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
-    status: status,
-    type: data.type as DocumentType,
-    createdAt: new Date(data.created_at),
-    updatedAt: new Date(data.updated_at),
-    daysAllocated: data.days_allocated || 0,
-    currentCountdown: data.current_countdown || 0,
-    extensionsCount: data.extensions_count || 0,
-    statusReason: data.status_reason,
-    concludedAt: data.concluded_at ? new Date(data.concluded_at) : null
-  };
-};
 
 // Document provider component
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [dbDocuments, setDbDocuments] = useState<Document[]>([]); // Documents from DB (non-bills)
-  const { bills } = useBills();
-  const { addNotification, clearBusinessNotifications } = useNotifications();
-  const { isAdmin } = useAuth();
+  
+  // Safe context consumption with fallbacks
+  const billContext = useBills();
+  const notificationContext = useNotifications();
+  const authContext = useAuth();
+  
+  // Destructure with default fallbacks to prevent crashes
+  const { bills } = billContext || { bills: [] };
+  const { addNotification, clearBusinessNotifications } = notificationContext || { 
+    addNotification: () => console.warn("Notification context missing"), 
+    clearBusinessNotifications: () => {} 
+  };
+  const { isAdmin } = authContext || { isAdmin: false };
+  
   const queryClient = useQueryClient();
 
-  // Fetch non-bill documents from Supabase
-  const _fetchDocuments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
-      if (data) {
-        setDbDocuments(data.map(mapDbToDocument));
-      }
-    } catch (error) {
-      console.error("Error fetching documents:", error);
-      toast({
-        title: "Error fetching documents",
-        description: "Could not load documents from the database.",
-        variant: "destructive"
-      });
-    }
-  };
-
-
-  /*
-  // Disable auto-fetch for scalability
-  // Initial fetch
+  // Log critical missing contexts for debugging
   useEffect(() => {
-    fetchDocuments();
-    
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel('schema-db-docs-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'documents'
-        },
-        () => {
-          fetchDocuments();
-        }
-      )
-      .subscribe();
+    if (!billContext) console.error("DocumentProvider: BillContext is missing!");
+    if (!notificationContext) console.error("DocumentProvider: NotificationContext is missing!");
+    if (!authContext) console.error("DocumentProvider: AuthContext is missing!");
+  }, [billContext, notificationContext, authContext]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-  */
+  // Fetch non-bill documents from Supabase
+  // _fetchDocuments and auto-fetch logic removed (using React Query hooks instead)
+
 
   // Merge bills and dbDocuments into unified 'documents' state
   const documents = useMemo(() => {
@@ -588,4 +511,4 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 export const useDocuments = () => useContext(DocumentContext);
 
 // Re-export document types for convenience
-export type { Document, DocumentType, DocumentStatus } from "@/types/document.ts";
+
