@@ -3,8 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { BillForm } from "@/components/BillForm.tsx";
 import { DocumentForm } from "@/components/DocumentForm.tsx";
 import { DocumentType } from "@/types/document.ts";
-import { Button } from "@/components/ui/button.tsx";
-import { ArrowLeft } from "lucide-react";
+
 
 export default function AddBusinessView() {
   const { type = "bills" } = useParams();
@@ -21,12 +20,6 @@ export default function AddBusinessView() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4" />
-        </Button>
-      </div>
-
       {isBill ? (
           <BillForm onSuccess={handleSuccess} />
       ) : (

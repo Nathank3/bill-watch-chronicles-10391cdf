@@ -121,6 +121,17 @@ export function AdminUsers() {
       return;
     }
 
+    // Prevent deletion of Secret Admin
+    const targetUser = users.find(u => u.id === userId);
+    if (targetUser?.email?.toLowerCase() === "nathankimeu067@gmail.com") {
+        toast({
+            title: "Action Denied",
+            description: "You cannot delete the system administrator.",
+            variant: "destructive",
+        });
+        return;
+    }
+
     setDeleting(userId);
 
     try {
@@ -200,6 +211,7 @@ export function AdminUsers() {
             deletingUserId={deleting}
             onPasswordReset={handlePasswordReset}
             isAdmin={!!user && user.role === 'admin'}
+            currentUserId={user?.id}
           />
         </CardContent>
       </Card>

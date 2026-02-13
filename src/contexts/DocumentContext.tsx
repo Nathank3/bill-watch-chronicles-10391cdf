@@ -5,7 +5,6 @@ import { useBills } from "./BillContext.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document.ts";
 import { calculatePresentationDate, adjustForSittingDay } from "@/utils/documentUtils.ts";
-import { calculateCurrentCountdown } from "@/utils/countdownUtils.ts";
 import { format } from "date-fns";
 import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
@@ -73,8 +72,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dateCommitted: bill.dateCommitted,
       pendingDays: bill.pendingDays,
       presentationDate: bill.presentationDate,
-      status: bill.status, // bill status matches document status
-      type: "bill",
+      status: bill.status as DocumentStatus, // bill status matches document status
+      type: "bill" as DocumentType,
       createdAt: bill.createdAt,
       updatedAt: bill.updatedAt,
       daysAllocated: bill.daysAllocated,
@@ -109,7 +108,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   // Under review merged into pending
-  const underReviewDocuments = useCallback((type: DocumentType): Document[] => [], []);
+  const underReviewDocuments = useCallback((): Document[] => [], []);
 
   // Add new document
   const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: DocumentStatus, concludedAt?: Date | null }) => {
@@ -214,7 +213,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const dbUpdates: Record<string, string | number | undefined> = {
+      const dbUpdates: Record<string, string | number | undefined | null> = {
         updated_at: new Date().toISOString()
       };
       
@@ -322,7 +321,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (id.startsWith('bill-')) return; 
 
     try {
-      const updates: any = { status, updated_at: new Date().toISOString() };
+      const updates: Record<string, string | null> = { status, updated_at: new Date().toISOString() };
       
       // If marking as concluded, set the concluded_at date
       if (status === "concluded") {
@@ -511,4 +510,5 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 export const useDocuments = () => useContext(DocumentContext);
 
 // Re-export document types for convenience
+export type { DocumentStatus, DocumentType } from "@/types/document.ts";
 

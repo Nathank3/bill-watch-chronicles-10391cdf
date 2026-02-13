@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
-import { DatePickerWithRange } from "@/components/ui/date-range-picker.tsx";
+import { DatePickerWithRangeModal } from "@/components/ui/date-range-picker-modal.tsx";
 import { Tabs, TabsContent } from "@/components/ui/tabs.tsx";
 import { ManagerialAnalytics } from "./ManagerialAnalytics.tsx";
 import { DateRange } from "react-day-picker";
@@ -80,15 +80,19 @@ export default function AnalyticsView() {
       const fetchDocs = supabase.from("documents").select("*").limit(1000);
 
       // Build queries based on filters
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const applyFilters = (q: any) => {
+      const applyFilters = (q: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         if (stdStatus !== "all") q = q.eq("status", stdStatus);
         if (stdCommittee !== "all") q = q.eq("committee", stdCommittee);
-        if (stdDate?.from) q = q.gte("date_committed", stdDate.from.toISOString());
+        
+        let dateCol = "date_committed";
+        if (stdStatus === "concluded") dateCol = "concluded_at";
+        else if (stdStatus === "pending" || stdStatus === "overdue") dateCol = "presentation_date";
+        
+        if (stdDate?.from) q = q.gte(dateCol, stdDate.from.toISOString());
         if (stdDate?.to) {
             const end = new Date(stdDate.to);
             end.setHours(23, 59, 59);
-            q = q.lte("date_committed", end.toISOString());
+            q = q.lte(dateCol, end.toISOString());
         }
         return q;
       };
@@ -124,7 +128,24 @@ export default function AnalyticsView() {
           ...item,
           // Normalize for mapping later
           typeLabel: (item.type || "").toLowerCase() === "policy" ? "Policies & Guidelines" : (item.type ? (item.type.charAt(0).toUpperCase() + item.type.slice(1)) : "Bill")
-      }));
+      })).sort((a, b) => {
+          let dateA: number = 0;
+          let dateB: number = 0;
+          
+          if (stdStatus === "concluded") {
+              dateA = a.concluded_at ? new Date(a.concluded_at).getTime() : 0;
+              dateB = b.concluded_at ? new Date(b.concluded_at).getTime() : 0;
+          } else if (stdStatus === "pending" || stdStatus === "overdue") {
+              dateA = a.presentation_date ? new Date(a.presentation_date).getTime() : 0;
+              dateB = b.presentation_date ? new Date(b.presentation_date).getTime() : 0;
+          } else {
+              dateA = a.date_committed ? new Date(a.date_committed as string).getTime() : 0;
+              dateB = b.date_committed ? new Date(b.date_committed as string).getTime() : 0;
+          }
+          
+          // Ascending order (oldest/closest first)
+          return dateA - dateB;
+      });
 
       // Removed redundant check since we throw above
       if (!data || data.length === 0) {
@@ -193,7 +214,11 @@ export default function AnalyticsView() {
           row.push(item.committee);
           if (showStatusCol) row.push(statusDisplay);
           
-          row.push(item.date_committed ? format(new Date(item.date_committed as string | number | Date), "dd/MM/yyyy") : "TBD");
+          let dateVal = item.date_committed;
+          if (stdStatus === "concluded") dateVal = item.concluded_at;
+          else if (stdStatus === "pending" || stdStatus === "overdue") dateVal = item.presentation_date;
+          
+          row.push(dateVal ? format(new Date(dateVal as string | number | Date), "dd/MM/yyyy") : "TBD");
           
           return row;
       });
@@ -202,7 +227,12 @@ export default function AnalyticsView() {
       if (showTypeCol) headers.push('Type');
       headers.push('Committee');
       if (showStatusCol) headers.push('Status');
-      headers.push('Date Committed');
+      
+      let dateHeader = 'Date Committed';
+      if (stdStatus === "concluded") dateHeader = 'Concluded Date';
+      else if (stdStatus === "pending" || stdStatus === "overdue") dateHeader = 'Presentation Date';
+      
+      headers.push(dateHeader);
 
       const columnStyles: { [key: string]: { cellWidth: number; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
           0: { cellWidth: showTypeCol ? 70 : (showStatusCol ? 90 : 115), overflow: 'linebreak' } 
@@ -277,8 +307,7 @@ export default function AnalyticsView() {
           const fetchBills = supabase.from("bills").select("*").limit(1000);
           const fetchDocs = supabase.from("documents").select("*").limit(1000);
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const applyFilters = (q: any) => {
+          const applyFilters = (q: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
               if (dailyStatus !== "all") q = q.eq("status", dailyStatus);
               if (dailyCommittee !== "all") q = q.eq("committee", dailyCommittee);
               
@@ -654,47 +683,90 @@ export default function AnalyticsView() {
 
         doc.setFontSize(14);
         doc.setFont("times", "bold");
-        const committeeText = excCommittee === "all" ? "" : (excCommittee.toUpperCase().endsWith("COMMITTEE") ? excCommittee.toUpperCase() : excCommittee.toUpperCase() + " COMMITTEE");
-        const titleText = `EXCEPTION REPORT: ${committeeText} ${excStatus.toUpperCase()} BUSINESS`.trim().replace(/\s+/g, ' ');
+        
+        const statusDisp = excStatus.charAt(0).toUpperCase() + excStatus.slice(1);
+        const typeDisp = excType === "all_business" ? "Business" : (excType === "policies" ? "Policies & Guidelines" : (excType.charAt(0).toUpperCase() + excType.slice(1)));
+        
+        let committeeDisp = "All Committees";
+        if (excCommittee !== "all") {
+            committeeDisp = excCommittee;
+        }
+
+        const titleText = `Makueni County Assembly ${statusDisp} ${typeDisp} for ${committeeDisp}`.toUpperCase();
+
         const pageWidth = doc.internal.pageSize.getWidth();
         const marginLeft = 15;
         const maxWidth = pageWidth - (marginLeft * 2);
 
-        doc.text(titleText, pageWidth / 2, startY, { align: "center" });
+        const splitTitle = doc.splitTextToSize(titleText, maxWidth);
+        doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
         
-        const lineY = startY + 8;
+        const lineY = startY + (splitTitle.length * 7) + 5;
         doc.setLineWidth(0.5);
         doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
 
-        startY += 18;
+        startY += 20;
 
-        doc.setFontSize(10);
-        doc.text(`Type: ${excType === 'all_business' ? 'All Types' : (excType === 'policies' ? 'Policies & Guidelines' : excType)} | Filter: ${excCommittee}`, 14, startY);
-        startY += 10;
+        const showTypeCol = excType === 'all_business';
+        const showCommitteeCol = excCommittee === 'all';
 
-        const tableData = allItems.map(item => ([
-            item.title,
-            item.itemType, 
-            item.committee,
-            item.status === 'overdue' ? `${item.overdueDays || 0} days` : (item.status_reason || "No reason recorded")
-        ]));
+        const tableData = allItems.map(item => {
+            const row = [item.title];
+            if (showTypeCol) row.push(item.itemType);
+            if (showCommitteeCol) row.push(item.committee);
+            
+            row.push(item.status === 'overdue' ? `${item.overdueDays || 0} days` : (item.status_reason || "No reason recorded"));
+            return row;
+        });
         
         const lastColHeader = excStatus === 'overdue' ? 'Overdue By' : 'Reason / Details';
 
+        const headers = ['Title'];
+        if (showTypeCol) headers.push('Type');
+        if (showCommitteeCol) headers.push('Committee');
+        headers.push(lastColHeader);
+        
+        // Dynamic column width calculation
+        const columnStyles: { [key: number]: { cellWidth: number; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {};
+        
+        // Base widths assuming A4 portrait (~180mm usable width)
+        let titleWidth = 80;
+        let colIndex = 0;
+        
+        // 0: Title
+        columnStyles[colIndex] = { cellWidth: titleWidth, overflow: 'linebreak' }; // Placeholder, updated below
+        colIndex++;
+
+        if (showTypeCol) {
+            columnStyles[colIndex] = { cellWidth: 25 };
+            colIndex++;
+            titleWidth -= 10; // Steal a bit from title if crowded
+        }
+        if (showCommitteeCol) {
+            columnStyles[colIndex] = { cellWidth: 40, overflow: 'linebreak' };
+            colIndex++;
+            titleWidth -= 10;
+        }
+        
+        // Last col (Reason/Overdue)
+        const lastColWidth = showTypeCol && showCommitteeCol ? 40 : 50; 
+        columnStyles[colIndex] = { cellWidth: lastColWidth, overflow: 'linebreak' };
+        
+        // Adjust title width to fill remaining space
+        const usedWidth = (showTypeCol ? 25 : 0) + (showCommitteeCol ? 40 : 0) + lastColWidth;
+        // Total usable is approx 180 (210 - 15 - 15)
+        const remainingForTitle = 180 - usedWidth;
+        columnStyles[0].cellWidth = remainingForTitle;
+
         autoTable(doc, {
             startY,
-            head: [['Title', 'Type', 'Committee', lastColHeader]],
+            head: [headers],
             body: tableData,
             theme: 'grid',
             styles: { fontSize: 9, cellPadding: 3 },
             headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
             margin: { top: 20, right: 15, bottom: 10, left: 15 },
-            columnStyles: { 
-                0: { cellWidth: 80, overflow: 'linebreak' }, 
-                1: { cellWidth: 25 }, 
-                2: { cellWidth: 35, overflow: 'linebreak' }, 
-                3: { cellWidth: 40, overflow: 'linebreak' } 
-            }
+            columnStyles: columnStyles as any
         });
 
         const sanitizedExcStatus = excStatus.charAt(0).toUpperCase() + excStatus.slice(1);
@@ -774,7 +846,7 @@ export default function AnalyticsView() {
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Date Range</label>
-                            <DatePickerWithRange date={stdDate} setDate={setStdDate} className="w-full" />
+                            <DatePickerWithRangeModal date={stdDate} setDate={setStdDate} className="w-full" />
                         </div>
                     </div>
 

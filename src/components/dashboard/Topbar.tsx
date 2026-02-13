@@ -3,7 +3,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx"
 import { SidebarTrigger } from "@/components/ui/sidebar.tsx"
 import { NotificationBell } from "@/components/NotificationBell.tsx"
 
+import { useAuth } from "@/contexts/AuthContext.tsx"
+
 export function DashboardTopbar() {
+  const { user } = useAuth()
+  
   const getGreeting = () => {
     const hour = new Date().getHours()
     if (hour < 12) return "Good Morning"
@@ -15,7 +19,9 @@ export function DashboardTopbar() {
     <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4 justify-between">
       <div className="flex items-center gap-2">
         <SidebarTrigger className="-ml-1" />
-        <span className="font-semibold text-lg hidden md:block">{getGreeting()}, Clerk</span>
+        <span className="font-semibold text-lg hidden md:block">
+          {getGreeting()}, {user?.username || "Clerk"}
+        </span>
       </div>
       
       <div className="flex items-center gap-4">
