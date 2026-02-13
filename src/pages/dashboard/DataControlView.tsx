@@ -11,9 +11,12 @@ import { supabase } from "@/integrations/supabase/client.ts";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext.tsx";
 import { isSuperAdmin as checkSuperAdmin } from "@/utils/security.ts";
+import { correctStatuses } from "@/utils/statusCorrection.ts";
+import { FileCheck } from "lucide-react";
 
 export default function DataControlView() {
   const [isExporting, setIsExporting] = useState(false);
+  const [isCorrecting, setIsCorrecting] = useState(false);
   // Use session to get email because the 'user' object is just the profile and lacks email
   const { session } = useAuth();
   const isSuperAdmin = checkSuperAdmin(session?.user?.email);
@@ -62,6 +65,27 @@ export default function DataControlView() {
       setTimeout(() => {
         toast({ title: "Sync Complete", description: "Data is up to date." });
       }, 1000);
+  };
+
+  const handleCorrectStatus = async () => {
+    setIsCorrecting(true);
+    toast({ title: "Correcting Statuses...", description: "Scanning all items for date mismatches." });
+    try {
+        const result = await correctStatuses();
+        
+        let desc = `Checked bills and documents. Updated ${result.billsUpdated} bills and ${result.docsUpdated} documents.`;
+        if (result.errors.length > 0) desc += ` Encountered ${result.errors.length} errors.`;
+
+        toast({ 
+            title: "Status Correction Complete", 
+            description: desc,
+            variant: result.errors.length > 0 ? "destructive" : "default" 
+        });
+    } catch (e) {
+        toast({ title: "Error", description: "Failed to correct statuses.", variant: "destructive" });
+    } finally {
+        setIsCorrecting(false);
+    }
   };
 
   return (
@@ -157,6 +181,27 @@ export default function DataControlView() {
                         Permanently delete all data. This action cannot be undone.
                     </div>
                     <DeleteAllDataDialog />
+                </CardContent>
+            </Card>
+        )}
+
+        {/* Status Correction - Super Admin Only */}
+        {isSuperAdmin && (
+            <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/10">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-amber-700">
+                        <FileCheck className="h-5 w-5" /> Fix Statuses
+                    </CardTitle>
+                    <CardDescription>Recover Overdue/TBD status.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-sm text-muted-foreground mb-4">
+                        Restore incorrectly labeled "Pending" items to "Overdue" or "TBD" based on their dates. Useful after restoring backups.
+                    </div>
+                    <Button onClick={handleCorrectStatus} disabled={isCorrecting} className="w-full bg-amber-600 hover:bg-amber-700 text-white">
+                        {isCorrecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileCheck className="mr-2 h-4 w-4" />}
+                        Recalculate Statuses
+                    </Button>
                 </CardContent>
             </Card>
         )}
