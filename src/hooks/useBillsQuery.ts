@@ -59,8 +59,8 @@ export const useBillList = (
 
       // Apply status filter
       if (status !== "all") {
-        if (status === "limbo" as BillStatus) {
-            query = query.eq("status", "pending").is("presentation_date", null);
+        if (status === "limbo" as BillStatus || status === "tbd" as BillStatus) {
+            query = query.or("status.eq.tbd,status.eq.limbo,and(status.eq.pending,presentation_date.is.null)");
         } else if (status === "pending") {
             query = query.eq("status", "pending").not("presentation_date", "is", null);
         } else {

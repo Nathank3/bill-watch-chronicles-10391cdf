@@ -63,8 +63,8 @@ export const useDocumentList = (
       }
 
       if (status !== "all") {
-        if (status === "limbo" as DocumentStatus) {
-            query = query.eq("status", "pending").is("presentation_date", null);
+        if (status === "limbo" as DocumentStatus || status === "tbd" as DocumentStatus) {
+            query = query.or("status.eq.tbd,status.eq.limbo,and(status.eq.pending,presentation_date.is.null)");
         } else if (status === "pending") {
             query = query.eq("status", "pending").not("presentation_date", "is", null);
         } else {
