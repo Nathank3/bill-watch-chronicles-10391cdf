@@ -2,18 +2,17 @@ import { supabase } from "@/integrations/supabase/client.ts";
 import { logAuditAction } from "@/utils/auditLogger.ts";
 import { DocumentType } from "@/types/document.ts";
 
-export interface BusinessItemData {
+interface BusinessItemData {
   id: string;
   title: string;
   committee: string;
-  dateCommitted: Date | null;
+  dateCommitted: Date;
   status: string;
   type: "bill" | DocumentType;
   pendingDays: number;
-  presentationDate: Date | null;
+  presentationDate: Date;
   daysAllocated: number;
   extensionsCount: number;
-  concludedAt?: Date | null;
 }
 
 /**
@@ -23,17 +22,7 @@ export interface BusinessItemData {
 export const convertBusinessItem = async (
   item: BusinessItemData,
   newType: "bill" | DocumentType,
-  newData: { 
-    title?: string; 
-    committee?: string; 
-    dateCommitted?: Date; 
-    status?: string; 
-    statusReason?: string;
-    pendingDays?: number;
-    presentationDate?: Date;
-    extensionsCount?: number;
-    concludedAt?: Date | null;
-  }
+  newData: { title?: string; committee?: string; dateCommitted?: Date; status?: string }
 ) => {
   const currentType = item.type;
   const targetType = newType;
@@ -44,14 +33,12 @@ export const convertBusinessItem = async (
     committee: newData.committee || item.committee,
     status: newData.status || item.status,
     // Use ISO strings for DB
-    date_committed: (newData.dateCommitted || item.dateCommitted)?.toISOString() || null,
-    presentation_date: (newData.presentationDate || item.presentationDate)?.toISOString() || null, 
-    pending_days: newData.pendingDays !== undefined ? newData.pendingDays : item.pendingDays,
-    days_allocated: newData.pendingDays !== undefined ? newData.pendingDays : item.daysAllocated, // Assuming allocated tracks total current pending days
-    extensions_count: newData.extensionsCount !== undefined ? newData.extensionsCount : item.extensionsCount,
-    updated_at: new Date().toISOString(),
-    status_reason: newData.statusReason, // Include status reason
-    concluded_at: (newData.concludedAt !== undefined ? newData.concludedAt : item.concludedAt)?.toISOString() || null
+    date_committed: (newData.dateCommitted || item.dateCommitted).toISOString(),
+    presentation_date: item.presentationDate.toISOString(), // Usually derived, but keeping simple for migration
+    pending_days: item.pendingDays,
+    days_allocated: item.daysAllocated,
+    extensions_count: item.extensionsCount,
+    updated_at: new Date().toISOString()
   };
 
   // 1. Simple Update (Same Table)

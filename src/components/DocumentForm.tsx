@@ -129,7 +129,6 @@ export const DocumentForm = ({ documentType, onSuccess }: DocumentFormProps) => 
             value={formData.title}
             onChange={handleChange}
             placeholder={`Enter ${documentType} title`}
-            className="h-16 text-base"
             required
           />
         </div>

@@ -5,9 +5,8 @@ import { Card } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { RescheduleDialog } from "./RescheduleDialog.tsx";
-import { CountdownProgress } from "./CountdownProgress.tsx";
 import { formatDistanceToNow, format } from "date-fns";
-import { Calendar, Trash2, Snowflake, Clock, AlertCircle, HelpCircle, CheckCircle2 } from "lucide-react";
+import { Calendar, Trash2, Snowflake } from "lucide-react";
 import { calculateCurrentCountdown, isItemOverdue, determineItemStatus } from "@/utils/countdownUtils.ts";
 import { EditBusinessDialog } from "./EditBusinessDialog.tsx";
 import { Edit3 } from "lucide-react";
@@ -46,7 +45,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
       setCurrentCountdown(countdown);
       setIsOverdue(overdue);
 
-      if (bill.status === "concluded" || !bill.presentationDate) {
+      if (bill.status === "concluded") {
         setTimeLeft("");
       } else {
         const distance = formatDistanceToNow(bill.presentationDate, { addSuffix: true });
@@ -78,40 +77,20 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return (
-          <Badge className="bg-blue-500 text-white flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        );
+        return <Badge className="bg-bill-pending">Pending</Badge>;
       case "overdue":
-        return (
-          <Badge className="bg-red-600 text-white flex items-center gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Overdue
-          </Badge>
-        );
-      case "tbd":
-        return (
-          <Badge variant="secondary" className="bg-gray-200 text-gray-700 flex items-center gap-1">
-            <HelpCircle className="h-3 w-3" />
-            TBD
-          </Badge>
-        );
-      case "concluded":
-        return (
-          <Badge className="bg-green-600 text-white flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3" />
-            Concluded
-          </Badge>
-        );
+        return <Badge className="bg-destructive text-destructive-foreground">Overdue</Badge>;
       case "frozen":
         return (
-          <Badge className="bg-cyan-500 text-white flex items-center gap-1">
-            <Snowflake className="h-3 w-3" />
+          <Badge className="bg-bill-frozen text-blue-900 border-blue-200">
+            <Snowflake className="h-3 w-3 mr-1" />
             Frozen
           </Badge>
         );
+      case "limbo":
+        return <Badge variant="secondary" className="bg-gray-200 text-gray-700">In Limbo</Badge>;
+      case "concluded":
+        return <Badge className="bg-bill-passed">Concluded</Badge>;
       default:
         return null;
     }
@@ -122,15 +101,15 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
   };
 
   const effectiveStatus = determineItemStatus(bill.status, bill.presentationDate, bill.extensionsCount);
-  const isActionable = isOverdue || effectiveStatus === "overdue";
-  const shouldShowCountdown = (effectiveStatus === "pending" || effectiveStatus === "overdue") && timeLeft;
+  const isActionable = isOverdue || effectiveStatus === "overdue" || effectiveStatus === "frozen";
+  const shouldShowCountdown = (effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && timeLeft;
 
   return (
-    <Card className={`bill-card bill-${effectiveStatus} p-4`}>
+    <Card className={`bill-card bill-${effectiveStatus} p-4 ${effectiveStatus === "frozen" ? "bill-frozen" : ""}`}>
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-start gap-2 mb-1 flex-wrap">
-            <h3 className={`font-medium text-lg break-words flex-1 min-w-0`}>
+            <h3 className={`font-medium text-lg break-words flex-1 min-w-0 ${effectiveStatus === "frozen" ? "text-destructive" : ""}`}>
               {bill.title}
             </h3>
           </div>
@@ -139,30 +118,21 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           </p>
           <div className="mt-2 space-y-1">
             <p className="text-sm">
-              <span className="font-medium">Date Committed:</span> {bill.dateCommitted ? formatDate(bill.dateCommitted) : (effectiveStatus === "concluded" ? "N/A" : "TBD")}
+              <span className="font-medium">Date Committed:</span> {bill.dateCommitted ? formatDate(bill.dateCommitted) : "TBD (In Limbo)"}
             </p>
-            {(effectiveStatus === "pending" || effectiveStatus === "overdue") && (
+            {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
               <>
                 <p className="text-sm">
                   <span className="font-medium">Days Allocated:</span> {bill.daysAllocated} days
                 </p>
-                <p className={`text-sm ${isOverdue ? "text-destructive font-semibold" : ""}`}>
+                <p className={`text-sm ${isOverdue || effectiveStatus === "frozen" ? "text-destructive font-semibold" : ""}`}>
                   <span className="font-medium">Days Remaining:</span> {Math.abs(currentCountdown)} days
                 </p>
-                
-                {/* Visual Progress Indicator */}
-                <div className="mt-3">
-                  <CountdownProgress 
-                    daysRemaining={currentCountdown} 
-                    totalDays={bill.daysAllocated}
-                    isOverdue={isOverdue}
-                  />
-                </div>
               </>
             )}
             
-            {/* TBD Message */}
-            {effectiveStatus === "tbd" && (
+            {/* Limbo Message */}
+            {effectiveStatus === "limbo" && (
                  <p className="text-sm text-muted-foreground italic">
                     Awaiting court judgment or further action.
                  </p>
@@ -176,24 +146,11 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             <p className="text-sm">
               <span className="font-medium">Date Due:</span> {bill.presentationDate ? formatDate(bill.presentationDate) : "TBD"}
             </p>
-            {effectiveStatus === "concluded" && (
-              <p className="text-sm">
-                <span className="font-medium">Date Concluded:</span> {bill.concludedAt ? formatDate(bill.concludedAt) : "N/A"}
-              </p>
-            )}
           </div>
           <div className="flex items-center gap-2 mt-2">
             {getStatusBadge(effectiveStatus)}
-            
-            {/* Show Concluded Date */}
-            {effectiveStatus === "concluded" && bill.concludedAt && (
-              <span className="text-sm text-green-700 font-medium">
-                on {formatDate(bill.concludedAt)}
-              </span>
-            )}
-
             {shouldShowCountdown && (
-              <span className={`countdown text-sm ${isOverdue
+              <span className={`countdown text-sm ${isOverdue || effectiveStatus === "frozen"
                 ? "countdown-urgent text-destructive font-medium"
                 : "text-muted-foreground"
                 }`}>
@@ -215,8 +172,8 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
             </Badge>
           )}
 
-          {(effectiveStatus === "pending" || effectiveStatus === "overdue") && (
-            <RescheduleDialog onReschedule={handleReschedule} baseDate={bill.presentationDate}>
+          {(effectiveStatus === "pending" || effectiveStatus === "overdue" || effectiveStatus === "frozen") && (
+            <RescheduleDialog onReschedule={handleReschedule}>
               <Button variant="outline" size="sm">
                 <Calendar className="h-4 w-4 mr-1" />
                 Reschedule
@@ -269,8 +226,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           pendingDays: bill.daysAllocated, // Approximate mapping
           presentationDate: bill.presentationDate,
           daysAllocated: bill.daysAllocated,
-          extensionsCount: bill.extensionsCount,
-          concludedAt: bill.concludedAt
+          extensionsCount: bill.extensionsCount
         }}
       />
     </Card>

@@ -98,7 +98,7 @@ const ClerkPage = () => {
             <TabsTrigger value="statements" className="min-w-fit px-4">Statements</TabsTrigger>
             <TabsTrigger value="reports" className="min-w-fit px-4">Reports</TabsTrigger>
             <TabsTrigger value="regulations" className="min-w-fit px-4">Regulations</TabsTrigger>
-            <TabsTrigger value="policies" className="min-w-fit px-4">Policies & Guidelines</TabsTrigger>
+            <TabsTrigger value="policies" className="min-w-fit px-4">Policies</TabsTrigger>
             <TabsTrigger value="petitions" className="min-w-fit px-4">Petitions</TabsTrigger>
           </TabsList>
 
@@ -232,7 +232,7 @@ const ClerkPage = () => {
           </TabsContent>
 
           <TabsContent value="policies" className="mt-6">
-            <DocumentManagement documentType="policy" title="Policies & Guidelines" />
+            <DocumentManagement documentType="policy" title="Policies" />
           </TabsContent>
 
           <TabsContent value="petitions" className="mt-6">

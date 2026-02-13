@@ -1,14 +1,16 @@
-import React, { createContext, useState, useContext, useMemo, useCallback } from "react";
+import React, { createContext, useState, useContext, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { adjustForSittingDay, calculatePresentationDate } from "@/utils/documentUtils.ts";
+import { calculateCurrentCountdown } from "@/utils/countdownUtils.ts";
 import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
 import { logAuditAction } from "@/utils/auditLogger.ts";
 
-export type BillStatus = "pending" | "concluded" | "overdue" | "tbd" | "under_review";
+// Define bill status type - Including frozen
+export type BillStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review" | "limbo";
 
 // Define bill interface
 export interface Bill {
@@ -24,8 +26,6 @@ export interface Bill {
   daysAllocated: number; // Total cumulative days in the house
   currentCountdown: number; // Current countdown value (always decreasing)
   extensionsCount: number; // Number of times extended
-  statusReason?: string;
-  concludedAt?: Date | null;
 }
 
 // Define bill context type
@@ -34,7 +34,7 @@ interface BillContextType {
   pendingBills: Bill[];
   concludedBills: Bill[];
   underReviewBills: Bill[];
-  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: BillStatus }) => Promise<void>;
+  addBill: (bill: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null }) => Promise<void>;
   updateBill: (id: string, updates: Partial<Bill>) => Promise<void>;
   updateBillStatus: (id: string, status: BillStatus, silent?: boolean) => Promise<void>;
   approveBill: (id: string) => Promise<void>;
@@ -85,40 +85,23 @@ interface DbBillResult {
   days_allocated: number;
   current_countdown: number;
   extensions_count: number;
-  status_reason?: string;
-  concluded_at?: string | null;
   [key: string]: unknown;
 }
 
-const mapDbToBill = (data: DbBillResult): Bill => {
-  let status: BillStatus = data.status as BillStatus; // Default cast
-
-  // Map legacy statuses or invalid states
-  if (data.status === 'limbo' || data.status === 'frozen') {
-     status = 'tbd';
-
-  } else if (data.status === 'pending' && !data.presentation_date) {
-     // If pending but no date, it's effectively TBD (formerly limbo)
-     status = 'tbd';
-  }
-
-  return {
-    id: data.id,
-    title: data.title,
-    committee: data.committee,
-    dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
-    pendingDays: data.pending_days || 0,
-    presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
-    status: status,
-    createdAt: new Date(data.created_at),
-    updatedAt: new Date(data.updated_at),
-    daysAllocated: data.days_allocated || 0,
-    currentCountdown: data.current_countdown || 0,
-    extensionsCount: data.extensions_count || 0,
-    statusReason: data.status_reason,
-    concludedAt: data.concluded_at ? new Date(data.concluded_at) : null
-  };
-};
+const mapDbToBill = (data: DbBillResult): Bill => ({
+  id: data.id,
+  title: data.title,
+  committee: data.committee,
+  dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
+  pendingDays: data.pending_days || 0,
+  presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
+  status: data.status as BillStatus,
+  createdAt: new Date(data.created_at),
+  updatedAt: new Date(data.updated_at),
+  daysAllocated: data.days_allocated || 0,
+  currentCountdown: data.current_countdown || 0,
+  extensionsCount: data.extensions_count || 0
+});
 
 // Bill provider component
 export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -185,42 +168,66 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
   */
 
-  /* 
-  // Frozen status checker removed as per new requirements.
-  // Overdue status is now derived from date calculations in UI.
-  */
+  // Hook up the freeze checker (simplified to run locally on fetched data for notifications)
+  useEffect(() => {
+    const checkFreezeStatus = () => {
+      bills.forEach((bill) => {
+        const countdown = calculateCurrentCountdown(bill.presentationDate);
 
-  // Filtered bills getters - Memoized for performance
-  const pendingBills = useMemo(() =>
-    bills
-      .filter(bill => bill.status === "pending" || bill.status === "overdue" || bill.status === "tbd")
-      .sort((a, b) => a.presentationDate ? a.presentationDate.getTime() - b.presentationDate.getTime() : 0),
-    [bills]
-  );
+        if ((bill.status === "pending" || bill.status === "overdue") && countdown <= 0) {
+          updateBillStatus(bill.id, "frozen", true).then(() => {
+            addNotification({
+              type: "action_required",
+              title: "Bill Frozen",
+              message: `"${bill.title}" has been frozen due to expired deadline.`,
+              businessId: bill.id,
+              businessType: "bill",
+              businessTitle: bill.title
+            });
+          }).catch(() => {
+            // Even if RLS blocks the DB update, we still want the persistent notification
+            // for the local user if they are the one seeing it frozen.
+            addNotification({
+              type: "action_required",
+              title: "Bill Frozen",
+              message: `"${bill.title}" has been frozen due to expired deadline.`,
+              businessId: bill.id,
+              businessType: "bill",
+              businessTitle: bill.title
+            });
+          });
+        } else if (bill.status === "concluded" || (bill.status === "pending" && countdown > 0)) {
+          // If it was fixed, clear the frozen notification
+          clearBusinessNotifications(bill.id);
+        }
+      });
+    };
+    
+    // Check immediately
+    checkFreezeStatus();
+    
+    // Check periodically
+    const interval = setInterval(checkFreezeStatus, 60000); // Every minute
+    return () => clearInterval(interval);
+  }, [bills, addNotification]);
 
-  const concludedBills = useMemo(() =>
-    bills
-      .filter(bill => bill.status === "concluded")
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
-    [bills]
-  );
+  // Filtered bills getters
+  const pendingBills = bills
+    .filter(bill => bill.status === "pending" || bill.status === "overdue" || bill.status === "frozen")
+    .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime());
 
-  // Under review merged into pending
-  const underReviewBills: Bill[] = []; // Deprecated list, kept empty to satisfy interface for now or should typically be removed from interface.
-  // Since I updated BillContextType interface? No, I defined BillContextType at the top but didn't edit it yet. 
-  // I need to remove underReviewBills from interface too.
-  // For now I'll return empty array to avoid breaking other files relying on it, but I should remove it from interface in a separate chunk.
+  const concludedBills = bills
+    .filter(bill => bill.status === "concluded")
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+
+  const underReviewBills = bills
+    .filter(bill => bill.status === "under_review")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   // Add new bill
-  const addBill = async (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: BillStatus, concludedAt?: Date | null }) => {
+  const addBill = async (billData: Omit<Bill, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
 
-
-    // Use explicit presentationDate if provided, otherwise calculate it if possible
-    let presentationDate: Date | null = billData.presentationDate || null;
-    
-    if (!presentationDate && billData.dateCommitted) {
-       presentationDate = calculatePresentationDate(billData.dateCommitted, billData.pendingDays);
-    }
+    const presentationDate = calculatePresentationDate(billData.dateCommitted, billData.pendingDays);
 
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -234,38 +241,19 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    
-    // Determine status: Default to pending unless date missing (tbd)
-    let initialStatus: BillStatus = "pending";
-    if (!presentationDate) {
-        initialStatus = "tbd";
-    }
-    
-    // If not admin, force status to under_review
-    if (!isAdmin) {
-        initialStatus = "under_review";
-    }
-
-    // If specific status requested (and valid), use it
-    if (billData.initialStatus === 'concluded' || billData.initialStatus === 'overdue' || billData.initialStatus === 'tbd') {
-        initialStatus = billData.initialStatus;
-    }
-
     const newBill = {
       title: billData.title,
       committee: billData.committee,
-      date_committed: billData.dateCommitted ? billData.dateCommitted.toISOString() : null,
+      date_committed: billData.dateCommitted.toISOString(),
       pending_days: billData.pendingDays,
-      status: initialStatus,
-      presentation_date: presentationDate ? presentationDate.toISOString() : null,
+      status: isAdmin ? "pending" : "under_review",
+      presentation_date: presentationDate.toISOString(),
       days_allocated: billData.pendingDays,
       current_countdown: billData.pendingDays,
       extensions_count: 0,
       created_by: user.id, 
-
       department: "Legal", // Default value as it's required
-      mca: "System", // Default value as it's required
-      concluded_at: billData.concludedAt ? billData.concludedAt.toISOString() : null
+      mca: "System" // Default value as it's required
     };
 
     try {
@@ -331,8 +319,6 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (updates.daysAllocated !== undefined) dbUpdates.days_allocated = updates.daysAllocated;
       if (updates.currentCountdown !== undefined) dbUpdates.current_countdown = updates.currentCountdown;
       if (updates.extensionsCount !== undefined) dbUpdates.extensions_count = updates.extensionsCount;
-      if (updates.statusReason !== undefined) dbUpdates.status_reason = updates.statusReason;
-      if (updates.concludedAt !== undefined) dbUpdates.concluded_at = updates.concludedAt ? updates.concludedAt.toISOString() : null;
 
       // Specialized logic from original context: if dates changed, recalc presentation date
       const currentBill = bills.find(b => b.id === id);
@@ -393,19 +379,9 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update bill status
   const updateBillStatus = async (id: string, status: BillStatus, silent: boolean = false) => {
     try {
-      const updates: { status: BillStatus; updated_at: string; concluded_at?: string | null } = { status, updated_at: new Date().toISOString() };
-      
-      // If marking as concluded, set the concluded_at date
-      if (status === "concluded") {
-         updates.concluded_at = new Date().toISOString();
-      } else {
-         // If moving out of concluded, should we clear it? Usually yes.
-         updates.concluded_at = null; 
-      }
-
       const { data, error } = await supabase
         .from('bills')
-        .update(updates)
+        .update({ status, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select();
 
@@ -424,8 +400,7 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pending: "Bill has been marked as pending",
         concluded: "Bill has been marked as concluded",
         overdue: "Bill has been marked as overdue",
-        tbd: "Bill has been marked as TBD",
-        under_review: "Bill has been marked as under review"
+        frozen: "Bill has been marked as frozen"
       };
 
       queryClient.invalidateQueries({ queryKey: ["bills"] });
@@ -459,23 +434,12 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const rescheduleBill = async (id: string, newDate: Date) => {
     try {
-      // Fetch latest extension count directly from DB to avoid stale/empty context state
-      const { data: currentData, error: fetchError } = await supabase
-        .from('bills')
-        .select('extensions_count')
-        .eq('id', id)
-        .single();
-      
-      if (fetchError) throw fetchError;
-      if (!currentData) throw new Error("Bill not found");
+      const bill = bills.find(b => b.id === id);
+      if (!bill) return;
 
       const adjustedDate = adjustForSittingDay(newDate);
       const now = new Date();
-      // Calculate days difference (start of today vs start of target date)
       const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Determine status: "pending" if future/today, "overdue" if past
-      const newStatus = daysDiff >= 0 ? "pending" : "overdue";
 
       const { error } = await supabase
         .from('bills')
@@ -483,15 +447,15 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           presentation_date: adjustedDate.toISOString(),
           pending_days: daysDiff > 0 ? daysDiff : 0,
           current_countdown: daysDiff,
-          extensions_count: (currentData.extensions_count || 0) + 1,
-          status: newStatus,
+          extensions_count: bill.extensionsCount + 1,
+          status: "overdue",
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
 
       if (error) throw error;
 
-      // Clear notifications on reschedule
+      // Clear notifications on reschedule (it's no longer frozen)
       clearBusinessNotifications(id);
 
       queryClient.invalidateQueries({ queryKey: ["bills"] });
@@ -548,31 +512,30 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const getBillById = useCallback((id: string) => bills.find(bill => bill.id === id), [bills]);
-  
-  const searchBills = useCallback((query: string) => {
+  const getBillById = (id: string) => bills.find(bill => bill.id === id);
+  const searchBills = (query: string) => {
     const lowercaseQuery = query.toLowerCase();
     return bills.filter(
       bill =>
         bill.title.toLowerCase().includes(lowercaseQuery) ||
         bill.committee.toLowerCase().includes(lowercaseQuery)
     );
-  }, [bills]);
+  };
 
-  const filterBills = useCallback((filters: {
+  const filterBills = (filters: {
     year?: number;
     committee?: string;
     pendingDays?: number;
     status?: BillStatus;
   }) => {
     return bills.filter(bill => {
-      if (filters.year && bill.presentationDate?.getFullYear() !== filters.year) return false;
+      if (filters.year && bill.presentationDate.getFullYear() !== filters.year) return false;
       if (filters.committee && bill.committee !== filters.committee) return false;
       if (filters.pendingDays && bill.pendingDays !== filters.pendingDays) return false;
       if (filters.status && bill.status !== filters.status) return false;
       return true;
     });
-  }, [bills]);
+  };
 
   return (
     <BillContext.Provider

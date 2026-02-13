@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { format } from 'date-fns';
 
-export const generateTemplate = async (committees: string[], templateType: 'days' | 'date' | 'concluded' = 'days') => {
+export const generateTemplate = async (committees: string[], templateType: 'days' | 'date' = 'days') => {
   const types = ['Bill', 'Statement', 'Report', 'Regulation', 'Policy', 'Petition', 'Motion'];
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Bill Watch Chronicles';
@@ -13,26 +13,16 @@ export const generateTemplate = async (committees: string[], templateType: 'days
   // 1. Data Entry Sheet
   const sheet = workbook.addWorksheet('Business Data');
   
-  let columns;
-  if (templateType === 'concluded') {
-       columns = [
-        { header: 'Business Name', key: 'name', width: 40 },
-        { header: 'Committee', key: 'committee', width: 40 },
-        { header: 'Type of Business', key: 'type', width: 20 },
-        { header: 'Sitting Date', key: 'date', width: 25 },
-        { header: 'Approved Date', key: 'deadline', width: 25 },
-      ];
-  } else {
-      const daysHeader = templateType === 'days' ? 'Time Given (Days)' : 'Due Date';
-      columns = [
-        { header: 'Business Name', key: 'name', width: 40 },
-        { header: 'Committee', key: 'committee', width: 40 },
-        { header: 'Type of Business', key: 'type', width: 20 },
-        { header: 'Date of Committing', key: 'date', width: 25 },
-        { header: daysHeader, key: 'deadline', width: 25 },
-      ];
-  }
-  sheet.columns = columns;
+  const daysHeader = templateType === 'days' ? 'Time Given (Days)' : 'Due Date';
+  
+  // Define columns
+  sheet.columns = [
+    { header: 'Business Name', key: 'name', width: 40 },
+    { header: 'Committee', key: 'committee', width: 40 },
+    { header: 'Type of Business', key: 'type', width: 20 },
+    { header: 'Date of Committing', key: 'date', width: 25 },
+    { header: daysHeader, key: 'deadline', width: 25 },
+  ];
 
   // Style the header row
   const headerRow = sheet.getRow(1);
@@ -45,23 +35,13 @@ export const generateTemplate = async (committees: string[], templateType: 'days
   headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
   // Add sample data
-  const sampleDate = format(new Date(), 'dd/MM/yyyy');
-  let sampleDeadline: string | number = sampleDate;
-
-  if (templateType === 'days') {
-      sampleDeadline = 14;
-  } else if (templateType === 'date') {
-      sampleDeadline = format(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy');
-  } else {
-      // Concluded
-      sampleDeadline = format(new Date(), 'dd/MM/yyyy');
-  }
+  const sampleDeadline = templateType === 'days' ? 14 : format(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy');
   
   sheet.addRow({
     name: 'Sample Business Title',
     committee: committees[0] || 'Select Committee',
     type: 'Bill',
-    date: sampleDate,
+    date: format(new Date(), 'dd/MM/yyyy'),
     deadline: sampleDeadline
   });
 
@@ -108,7 +88,6 @@ export const generateTemplate = async (committees: string[], templateType: 'days
       prompt: 'Select Type'
     };
 
-    // Date Column (Col D)
     const dateCell = sheet.getCell(`D${i}`);
     dateCell.numFmt = 'dd/mm/yyyy';
     dateCell.dataValidation = {
@@ -122,7 +101,7 @@ export const generateTemplate = async (committees: string[], templateType: 'days
       prompt: 'Day/Month/Year'
     };
     
-    // Deadline Column (Col E) - Days, Due Date, or Approved Date
+    // Validation for the 5th column (Days or Due Date)
     const deadlineCell = sheet.getCell(`E${i}`);
     if (templateType === 'days') {
         deadlineCell.dataValidation = {
@@ -135,7 +114,6 @@ export const generateTemplate = async (committees: string[], templateType: 'days
             error: 'Must be a positive number.'
         };
     } else {
-        // Both 'date' and 'concluded' use a date in this column
         deadlineCell.numFmt = 'dd/mm/yyyy';
         deadlineCell.dataValidation = {
             type: 'date',
@@ -161,26 +139,15 @@ export const generateTemplate = async (committees: string[], templateType: 'days
   const instrHeader = instrSheet.getRow(1);
   instrHeader.font = { bold: true };
   
-  let deadlineDesc;
-  let dateDesc;
-
-  if (templateType === 'days') {
-      dateDesc = { field: 'Date of Committing', desc: 'Official date the item was committed.', notes: 'Format: DD/MM/YYYY' };
-      deadlineDesc = { field: 'Time Given (Days)', desc: 'Allocated time period in days.', notes: 'Must be a positive number.' };
-  } else if (templateType === 'date') {
-      dateDesc = { field: 'Date of Committing', desc: 'Official date the item was committed.', notes: 'Format: DD/MM/YYYY' };
-      deadlineDesc = { field: 'Due Date', desc: 'The deadline date for the business item.', notes: 'Format: DD/MM/YYYY' };
-  } else {
-      // Concluded
-      dateDesc = { field: 'Sitting Date', desc: 'Date of the sitting (aka Due Date equivalent provided).', notes: 'Format: DD/MM/YYYY' };
-      deadlineDesc = { field: 'Approved Date', desc: 'Date approved/concluded.', notes: 'Format: DD/MM/YYYY' };
-  }
+  const deadlineDesc = templateType === 'days' 
+    ? { field: 'Time Given (Days)', desc: 'Allocated time period in days.', notes: 'Must be a positive number.' }
+    : { field: 'Due Date', desc: 'The deadline date for the business item.', notes: 'Format: DD/MM/YYYY. Should be after Date of Committing.' };
 
   instrSheet.addRows([
     { field: 'Business Name', desc: 'The full title of the bill or document.', notes: 'E.g., The Finance Bill 2024' },
     { field: 'Committee', desc: 'Committee assigned to the item.', notes: 'Use the dropdown menu in the Business Data sheet.' },
     { field: 'Type of Business', desc: 'Classification of the item.', notes: 'Bill, Statement, Report, etc. Use dropdown.' },
-    dateDesc,
+    { field: 'Date of Committing', desc: 'Official date the item was committed.', notes: 'Format: DD/MM/YYYY (e.g., 25/12/2024)' },
     deadlineDesc,
   ]);
 
@@ -188,10 +155,9 @@ export const generateTemplate = async (committees: string[], templateType: 'days
   instrSheet.addRow({ field: 'IMPORTANT', desc: 'Do not rename the columns or change their order.', notes: 'The system relies on this structure.' });
 
   // Generate and Trigger Download
-  let filename = `Business_Upload_Template_${format(new Date(), 'yyyyMMdd')}.xlsx`;
-  if (templateType === 'days') filename = `Business_Upload_Template_Days_${format(new Date(), 'yyyyMMdd')}.xlsx`;
-  if (templateType === 'date') filename = `Business_Upload_Template_DueDates_${format(new Date(), 'yyyyMMdd')}.xlsx`;
-  if (templateType === 'concluded') filename = `Concluded_Business_Upload_Template_${format(new Date(), 'yyyyMMdd')}.xlsx`;
+  const filename = templateType === 'days' 
+    ? `Business_Upload_Template_Days_${format(new Date(), 'yyyyMMdd')}.xlsx`
+    : `Business_Upload_Template_DueDates_${format(new Date(), 'yyyyMMdd')}.xlsx`;
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

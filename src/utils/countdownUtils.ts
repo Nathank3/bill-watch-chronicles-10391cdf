@@ -42,17 +42,18 @@ export const determineItemStatus = (
   currentStatus: string,
   presentationDate: Date | null,
   extensionsCount: number
-): "pending" | "concluded" | "overdue" | "tbd" | "frozen" => {
-  if (currentStatus === "frozen") {
-      return "frozen";
-  }
-  
+): "pending" | "concluded" | "overdue" | "frozen" | "limbo" => {
   if (currentStatus === "concluded") {
     return "concluded";
   }
 
-  if (currentStatus === "limbo" || currentStatus === "tbd" || !presentationDate) {
-    return "tbd";
+  if (currentStatus === "limbo" || !presentationDate) {
+    return "limbo";
+  }
+  
+  const countdown = calculateCurrentCountdown(presentationDate);
+  if (countdown <= 0) {
+    return "frozen";
   }
   
   if (isItemOverdue(presentationDate, extensionsCount)) {

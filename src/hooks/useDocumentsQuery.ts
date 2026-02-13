@@ -27,24 +27,22 @@ interface DbDocumentResult {
   days_allocated: number | null;
   current_countdown: number | null;
   extensions_count: number | null;
-  concluded_at?: string | null;
 }
 
 const mapDbToDocument = (data: DbDocumentResult): Document => ({
   id: data.id,
   title: data.title,
   committee: data.committee,
-  dateCommitted: data.date_committed ? new Date(data.date_committed) : null,
+  dateCommitted: new Date(data.date_committed || data.created_at),
   pendingDays: data.pending_days || 0,
-  presentationDate: data.presentation_date ? new Date(data.presentation_date) : null,
-  status: (data.status === "pending" && !data.presentation_date) ? "tbd" : data.status as DocumentStatus,
+  presentationDate: new Date(data.presentation_date),
+  status: data.status as DocumentStatus,
   type: data.type as DocumentType,
   createdAt: new Date(data.created_at),
   updatedAt: new Date(data.updated_at),
   daysAllocated: data.days_allocated || 0,
   currentCountdown: data.current_countdown || 0,
-  extensionsCount: data.extensions_count || 0,
-  concludedAt: data.concluded_at ? new Date(data.concluded_at) : null
+  extensionsCount: data.extensions_count || 0
 });
 
 export const useDocumentList = (
@@ -63,13 +61,7 @@ export const useDocumentList = (
       }
 
       if (status !== "all") {
-        if (status === "limbo" as DocumentStatus || status === "tbd" as DocumentStatus) {
-            query = query.or("status.eq.tbd,status.eq.limbo,and(status.eq.pending,presentation_date.is.null)");
-        } else if (status === "pending") {
-            query = query.eq("status", "pending").not("presentation_date", "is", null);
-        } else {
-            query = query.eq("status", status);
-        }
+        query = query.eq("status", status);
       }
 
       // Apply committee filter
@@ -93,9 +85,7 @@ export const useDocumentList = (
 
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      query = query.range(from, to)
-        .order("presentation_date", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false });
+      query = query.range(from, to).order("created_at", { ascending: false });
 
       const { data, error, count } = await query;
 
@@ -107,8 +97,6 @@ export const useDocumentList = (
       };
     },
     placeholderData: keepPreviousData,
-    staleTime: 2 * 60 * 1000, // Data considered fresh for 2 minutes
-    gcTime: 5 * 60 * 1000, // Garbage collection time: 5 minutes
     ...options
   });
 };
@@ -117,85 +105,33 @@ export const useDocumentStats = (type?: DocumentType) => {
   return useQuery({
     queryKey: ["documents-stats", { type }],
     queryFn: async () => {
-      const now = new Date();
+      const baseQuery = supabase.from("documents");
       
-      let query = supabase
-        .from("documents")
-        .select("id, status, type, presentation_date, extensions_count, created_at");
-        
-      if (type) {
-        query = query.eq("type", type);
-      }
-      
-      const { data: docs, error } = await query;
-      
-      if (error) {
-        console.error(`Error fetching stats for ${type}:`, error);
-        throw error;
+      const getCount = async (status?: string) => {
+        let query = baseQuery.select("*", { count: "exact", head: true });
+        if (type) query = query.eq("type", type);
+        if (status) query = query.eq("status", status);
+        const { count } = await query;
+        return count || 0;
       };
 
-      const stats = {
-        total: 0,
-        pending: 0,
-        concluded: 0,
-        overdue: 0,
-        frozen: 0,
-        underReview: 0,
-        limbo: 0,
-        tbd: 0,
+      const [total, pending, concluded, overdue, frozen, underReview] = await Promise.all([
+        getCount(),
+        getCount("pending"),
+        getCount("concluded"),
+        getCount("overdue"),
+        getCount("frozen"),
+        getCount("under_review"),
+      ]);
+
+      return {
+        total,
+        pending,
+        concluded,
+        overdue,
+        frozen,
+        underReview,
       };
-
-      if (!docs) return stats;
-
-      stats.total = docs.length;
-
-      docs.forEach((doc) => {
-        // Normalize status
-        const status = doc.status as string;
-        
-        if (status === "concluded") {
-          stats.concluded++;
-          return;
-        }
-
-        if (status === "under_review") {
-            stats.underReview++;
-            return;
-        }
-
-        if (status === "frozen") {
-            stats.frozen++;
-            return;
-        }
-
-        // Check for TBD/Limbo
-        if (status === "limbo" || status === "tbd" || (status === "pending" && !doc.presentation_date)) {
-            stats.tbd++;
-            // stats.limbo++; // Removed to prevent double counting
-            return;
-        }
-
-        // Check for Overdue
-        let isOverdue = false;
-        if (status === "overdue") {
-            isOverdue = true;
-        } else if (doc.presentation_date) {
-            const presDate = new Date(doc.presentation_date);
-            if (presDate < now) isOverdue = true;
-        }
-        
-        if (doc.extensions_count && doc.extensions_count > 0) isOverdue = true;
-
-        if (isOverdue) {
-            stats.overdue++;
-        } else {
-            stats.pending++;
-        }
-      });
-
-      return stats;
     },
-    staleTime: 3 * 60 * 1000, // Stats fresh for 3 minutes
-    gcTime: 10 * 60 * 1000, // Garbage collection time: 10 minutes
   });
 };

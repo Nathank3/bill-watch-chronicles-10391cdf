@@ -1,8 +1,6 @@
 import { Bill } from "@/contexts/BillContext.tsx";
 import { Document } from "@/contexts/DocumentContext.tsx";
 
-
-
 export interface BulkRow {
   'Business Name': string;
   'Committee': string;
@@ -12,22 +10,9 @@ export interface BulkRow {
   'Due Date'?: string | number;
 }
 
-const detectTypeFromTitle = (title: string): string | null => {
-  const lowerTitle = title.toLowerCase();
-  if (lowerTitle.includes("statement")) return "Statement";
-  if (lowerTitle.includes("motion")) return "Motion";
-  if (lowerTitle.includes("petition")) return "Petition";
-  if (lowerTitle.includes("policy")) return "Policy";
-  if (lowerTitle.includes("regulation")) return "Regulation";
-  if (lowerTitle.includes("report")) return "Report";
-  if (lowerTitle.includes("bill")) return "Bill";
-  return null;
-};
-
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
-  warnings?: string[];
   rowNumber: number;
   data: {
     title: string;
@@ -35,9 +20,7 @@ export interface ValidationResult {
     type: string;
     dateCommitted: Date | null;
     pendingDays: number;
-    presentationDate?: Date | null;
-    status: 'pending' | 'tbd' | 'concluded';
-    concludedAt?: Date | null;
+    status: 'pending' | 'limbo';
   } | null;
 }
 
@@ -56,57 +39,20 @@ export const validateBulkData = (
 
   data.forEach((row, index) => {
     const errors: string[] = [];
-    const warnings: string[] = [];
     const rowNum = index + 2; // Assuming header is line 1
 
     // Basic required fields
-    // Helper to find key case-insensitive/trimmed
-    const findKey = (search: string) => Object.keys(row).find(k => k.trim().toLowerCase() === search.toLowerCase());
-
-    const nameKey = findKey('Business Name');
-    const committeeKey = findKey('Committee');
-    const typeKey = findKey('Type of Business');
-    const dateKey = findKey('Date of Committing');
-    const daysKey = findKey('Time Given (Days)');
-    const dueDateKey = findKey('Due Date');
-
-    // Basic required fields
-    const name = nameKey ? row[nameKey as keyof typeof row]?.toString().trim() : undefined;
-    const committee = committeeKey ? row[committeeKey as keyof typeof row]?.toString().trim() : undefined;
-    let type = typeKey ? row[typeKey as keyof typeof row]?.toString().trim() : undefined;
-    const dateCommittedStr = dateKey ? row[dateKey as keyof typeof row] as string | number : undefined;
-    const daysStr = daysKey ? row[daysKey as keyof typeof row] as string | number | undefined : undefined;
-    const dueDateStr = dueDateKey ? row[dueDateKey as keyof typeof row] as string | number | undefined : undefined;
+    const name = row['Business Name']?.toString().trim();
+    const committee = row['Committee']?.toString().trim();
+    const type = row['Type of Business']?.toString().trim();
+    const dateCommittedStr = row['Date of Committing'] as string | number;
+    const daysStr = row['Time Given (Days)'] as string | number | undefined;
+    const dueDateStr = row['Due Date'] as string | number | undefined;
 
     if (!name) errors.push('Missing Business Name');
     if (!committee) errors.push('Missing Committee');
-    
-    // Auto-detect type if missing or if it looks generic ("Bill") but content suggests otherwise
-    let finalType = type;
-    
-    // Normalize explicit type if present
-    if (finalType) {
-        // Match against valid types (case-insensitive)
-        const matchedType = types.find(t => t.toLowerCase() === finalType!.toLowerCase());
-        if (matchedType) {
-            finalType = matchedType; // Use standard casing (e.g. "Statement")
-        }
-    }
-
-    if (name) {
-        const detectedType = detectTypeFromTitle(name);
-        if (detectedType) {
-            // If explicit type is missing OR explicit type is "Bill" but detected is something else (e.g. Statement), override
-             if (!finalType || (finalType === 'Bill' && detectedType !== 'Bill')) {
-                 finalType = detectedType;
-             }
-        }
-    }
-    
-    // Update the var to be used downstream
-    type = finalType;
-
-    if (!type) errors.push('Missing Type of Business (and could not infer from content)');
+    if (!type) errors.push('Missing Type of Business');
+    if (!dateCommittedStr) errors.push('Missing Date of Committing');
 
     // Parse Date of Committing
     let dateCommitted: Date | null = null;
@@ -136,9 +82,8 @@ export const validateBulkData = (
     let isLimbo = false;
 
     if (!hasCommittedDate && !hasDeadline) {
-        // Scenario A: TBD (No dates at all)
+        // Scenario A: Limbo (No dates at all)
         isLimbo = true;
-        warnings.push("TBD State: No dates provided. Item will be uploaded as 'TBD'.");
     } else if (hasCommittedDate && hasDeadline) {
         // Scenario B: Active (Both dates exist)
         // Proceed to calculate days/validate dates
@@ -169,13 +114,11 @@ export const validateBulkData = (
         }
 
     } else {
-        // Scenario C: Half-Baked (Partial Data = TBD)
-        // Instead of rejecting, we classify these as TBD because they are incomplete but likely valid records
-        isLimbo = true;
+        // Scenario C: Half-Baked (Integrity Violation)
         if (hasCommittedDate && !hasDeadline) {
-             warnings.push('Incomplete: "Date of Committing" provided but missing deadline. Item set to TBD.');
+             errors.push('Data Integrity Error: "Date of Committing" provided but missing "Due Date" or "Time Given". Must provide BOTH or NEITHER (for Limbo).');
         } else if (!hasCommittedDate && hasDeadline) {
-             warnings.push('Incomplete: Deadline provided but missing "Date of Committing". Item set to TBD.');
+             errors.push('Data Integrity Error: "Due Date/Time Given" provided but missing "Date of Committing". Must provide BOTH or NEITHER (for Limbo).');
         }
     }
 
@@ -184,65 +127,34 @@ export const validateBulkData = (
       errors.push(`Invalid Type: "${type}". Must be one of: ${types.join(', ')}`);
     }
 
-    // Committee validation & Fuzzy Matching
-    let finalCommittee = committee;
-    if (committee && committee !== "All Committees") {
-       // Exact match
-       if (committees.includes(committee)) {
-           finalCommittee = committee;
-       } else {
-           // Sort committees by length descending to match specific ones first ("Health and Sanitation" vs "Health")
-           const sortedCommittees = [...committees].sort((a, b) => b.length - a.length);
-           
-           const match = sortedCommittees.find(c => 
-               committee.toLowerCase().includes(c.toLowerCase()) || 
-               c.toLowerCase().includes(committee.toLowerCase())
-           );
-
-           if (match) {
-               finalCommittee = match;
-               warnings.push(`Committee fuzzy matched: "${committee}" -> "${match}"`);
-           } else {
-               errors.push(`Invalid Committee: "${committee}". Expected one of: ${committees.slice(0, 3).join(', ')}...`);
-           }
-       }
-    } else if (!committee) {
-        // Already handled by 'Missing Committee' check above but good to be safe
-    } else {
-        // "All Committees" is presumably not valid for a specific item, or is it? 
-        // Assuming individual items must belong to a specific committee.
-        // If "All Committees" is passed, maybe default to user's committee or error?
-        // For now, treat as invalid if it's strictly "All Committees" generic bucket
-        if (committee === "All Committees") {
-             errors.push(`Invalid Committee: "All Committees". Please specify a specific committee.`);
-        }
+    // Committee validation
+    if (committee && committee !== "All Committees" && !committees.includes(committee)) {
+      errors.push(`Invalid Committee: "${committee}". Please use names from the dropdown/list.`);
     }
-    
+
     // Duplicate Check (Name + Type + Committee)
-    if (name && finalType && finalCommittee) {
-      const isBill = finalType === 'Bill';
+    if (name && type && committee) {
+      const isBill = type === 'Bill';
       const duplicateFound = isBill
-        ? existingBills.some(b => b.title.toLowerCase() === name.toLowerCase() && b.committee === finalCommittee)
-        : existingDocs.some(d => d.title.toLowerCase() === name.toLowerCase() && d.type.toLowerCase() === finalType?.toLowerCase() && d.committee === finalCommittee);
+        ? existingBills.some(b => b.title.toLowerCase() === name.toLowerCase() && b.committee === committee)
+        : existingDocs.some(d => d.title.toLowerCase() === name.toLowerCase() && d.type.toLowerCase() === type.toLowerCase() && d.committee === committee);
 
       if (duplicateFound) {
-        errors.push(`Possible Duplicate: A ${finalType} with this name already exists in this committee.`);
+        errors.push(`Possible Duplicate: A ${type} with this name already exists in this committee.`);
       }
     }
 
     results.push({
       valid: errors.length === 0,
       errors,
-      warnings, // Add warnings to result
       rowNumber: rowNum,
       data: errors.length === 0 ? {
         title: name,
-        committee: finalCommittee,
-        type: finalType?.toLowerCase(),
+        committee,
+        type: type?.toLowerCase(),
         dateCommitted: isLimbo ? null : (dateCommitted as Date),
         pendingDays: isLimbo ? 0 : days,
-        presentationDate: (hasDueDate && dueDateStr) ? parseExcelDate(dueDateStr) : null,
-        status: isLimbo ? 'tbd' : 'pending'
+        status: isLimbo ? 'limbo' : 'pending'
       } : null
     });
   });

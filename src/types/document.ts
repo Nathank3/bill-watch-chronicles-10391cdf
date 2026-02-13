@@ -5,7 +5,8 @@
 export type DocumentType = "bill" | "statement" | "report" | "regulation" | "policy" | "petition" | "motion";
 
 // Define document status type
-export type DocumentStatus = "pending" | "concluded" | "overdue" | "tbd" | "frozen" | "limbo" | "under_review";
+// Define document status type
+export type DocumentStatus = "pending" | "concluded" | "overdue" | "frozen" | "under_review" | "limbo";
 
 // Define document interface
 export interface Document {
@@ -22,8 +23,6 @@ export interface Document {
   daysAllocated: number; // Total cumulative days in the house
   currentCountdown: number; // Current countdown value (always decreasing)
   extensionsCount: number; // Number of times extended
-  statusReason?: string;
-  concludedAt?: Date | null;
 }
 
 // Define document filters interface
@@ -41,7 +40,7 @@ export interface DocumentContextType {
   pendingDocuments: (type: DocumentType) => Document[];
   concludedDocuments: (type: DocumentType) => Document[];
   underReviewDocuments: (type: DocumentType) => Document[];
-  addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: DocumentStatus }) => void;
+  addDocument: (document: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => void;
   updateDocument: (id: string, updates: Partial<Document>) => void;
   deleteDocument: (id: string) => void;
   updateDocumentStatus: (id: string, status: DocumentStatus, silent?: boolean) => void;
