@@ -35,11 +35,10 @@ organic growth occurs.
   - _Recommendation_: Future iterations could move this to Database RLS for
     strictly enforcing "non-deletable" constraints at the engine level.
 - **Database RLS Policies**:
-  - _Observation_: Client code uses direct table access
-    (`supabase.from('bills')...`).
-  - _Recommendation_: ensuring RLS policies are active on the database to
-    prevent authenticated users from modifying data they shouldn't (e.g., a
-    Clerk deleting a Bill).
+  - _Observation_: RLS policies were initially missing.
+  - _Status_: **Fixed**. Comprehensive RLS policies for `bills`, `documents`,
+    `committees`, and `profiles` have been applied, enforcing role-based access
+    control at the database engine level.
 
 ---
 

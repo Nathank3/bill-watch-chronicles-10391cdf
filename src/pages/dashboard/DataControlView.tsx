@@ -14,8 +14,9 @@ import { isSuperAdmin as checkSuperAdmin } from "@/utils/security.ts";
 
 export default function DataControlView() {
   const [isExporting, setIsExporting] = useState(false);
-  const { user } = useAuth();
-  const isSuperAdmin = checkSuperAdmin(user?.email);
+  // Use session to get email because the 'user' object is just the profile and lacks email
+  const { session } = useAuth();
+  const isSuperAdmin = checkSuperAdmin(session?.user?.email);
 
   const handleExport = async () => {
     setIsExporting(true);
