@@ -11,7 +11,7 @@ import { format, differenceInDays } from "date-fns";
 import { Calendar as CalendarIcon, Loader2, AlertTriangle, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
-import { convertBusinessItem } from "@/utils/businessConverter.ts";
+import { BusinessItemData, convertBusinessItem } from "@/utils/businessConverter.ts";
 import { calculatePresentationDate } from "@/utils/documentUtils.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
@@ -121,7 +121,7 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
       
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await convertBusinessItem(
-        item as any,
+        item as BusinessItemData,
         normalizedType,
         {
           title,

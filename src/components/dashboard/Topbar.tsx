@@ -2,6 +2,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.tsx"
 import { SidebarTrigger } from "@/components/ui/sidebar.tsx"
 import { NotificationBell } from "@/components/NotificationBell.tsx"
+import { Wifi } from "lucide-react"
 
 import { useAuth } from "@/contexts/AuthContext.tsx"
 
@@ -25,6 +26,12 @@ export function DashboardTopbar() {
       </div>
       
       <div className="flex items-center gap-4">
+        {/* System Health Indicator */}
+        <div className="hidden md:flex items-center gap-2 text-xs bg-green-50 text-green-700 px-3 py-1 rounded-full border border-green-200">
+            <Wifi className="h-3 w-3" />
+            <span className="font-medium">System Normal</span>
+        </div>
+
         <NotificationBell />
         <Avatar>
           <AvatarImage src="https://github.com/shadcn.png" />

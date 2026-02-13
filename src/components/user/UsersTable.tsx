@@ -79,7 +79,7 @@ export const UsersTable = ({
                 onUserDeleted={onUserDeleted}
                 isDeleting={deletingUserId === user.id}
                 onPasswordReset={onPasswordReset}
-                onPasswordReset={onPasswordReset}
+
                 isAdmin={isAdmin}
                 currentUserId={currentUserId}
               />

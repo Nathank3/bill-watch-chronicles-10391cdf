@@ -13,8 +13,8 @@ import { DatePickerWithRange } from "@/components/ui/date-range-picker.tsx";
 import { DateRange } from "react-day-picker";
 import { useBillList } from "@/hooks/useBillsQuery.ts";
 import { useDocumentList } from "@/hooks/useDocumentsQuery.ts";
-import { DocumentType, DocumentStatus } from "@/types/document.ts";
-import { BillStatus } from "@/contexts/BillContext.tsx";
+import { DocumentType, DocumentStatus, Document } from "@/types/document.ts";
+import { Bill, BillStatus } from "@/contexts/BillContext.tsx";
 import { PaginationControls } from "@/components/ui/pagination-controls.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
 
@@ -182,9 +182,9 @@ const PublicPage = () => {
                     <div className="grid gap-4 md:grid-cols-2">
                         {listData.map((item) => (
                             documentType === "bill" ? (
-                                <BillCard key={item.id} bill={item as any} />
+                                <BillCard key={item.id} bill={item as Bill} />
                             ) : (
-                                <DocumentCard key={item.id} document={item as any} />
+                                <DocumentCard key={item.id} document={item as Document} />
                             )
                         ))}
                     </div>

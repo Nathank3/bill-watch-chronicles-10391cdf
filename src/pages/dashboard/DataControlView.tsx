@@ -1,13 +1,57 @@
-
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
+import { RestoreBackupDialog } from "@/components/RestoreBackupDialog.tsx";
 import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
 import { ConcludedUploadDialog } from "@/components/ConcludedUploadDialog.tsx";
-import { Database, Trash2, RefreshCw, Archive } from "lucide-react";
+import { Database, Trash2, RefreshCw, Archive, Download, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast.ts";
 import { DeleteAllDataDialog } from "@/components/DeleteAllDataDialog.tsx";
+import { supabase } from "@/integrations/supabase/client.ts";
+import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext.tsx";
+import { isSuperAdmin as checkSuperAdmin } from "@/utils/security.ts";
 
 export default function DataControlView() {
+  const [isExporting, setIsExporting] = useState(false);
+  const { user } = useAuth();
+  const isSuperAdmin = checkSuperAdmin(user?.email);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+        const { data: bills } = await supabase.from("bills").select("*");
+        const { data: documents } = await supabase.from("documents").select("*");
+        const { data: committees } = await supabase.from("committees").select("*");
+        const { data: profiles } = await supabase.from("profiles").select("*");
+
+        const backupData = {
+            timestamp: new Date().toISOString(),
+            version: "1.0",
+            bills: bills || [],
+            documents: documents || [],
+            committees: committees || [],
+            profiles: profiles || []
+        };
+
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `makueni_backup_${format(new Date(), "yyyy-MM-dd_HH-mm")}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast({ title: "Backup Complete", description: "System data exported successfully." });
+    } catch (error) {
+        console.error("Backup failed", error);
+        toast({ title: "Backup Failed", description: "Could not export data.", variant: "destructive" });
+    } finally {
+        setIsExporting(false);
+    }
+  };
 
   const handleSync = () => {
      toast({
@@ -76,21 +120,45 @@ export default function DataControlView() {
             </CardContent>
         </Card>
 
-        {/* Nuke Database */}
-        <Card className="border-red-200 bg-red-50 dark:bg-red-900/10">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-red-600">
-                    <Trash2 className="h-5 w-5" /> Nuke Database
-                </CardTitle>
-                <CardDescription>Danger Zone</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="text-sm text-muted-foreground mb-4">
-                    Permanently delete all data. This action cannot be undone.
-                </div>
-                <DeleteAllDataDialog />
-            </CardContent>
-        </Card>
+        {/* Data Backup - Super Admin Only */}
+        {isSuperAdmin && (
+            <Card className="border-blue-200 bg-blue-50 dark:bg-blue-900/10">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-blue-700">
+                        <Download className="h-5 w-5" /> Data Backup
+                    </CardTitle>
+                    <CardDescription>Export full system snapshot.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-sm text-muted-foreground mb-4">
+                        Download a comprehensive JSON backup of bills, documents, and committees for disaster recovery.
+                    </div>
+                    <Button onClick={handleExport} disabled={isExporting} className="w-full bg-blue-600 hover:bg-blue-700 text-white mb-2">
+                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                        Download Full Backup
+                    </Button>
+                    <RestoreBackupDialog />
+                </CardContent>
+            </Card>
+        )}
+
+        {/* Nuke Database - Super Admin Only */}
+        {isSuperAdmin && (
+            <Card className="border-red-200 bg-red-50 dark:bg-red-900/10">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-red-600">
+                        <Trash2 className="h-5 w-5" /> Nuke Database
+                    </CardTitle>
+                    <CardDescription>Danger Zone</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-sm text-muted-foreground mb-4">
+                        Permanently delete all data. This action cannot be undone.
+                    </div>
+                    <DeleteAllDataDialog />
+                </CardContent>
+            </Card>
+        )}
       </div>
     </div>
   );

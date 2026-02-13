@@ -2,15 +2,15 @@ import { supabase } from "@/integrations/supabase/client.ts";
 import { logAuditAction } from "@/utils/auditLogger.ts";
 import { DocumentType } from "@/types/document.ts";
 
-interface BusinessItemData {
+export interface BusinessItemData {
   id: string;
   title: string;
   committee: string;
-  dateCommitted: Date;
+  dateCommitted: Date | null;
   status: string;
   type: "bill" | DocumentType;
   pendingDays: number;
-  presentationDate: Date;
+  presentationDate: Date | null;
   daysAllocated: number;
   extensionsCount: number;
   concludedAt?: Date | null;

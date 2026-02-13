@@ -1,4 +1,4 @@
-import { useState, useRef, ReactNode } from 'react';
+import { useState, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
@@ -32,7 +32,7 @@ interface ManagerialStats {
 
 export const ManagerialAnalytics = () => {
     const [generatingPdf, setGeneratingPdf] = useState(false);
-    const reportRef = useRef<HTMLDivElement>(null);
+
 
     const { data: stats, isLoading: loading, error } = useQuery({
         queryKey: ['managerial-stats'],

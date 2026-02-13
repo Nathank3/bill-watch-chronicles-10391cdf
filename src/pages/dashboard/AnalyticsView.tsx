@@ -80,7 +80,9 @@ export default function AnalyticsView() {
       const fetchDocs = supabase.from("documents").select("*").limit(1000);
 
       // Build queries based on filters
-      const applyFilters = (q: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      type QueryBuilder = any;
+      const applyFilters = (q: QueryBuilder) => {
         if (stdStatus !== "all") q = q.eq("status", stdStatus);
         if (stdCommittee !== "all") q = q.eq("committee", stdCommittee);
         
@@ -307,7 +309,9 @@ export default function AnalyticsView() {
           const fetchBills = supabase.from("bills").select("*").limit(1000);
           const fetchDocs = supabase.from("documents").select("*").limit(1000);
 
-          const applyFilters = (q: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          type QueryBuilder = any;
+          const applyFilters = (q: QueryBuilder) => {
               if (dailyStatus !== "all") q = q.eq("status", dailyStatus);
               if (dailyCommittee !== "all") q = q.eq("committee", dailyCommittee);
               
@@ -766,6 +770,7 @@ export default function AnalyticsView() {
             styles: { fontSize: 9, cellPadding: 3 },
             headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
             margin: { top: 20, right: 15, bottom: 10, left: 15 },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             columnStyles: columnStyles as any
         });
 
