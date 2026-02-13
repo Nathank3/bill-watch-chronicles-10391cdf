@@ -140,9 +140,16 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // Determine status
     let initialStatus: DocumentStatus = "pending";
+    
     if (!presentationDate) {
         initialStatus = "tbd";
     }
+
+    // if not admin, set to under_review
+    if (!isAdmin) {
+        initialStatus = "under_review";
+    }
+
     if (docData.initialStatus === 'concluded' || docData.initialStatus === 'overdue' || docData.initialStatus === 'tbd') {
         initialStatus = docData.initialStatus;
     }
@@ -360,6 +367,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         concluded: "Document has been marked as concluded",
         overdue: "Document has been marked as overdue",
         tbd: "Document has been marked as TBD",
+        under_review: "Document has been marked as under review"
       };
 
       toast({

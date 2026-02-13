@@ -8,7 +8,7 @@ import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
 import { logAuditAction } from "@/utils/auditLogger.ts";
 
-export type BillStatus = "pending" | "concluded" | "overdue" | "tbd";
+export type BillStatus = "pending" | "concluded" | "overdue" | "tbd" | "under_review";
 
 // Define bill interface
 export interface Bill {
@@ -96,8 +96,7 @@ const mapDbToBill = (data: DbBillResult): Bill => {
   // Map legacy statuses or invalid states
   if (data.status === 'limbo' || data.status === 'frozen') {
      status = 'tbd';
-  } else if (data.status === 'under_review') {
-     status = 'pending';
+
   } else if (data.status === 'pending' && !data.presentation_date) {
      // If pending but no date, it's effectively TBD (formerly limbo)
      status = 'tbd';
@@ -241,6 +240,12 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!presentationDate) {
         initialStatus = "tbd";
     }
+    
+    // If not admin, force status to under_review
+    if (!isAdmin) {
+        initialStatus = "under_review";
+    }
+
     // If specific status requested (and valid), use it
     if (billData.initialStatus === 'concluded' || billData.initialStatus === 'overdue' || billData.initialStatus === 'tbd') {
         initialStatus = billData.initialStatus;
@@ -419,7 +424,8 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pending: "Bill has been marked as pending",
         concluded: "Bill has been marked as concluded",
         overdue: "Bill has been marked as overdue",
-        tbd: "Bill has been marked as TBD"
+        tbd: "Bill has been marked as TBD",
+        under_review: "Bill has been marked as under review"
       };
 
       queryClient.invalidateQueries({ queryKey: ["bills"] });
