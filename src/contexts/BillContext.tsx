@@ -459,12 +459,23 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const rescheduleBill = async (id: string, newDate: Date) => {
     try {
-      const bill = bills.find(b => b.id === id);
-      if (!bill) return;
+      // Fetch latest extension count directly from DB to avoid stale/empty context state
+      const { data: currentData, error: fetchError } = await supabase
+        .from('bills')
+        .select('extensions_count')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      if (!currentData) throw new Error("Bill not found");
 
       const adjustedDate = adjustForSittingDay(newDate);
       const now = new Date();
+      // Calculate days difference (start of today vs start of target date)
       const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Determine status: "pending" if future/today, "overdue" if past
+      const newStatus = daysDiff >= 0 ? "pending" : "overdue";
 
       const { error } = await supabase
         .from('bills')
@@ -472,15 +483,15 @@ export const BillProvider: React.FC<{ children: React.ReactNode }> = ({ children
           presentation_date: adjustedDate.toISOString(),
           pending_days: daysDiff > 0 ? daysDiff : 0,
           current_countdown: daysDiff,
-          extensions_count: bill.extensionsCount + 1,
-          status: "overdue",
+          extensions_count: (currentData.extensions_count || 0) + 1,
+          status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
 
       if (error) throw error;
 
-      // Clear notifications on reschedule (it's no longer frozen)
+      // Clear notifications on reschedule
       clearBusinessNotifications(id);
 
       queryClient.invalidateQueries({ queryKey: ["bills"] });

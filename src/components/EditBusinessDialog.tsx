@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { Calendar } from "@/components/ui/calendar.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
-import { format, addDays, differenceInDays } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { Calendar as CalendarIcon, Loader2, AlertTriangle, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { convertBusinessItem } from "@/utils/businessConverter.ts";
+import { calculatePresentationDate } from "@/utils/documentUtils.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
 import { DocumentType } from "@/types/document.ts";
@@ -79,8 +80,9 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
   const handleCommittedDateChange = (date: Date | undefined) => {
     setDateCommitted(date);
     if (date && pendingDays) {
-        // If we have days, recalculate due date from new start date
-        setPresentationDate(addDays(date, pendingDays));
+        // Use utility to calculate date ensuring it falls on a sitting day
+        const newDate = calculatePresentationDate(date, pendingDays);
+        if (newDate) setPresentationDate(newDate);
     } else if (date && presentationDate) {
         // If we have due date, keep it (effectively changing duration)
         const diff = differenceInDays(presentationDate, date);
@@ -92,7 +94,8 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
   const handleDaysChange = (days: number) => {
     setPendingDays(days);
     if (dateCommitted) {
-        setPresentationDate(addDays(dateCommitted, days));
+        const newDate = calculatePresentationDate(dateCommitted, days);
+        if (newDate) setPresentationDate(newDate);
     }
   };
 
@@ -116,6 +119,7 @@ export const EditBusinessDialog = ({ open, onOpenChange, item }: EditBusinessDia
       // but the user can use the Reschedule dialog for explicit extensions. 
       // However, if they edit here, we just save the new values.
       
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await convertBusinessItem(
         item as any,
         normalizedType,

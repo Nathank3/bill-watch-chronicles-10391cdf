@@ -397,12 +397,21 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (id.startsWith('bill-')) return;
 
     try {
-      const doc = dbDocuments.find(d => d.id === id);
-      if (!doc) return;
+      // Fetch latest extension count directly from DB
+      const { data: currentData, error: fetchError } = await supabase
+        .from('documents')
+        .select('extensions_count')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!currentData) throw new Error("Document not found");
 
       const adjustedDate = adjustForSittingDay(newDate);
       const now = new Date();
       const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const newStatus = daysDiff >= 0 ? "pending" : "overdue";
 
       const { error } = await supabase
         .from('documents')
@@ -410,8 +419,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           presentation_date: adjustedDate.toISOString(),
           pending_days: daysDiff > 0 ? daysDiff : 0,
           current_countdown: daysDiff,
-          extensions_count: doc.extensionsCount + 1,
-          status: "overdue",
+          extensions_count: (currentData.extensions_count || 0) + 1,
+          status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);

@@ -42,7 +42,11 @@ export const determineItemStatus = (
   currentStatus: string,
   presentationDate: Date | null,
   extensionsCount: number
-): "pending" | "concluded" | "overdue" | "tbd" => {
+): "pending" | "concluded" | "overdue" | "tbd" | "frozen" => {
+  if (currentStatus === "frozen") {
+      return "frozen";
+  }
+  
   if (currentStatus === "concluded") {
     return "concluded";
   }

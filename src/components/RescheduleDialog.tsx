@@ -1,35 +1,39 @@
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { format, addDays, differenceInCalendarDays, isPast } from "date-fns";
-import { adjustForSittingDay } from "@/utils/documentUtils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Calendar } from "@/components/ui/calendar.tsx";
+import { format, addDays, differenceInCalendarDays } from "date-fns";
+import { adjustForSittingDay } from "@/utils/documentUtils.ts";
 
 interface RescheduleDialogProps {
   onReschedule: (date: Date) => void;
   children: React.ReactNode;
+  baseDate?: Date | null;
 }
 
-export const RescheduleDialog = ({ onReschedule, children }: RescheduleDialogProps) => {
+export const RescheduleDialog = ({ onReschedule, children, baseDate }: RescheduleDialogProps) => {
   const [open, setOpen] = useState(false);
+  
+  // Use provided base date or fallback to today
+  const startDate = baseDate || new Date();
 
   // State for date string (YYYY-MM-DD)
-  const [dateStr, setDateStr] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  const [dateStr, setDateStr] = useState<string>(format(startDate, "yyyy-MM-dd"));
 
-  // State for number of days from today
+  // State for number of days from base date
   const [daysToAdd, setDaysToAdd] = useState<number>(0);
 
   // Initialize on open
   useEffect(() => {
     if (open) {
-      const today = new Date();
-      setDateStr(format(today, "yyyy-MM-dd"));
+      const initialDate = baseDate || new Date();
+      setDateStr(format(initialDate, "yyyy-MM-dd"));
       setDaysToAdd(0);
     }
-  }, [open]);
+  }, [open, baseDate]);
 
   // Handle Date Input Change
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,7 +43,7 @@ export const RescheduleDialog = ({ onReschedule, children }: RescheduleDialogPro
     if (newDateStr) {
       const newDate = new Date(newDateStr);
       if (!isNaN(newDate.getTime())) {
-        const diff = differenceInCalendarDays(newDate, new Date());
+        const diff = differenceInCalendarDays(newDate, startDate);
         setDaysToAdd(diff > 0 ? diff : 0);
       }
     }
@@ -50,8 +54,7 @@ export const RescheduleDialog = ({ onReschedule, children }: RescheduleDialogPro
     const days = parseInt(e.target.value) || 0;
     setDaysToAdd(days);
 
-    const today = new Date();
-    const newDate = addDays(today, days);
+    const newDate = addDays(startDate, days);
     setDateStr(format(newDate, "yyyy-MM-dd"));
   };
 
@@ -85,7 +88,7 @@ export const RescheduleDialog = ({ onReschedule, children }: RescheduleDialogPro
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="days-input">Days from Today</Label>
+              <Label htmlFor="days-input">Days from sitting date</Label>
               <Input
                 id="days-input"
                 type="number"

@@ -216,7 +216,7 @@ export const BillCard = ({ bill, showActions = false, onStatusChange, onReschedu
           )}
 
           {(effectiveStatus === "pending" || effectiveStatus === "overdue") && (
-            <RescheduleDialog onReschedule={handleReschedule}>
+            <RescheduleDialog onReschedule={handleReschedule} baseDate={bill.presentationDate}>
               <Button variant="outline" size="sm">
                 <Calendar className="h-4 w-4 mr-1" />
                 Reschedule

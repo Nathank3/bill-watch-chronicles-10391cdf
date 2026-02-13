@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
-import { Document, useDocuments } from "@/contexts/DocumentContext.tsx";
+import { useDocuments } from "@/contexts/DocumentContext.tsx";
+import { Document } from "@/types/document.ts";
 import { Card } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -210,7 +211,7 @@ export const DocumentCard = ({ document, showActions = false, onStatusChange }: 
           )}
 
           {(effectiveStatus === "pending" || effectiveStatus === "overdue") && (
-            <RescheduleDialog onReschedule={handleReschedule}>
+            <RescheduleDialog onReschedule={handleReschedule} baseDate={document.presentationDate}>
               <Button variant="outline" size="sm">
                 <Calendar className="h-4 w-4 mr-1" />
                 Reschedule
