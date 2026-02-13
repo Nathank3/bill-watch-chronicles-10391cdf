@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext.tsx"
+import { SettingsDialog } from "@/components/SettingsDialog.tsx"
 
 import logo from "@/assets/makueni-county.png";
 
@@ -83,13 +84,16 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {["Bills", "Statements", "Reports", "Regulations", "Policies", "Petitions"].map((item) => (
-                        <SidebarMenuSubItem key={item}>
-                          <SidebarMenuSubButton onClick={() => navigate(`/dashboard/view/${item.toLowerCase()}`)} className="text-gray-300 hover:text-white hover:bg-white/5">
-                            <span>{item}</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                      {["Bills", "Motions", "Statements", "Reports", "Regulations", "Policies & Guidelines", "Petitions"].map((item) => {
+                          const path = item === "Policies & Guidelines" ? "policies" : item.toLowerCase();
+                          return (
+                            <SidebarMenuSubItem key={item}>
+                              <SidebarMenuSubButton onClick={() => navigate(`/dashboard/view/${path}`)} className="text-gray-300 hover:text-white hover:bg-white/5">
+                                <span>{item}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          );
+                      })}
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
@@ -128,18 +132,56 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton tooltip="Analytics" onClick={() => navigate("/dashboard/analytics")} className="text-white hover:bg-white/10 hover:text-white">
-                      <BarChart />
-                      <span>Analytics</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <Collapsible asChild className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip="Analytics" className="text-white hover:bg-white/10 hover:text-white">
+                          <BarChart />
+                          <span>Analytics</span>
+                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/standard")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Standard Reports</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/daily")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Daily Business</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/concluded")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Concluded Business</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/exception")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Exception Reports</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton onClick={() => navigate("/dashboard/analytics/managerial")} className="text-gray-300 hover:text-white hover:bg-white/5">
+                              <span>Managerial Reports</span>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
 
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="System Audit" onClick={() => navigate("/dashboard/audit")} className="text-white hover:bg-white/10 hover:text-white">
                       <ShieldAlert />
                       <span>System Audit</span>
                     </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                   <SidebarMenuItem>
+                    <SettingsDialog />
                   </SidebarMenuItem>
                 </>
               )}

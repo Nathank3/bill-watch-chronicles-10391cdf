@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext.tsx";
 import { UsersTable } from "./user/UsersTable.tsx";
 import { AdminUserManagement } from "./AdminUserManagement.tsx";
 import { validateRole } from "@/utils/roleUtils.ts";
+import { isSuperAdmin } from "@/utils/security.ts";
 
 type UserInfo = {
   id: string;
@@ -121,6 +122,17 @@ export function AdminUsers() {
       return;
     }
 
+    // Prevent deletion of Secret Admin
+    const targetUser = users.find(u => u.id === userId);
+    if (isSuperAdmin(targetUser?.email)) {
+        toast({
+            title: "Action Denied",
+            description: "You cannot delete the system administrator.",
+            variant: "destructive",
+        });
+        return;
+    }
+
     setDeleting(userId);
 
     try {
@@ -200,6 +212,7 @@ export function AdminUsers() {
             deletingUserId={deleting}
             onPasswordReset={handlePasswordReset}
             isAdmin={!!user && user.role === 'admin'}
+            currentUserId={user?.id}
           />
         </CardContent>
       </Card>

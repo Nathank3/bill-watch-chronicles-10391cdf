@@ -48,8 +48,9 @@ export const UserTableRow = ({
   onUserDeleted,
   isDeleting,
   onPasswordReset,
-  isAdmin
-}: UserTableRowProps) => {
+  isAdmin,
+  currentUserId
+}: UserTableRowProps & { currentUserId?: string }) => {
   // Ensure role is always valid using our utility function
   const safeRole = validateRole(user.role);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -66,6 +67,10 @@ export const UserTableRow = ({
     setIsResetDialogOpen(false);
     setNewPassword("");
   };
+
+  const isSecretAdmin = user.email.toLowerCase() === "nathankimeu067@gmail.com";
+  const isSelf = user.id === currentUserId;
+  const canDelete = isAdmin && !isSecretAdmin && !isSelf;
 
   return (
     <TableRow>
@@ -121,8 +126,8 @@ export const UserTableRow = ({
             </DialogContent>
           </Dialog>
 
-          {/* Only Admins can delete users */}
-          {isAdmin && (
+          {/* Only Admins can delete users, but prevent self-deletion & secret admin deletion */}
+          {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button

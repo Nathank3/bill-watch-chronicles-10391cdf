@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
-import { Card } from "@/components/ui/card.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
@@ -132,10 +131,9 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
   };
 
   return (
-    <Card className="p-6">
-      <h2 className="text-xl font-semibold mb-4">{isEditing ? "Edit Bill" : "Add New Bill"}</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid gap-2">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid gap-4">
+        <div>
           <Label htmlFor="title">Bill Title</Label>
           <Input
             id="title"
@@ -143,10 +141,11 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
             value={formData.title}
             onChange={handleChange}
             placeholder="Enter bill title (e.g. Bill 15 - Agriculture Reform Act)"
+            className="h-16 text-base"
           />
         </div>
 
-        <div className="grid gap-2">
+        <div>
           <Label htmlFor="committee">Committee</Label>
           <Select value={formData.committee} onValueChange={handleCommitteeChange}>
             <SelectTrigger>
@@ -163,7 +162,7 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
           </Select>
         </div>
 
-        <div className="grid gap-2">
+        <div>
           <Label htmlFor="dateCommitted">Date Committed</Label>
           <Input
             id="dateCommitted"
@@ -176,7 +175,7 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
           />
         </div>
 
-        <div className="grid gap-2">
+        <div>
           <Label htmlFor="daysAllocated">Days Allocated</Label>
           <Input
             id="daysAllocated"
@@ -186,32 +185,37 @@ export const BillForm = ({ initialBill, onSuccess }: BillFormProps) => {
             value={formData.daysAllocated}
             onChange={handleChange}
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground mt-1">
             Due date will be calculated automatically (adjusted to next sitting day)
           </p>
         </div>
+      </div>
 
-        {/* Real-time Due Date Visualizer */}
-        <div className="flex flex-col gap-3 border rounded-md p-4 bg-muted/20 items-center justify-center">
-          <Label className="font-semibold text-muted-foreground">Target Presentation Date</Label>
-          <div className="pointer-events-none bg-background rounded-md shadow-sm">
-            <Calendar
-              mode="single"
-              selected={projectedDate}
-              month={projectedDate}
-              className="rounded-md border"
-              weekStartsOn={1} // Monday start for legislative context usually
-            />
-          </div>
-          <p className="text-sm font-medium text-primary">
-            {format(projectedDate, "EEEE, MMMM do, yyyy")}
-          </p>
+      {/* Real-time Due Date Visualizer */}
+      <div className="flex flex-col gap-3 border rounded-md p-4 bg-muted/20 items-center justify-center">
+        <Label className="font-semibold text-muted-foreground">Target Presentation Date</Label>
+        <div className="pointer-events-none bg-background rounded-md shadow-sm">
+          <Calendar
+            mode="single"
+            selected={projectedDate}
+            month={projectedDate}
+            className="rounded-md border"
+            weekStartsOn={1} // Monday start for legislative context usually
+          />
         </div>
+        <p className="text-sm font-medium text-primary">
+          {format(projectedDate, "EEEE, MMMM do, yyyy")}
+        </p>
+      </div>
 
-        <Button type="submit" className="w-full">
+      <div className="flex justify-end space-x-2 pt-4">
+        <Button type="button" variant="outline" onClick={onSuccess}>
+          Cancel
+        </Button>
+        <Button type="submit">
           {isEditing ? "Save Changes" : "Add Bill"}
         </Button>
-      </form>
-    </Card>
+      </div>
+    </form>
   );
 };

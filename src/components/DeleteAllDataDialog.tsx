@@ -68,9 +68,9 @@ export function DeleteAllDataDialog() {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" className="gap-2">
+        <Button variant="destructive" className="gap-2 w-full">
           <Trash2 className="h-4 w-4" />
-          Nuke Database
+          Reset Database
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent className="border-red-500 border-2">

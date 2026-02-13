@@ -28,6 +28,7 @@ interface UsersTableProps {
   deletingUserId: string | null;
   onPasswordReset: (userId: string, newPassword: string) => Promise<void>;
   isAdmin: boolean;
+  currentUserId?: string;
 }
 
 export const UsersTable = ({
@@ -38,7 +39,8 @@ export const UsersTable = ({
   onUserDeleted,
   deletingUserId,
   onPasswordReset,
-  isAdmin
+  isAdmin,
+  currentUserId
 }: UsersTableProps) => {
   if (loading) {
     return <UserListSkeleton />;
@@ -77,7 +79,9 @@ export const UsersTable = ({
                 onUserDeleted={onUserDeleted}
                 isDeleting={deletingUserId === user.id}
                 onPasswordReset={onPasswordReset}
+
                 isAdmin={isAdmin}
+                currentUserId={currentUserId}
               />
             ))
           )}

@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Card, CardContent } from "@/components/ui/card.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { toast } from "@/components/ui/use-toast.ts";
 import { Trash2, Edit3, Plus } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog.tsx";
 
 interface Committee {
   id: string;
@@ -108,15 +108,13 @@ export const CommitteeManagement = () => {
       // We do NOT update concluded items to preserve history.
       if (oldName && oldName !== newName) {
          // Update Bills (Pending/Overdue/Frozen/UnderReview/Limbo)
-         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-         await supabase.from("bills" as any)
+         await supabase.from("bills")
             .update({ committee: newName })
             .eq("committee", oldName)
             .neq("status", "concluded");
 
          // Update Documents (Pending/Overdue/Frozen/UnderReview/Limbo)
-         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-         await supabase.from("documents" as any)
+         await supabase.from("documents")
             .update({ committee: newName })
             .eq("committee", oldName)
             .neq("status", "concluded");

@@ -1,11 +1,10 @@
-import React, { createContext, useState, useContext, useEffect, useMemo } from "react";
+import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/use-toast.ts";
 import { useBills } from "./BillContext.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { Document, DocumentType, DocumentStatus, DocumentContextType } from "@/types/document.ts";
 import { calculatePresentationDate, adjustForSittingDay } from "@/utils/documentUtils.ts";
-import { calculateCurrentCountdown } from "@/utils/countdownUtils.ts";
 import { format } from "date-fns";
 import { useNotifications } from "./NotificationContext.tsx";
 import { useAuth } from "./AuthContext.tsx";
@@ -30,99 +29,39 @@ const DocumentContext = createContext<DocumentContextType>({
   getDocumentsByType: () => []
 });
 
-// Helper to map DB result to App type
-interface DbDocumentResult {
-  id: string;
-  title: string;
-  committee: string;
-  date_committed: string;
-  created_at: string;
-  pending_days: number;
-  presentation_date: string;
-  status: string;
-  type: string;
-  updated_at: string;
-  days_allocated: number;
-  current_countdown: number;
-  extensions_count: number;
-  [key: string]: unknown;
-}
 
-const mapDbToDocument = (data: DbDocumentResult): Document => ({
-  id: data.id,
-  title: data.title,
-  committee: data.committee,
-  dateCommitted: new Date(data.date_committed || data.created_at),
-  pendingDays: data.pending_days || 0,
-  presentationDate: new Date(data.presentation_date),
-  status: data.status as DocumentStatus,
-  type: data.type as DocumentType,
-  createdAt: new Date(data.created_at),
-  updatedAt: new Date(data.updated_at),
-  daysAllocated: data.days_allocated || 0,
-  currentCountdown: data.current_countdown || 0,
-  extensionsCount: data.extensions_count || 0
-});
+// Legacy DbDocumentResult and mapDbToDocument removed in favor of React Query
+
 
 // Document provider component
 export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [dbDocuments, setDbDocuments] = useState<Document[]>([]); // Documents from DB (non-bills)
-  const { bills } = useBills();
-  const { addNotification, clearBusinessNotifications } = useNotifications();
-  const { isAdmin } = useAuth();
+  
+  // Safe context consumption with fallbacks
+  const billContext = useBills();
+  const notificationContext = useNotifications();
+  const authContext = useAuth();
+  
+  // Destructure with default fallbacks to prevent crashes
+  const { bills } = billContext || { bills: [] };
+  const { addNotification, clearBusinessNotifications } = notificationContext || { 
+    addNotification: () => console.warn("Notification context missing"), 
+    clearBusinessNotifications: () => {} 
+  };
+  const { isAdmin } = authContext || { isAdmin: false };
+  
   const queryClient = useQueryClient();
 
-  // Fetch non-bill documents from Supabase
-  const _fetchDocuments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
-      if (data) {
-        setDbDocuments(data.map(mapDbToDocument));
-      }
-    } catch (error) {
-      console.error("Error fetching documents:", error);
-      toast({
-        title: "Error fetching documents",
-        description: "Could not load documents from the database.",
-        variant: "destructive"
-      });
-    }
-  };
-
-
-  /*
-  // Disable auto-fetch for scalability
-  // Initial fetch
+  // Log critical missing contexts for debugging
   useEffect(() => {
-    fetchDocuments();
-    
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel('schema-db-docs-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'documents'
-        },
-        () => {
-          fetchDocuments();
-        }
-      )
-      .subscribe();
+    if (!billContext) console.error("DocumentProvider: BillContext is missing!");
+    if (!notificationContext) console.error("DocumentProvider: NotificationContext is missing!");
+    if (!authContext) console.error("DocumentProvider: AuthContext is missing!");
+  }, [billContext, notificationContext, authContext]);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-  */
+  // Fetch non-bill documents from Supabase
+  // _fetchDocuments and auto-fetch logic removed (using React Query hooks instead)
+
 
   // Merge bills and dbDocuments into unified 'documents' state
   const documents = useMemo(() => {
@@ -133,13 +72,14 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dateCommitted: bill.dateCommitted,
       pendingDays: bill.pendingDays,
       presentationDate: bill.presentationDate,
-      status: bill.status === "under_review" ? "under_review" : bill.status, // bill status matches document status
-      type: "bill",
+      status: bill.status as DocumentStatus, // bill status matches document status
+      type: "bill" as DocumentType,
       createdAt: bill.createdAt,
       updatedAt: bill.updatedAt,
       daysAllocated: bill.daysAllocated,
       currentCountdown: bill.currentCountdown,
-      extensionsCount: bill.extensionsCount
+      extensionsCount: bill.extensionsCount,
+      concludedAt: bill.concludedAt
     }));
 
     return [...dbDocuments, ...billDocuments];
@@ -147,63 +87,31 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
 
   // Hook up freeze checker for DB documents (Using local state to check, but triggering DB updates)
-  useEffect(() => {
-    const checkFreezeStatus = () => {
-      dbDocuments.forEach(doc => {
-        const countdown = calculateCurrentCountdown(doc.presentationDate);
-        if ((doc.status === "pending" || doc.status === "overdue") && countdown <= 0) {
-          updateDocumentStatus(doc.id, "frozen", true).then(() => {
-             addNotification({
-              type: "action_required",
-              title: "Document Frozen",
-              message: `"${doc.title}" has been frozen due to expired deadline.`,
-              businessId: doc.id,
-              businessType: "document",
-              businessTitle: doc.title
-            });
-          }).catch(() => {
-            // Persistent notification even if RLS blocks update
-            addNotification({
-              type: "action_required",
-              title: "Document Frozen",
-              message: `"${doc.title}" has been frozen due to expired deadline.`,
-              businessId: doc.id,
-              businessType: "document",
-              businessTitle: doc.title
-            });
-          });
-        } else if (doc.status === "concluded" || (doc.status === "pending" && countdown > 0)) {
-          clearBusinessNotifications(doc.id);
-        }
-      });
-    };
-    
-    // Check immediately
-    checkFreezeStatus();
-    
-    // Check periodically
-    const interval = setInterval(checkFreezeStatus, 60000);
-    return () => clearInterval(interval);
-  }, [dbDocuments, addNotification]);
+  /*
+  // Frozen status checker removed. Overdue logic handled in UI/Components.
+  */
 
-  // Helper functions to filter docs by type
-  const getDocumentsByType = (type: DocumentType) => documents.filter(doc => doc.type === type);
+  // Helper functions to filter docs by type - Memoized for performance
+  const getDocumentsByType = useCallback((type: DocumentType) => documents.filter(doc => doc.type === type), [documents]);
 
-  // Filtered documents by type and status
-  const pendingDocuments = (type: DocumentType) => documents
-    .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue" || doc.status === "frozen"))
-    .sort((a, b) => a.presentationDate.getTime() - b.presentationDate.getTime());
+  // Filtered documents by type and status - Memoized for performance
+  const pendingDocuments = useCallback((type: DocumentType) => documents
+    .filter(doc => doc.type === type && (doc.status === "pending" || doc.status === "overdue" || doc.status === "tbd"))
+    .sort((a, b) => a.presentationDate ? a.presentationDate.getTime() - b.presentationDate.getTime() : 0),
+    [documents]
+  );
 
-  const concludedDocuments = (type: DocumentType) => documents
+  const concludedDocuments = useCallback((type: DocumentType) => documents
     .filter(doc => doc.type === type && doc.status === "concluded")
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
+    [documents]
+  );
 
-  const underReviewDocuments = (type: DocumentType) => documents
-    .filter(doc => doc.type === type && doc.status === "under_review")
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  // Under review merged into pending
+  const underReviewDocuments = useCallback((): Document[] => [], []);
 
   // Add new document
-  const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount">) => {
+  const addDocument = async (docData: Omit<Document, "id" | "createdAt" | "updatedAt" | "status" | "presentationDate" | "daysAllocated" | "currentCountdown" | "extensionsCount"> & { presentationDate?: Date | null, initialStatus?: DocumentStatus, concludedAt?: Date | null }) => {
     // If type is bill, we shouldn't be here ideally, but for safety:
     if (docData.type === "bill") {
       console.error("Cannot add bills via DocumentContext");
@@ -211,7 +119,13 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
 
-    const presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
+
+    // Use explicit presentationDate if provided, otherwise calculate it
+    let presentationDate: Date | null = docData.presentationDate || null;
+    
+    if (!presentationDate && docData.dateCommitted) {
+      presentationDate = calculatePresentationDate(docData.dateCommitted, docData.pendingDays);
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -224,18 +138,35 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       throw new Error("User not authenticated");
     }
 
+    // Determine status
+    let initialStatus: DocumentStatus = "pending";
+    
+    if (!presentationDate) {
+        initialStatus = "tbd";
+    }
+
+    // if not admin, set to under_review
+    if (!isAdmin) {
+        initialStatus = "under_review";
+    }
+
+    if (docData.initialStatus === 'concluded' || docData.initialStatus === 'overdue' || docData.initialStatus === 'tbd') {
+        initialStatus = docData.initialStatus;
+    }
+
     const newDocument = {
       title: docData.title,
       committee: docData.committee,
-      date_committed: docData.dateCommitted.toISOString(),
+      date_committed: docData.dateCommitted ? docData.dateCommitted.toISOString() : null,
       pending_days: docData.pendingDays,
-      status: isAdmin ? "pending" : "under_review",
-      presentation_date: presentationDate.toISOString(),
+      status: initialStatus,
+      presentation_date: presentationDate ? presentationDate.toISOString() : null,
       type: docData.type,
       days_allocated: docData.pendingDays,
       current_countdown: docData.pendingDays,
       extensions_count: 0,
-      created_by: user.id
+      created_by: user.id,
+      concluded_at: docData.concludedAt ? docData.concludedAt.toISOString() : null
     };
 
     try {
@@ -257,8 +188,9 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         businessTitle: docData.title
       });
 
+      const capitalizedType = docData.type.charAt(0).toUpperCase() + docData.type.slice(1);
       toast({
-        title: isAdmin ? "Document published" : "Document submitted for review",
+        title: isAdmin ? `${capitalizedType} published` : `${capitalizedType} submitted for review`,
         description: isAdmin
           ? `"${docData.title}" has been successfully added`
           : `"${docData.title}" is now under review by an admin.`,
@@ -288,7 +220,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const dbUpdates: Record<string, string | number | undefined> = {
+      const dbUpdates: Record<string, string | number | undefined | null> = {
         updated_at: new Date().toISOString()
       };
       
@@ -301,6 +233,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (updates.daysAllocated !== undefined) dbUpdates.days_allocated = updates.daysAllocated;
       if (updates.currentCountdown !== undefined) dbUpdates.current_countdown = updates.currentCountdown;
       if (updates.extensionsCount !== undefined) dbUpdates.extensions_count = updates.extensionsCount;
+      if (updates.statusReason !== undefined) dbUpdates.status_reason = updates.statusReason;
+      if (updates.concludedAt !== undefined) dbUpdates.concluded_at = updates.concludedAt ? updates.concludedAt.toISOString() : null;
 
        // Specialized logic: recalc presentation date
       const currentDoc = dbDocuments.find(d => d.id === id);
@@ -394,9 +328,18 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (id.startsWith('bill-')) return; 
 
     try {
+      const updates: Record<string, string | null> = { status, updated_at: new Date().toISOString() };
+      
+      // If marking as concluded, set the concluded_at date
+      if (status === "concluded") {
+         updates.concluded_at = new Date().toISOString();
+      } else {
+         updates.concluded_at = null; 
+      }
+
       const { data, error } = await supabase
         .from('documents')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update(updates)
         .eq('id', id)
         .select();
 
@@ -423,7 +366,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         pending: "Document has been marked as pending",
         concluded: "Document has been marked as concluded",
         overdue: "Document has been marked as overdue",
-        frozen: "Document has been marked as frozen",
+        tbd: "Document has been marked as TBD",
+        under_review: "Document has been marked as under review"
       };
 
       toast({
@@ -453,12 +397,21 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (id.startsWith('bill-')) return;
 
     try {
-      const doc = dbDocuments.find(d => d.id === id);
-      if (!doc) return;
+      // Fetch latest extension count directly from DB
+      const { data: currentData, error: fetchError } = await supabase
+        .from('documents')
+        .select('extensions_count')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!currentData) throw new Error("Document not found");
 
       const adjustedDate = adjustForSittingDay(newDate);
       const now = new Date();
       const daysDiff = Math.ceil((adjustedDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const newStatus = daysDiff >= 0 ? "pending" : "overdue";
 
       const { error } = await supabase
         .from('documents')
@@ -466,8 +419,8 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           presentation_date: adjustedDate.toISOString(),
           pending_days: daysDiff > 0 ? daysDiff : 0,
           current_countdown: daysDiff,
-          extensions_count: doc.extensionsCount + 1,
-          status: "overdue",
+          extensions_count: (currentData.extensions_count || 0) + 1,
+          status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
@@ -491,13 +444,13 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  // Get document by ID
-  const getDocumentById = (id: string) => {
+  // Get document by ID - Memoized
+  const getDocumentById = useCallback((id: string) => {
     return documents.find(doc => doc.id === id);
-  };
+  }, [documents]);
 
-  // Search documents
-  const searchDocuments = (query: string, type?: DocumentType) => {
+  // Search documents - Memoized
+  const searchDocuments = useCallback((query: string, type?: DocumentType) => {
     const lowercaseQuery = query.toLowerCase();
     return documents.filter(
       doc =>
@@ -505,10 +458,10 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         (doc.title.toLowerCase().includes(lowercaseQuery) ||
           doc.committee.toLowerCase().includes(lowercaseQuery))
     );
-  };
+  }, [documents]);
 
-  // Filter documents
-  const filterDocuments = (filters: {
+  // Filter documents - Memoized
+  const filterDocuments = useCallback((filters: {
     type?: DocumentType;
     year?: number;
     committee?: string;
@@ -522,7 +475,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // Filter by year if specified
-      if (filters.year && doc.presentationDate.getFullYear() !== filters.year) {
+      if (filters.year && doc.presentationDate?.getFullYear() !== filters.year) {
         return false;
       }
 
@@ -543,7 +496,7 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       return true;
     });
-  };
+  }, [documents]);
 
   return (
     <DocumentContext.Provider
@@ -574,4 +527,5 @@ export const DocumentProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 export const useDocuments = () => useContext(DocumentContext);
 
 // Re-export document types for convenience
-export type { Document, DocumentType, DocumentStatus } from "@/types/document.ts";
+export type { DocumentStatus, DocumentType } from "@/types/document.ts";
+

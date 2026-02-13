@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useDebounce } from "@/hooks/useDebounce.ts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker.tsx";
@@ -12,22 +13,31 @@ import { useBillList, useBillStats } from "@/hooks/useBillsQuery.ts";
 import { useDocumentList, useDocumentStats } from "@/hooks/useDocumentsQuery.ts";
 import { BillCard } from "@/components/BillCard.tsx";
 import { DocumentCard } from "@/components/DocumentCard.tsx";
+import { BillListSkeleton } from "@/components/BillCardSkeleton.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Plus } from "lucide-react";
 import { BillStatus, Bill } from "@/contexts/BillContext.tsx";
 import { DocumentType, DocumentStatus, Document } from "@/types/document.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
+import { useAuth } from "@/contexts/AuthContext.tsx";
 
 export default function BusinessView() {
   const { type = "bills" } = useParams();
   const navigate = useNavigate();
-  // Normalize type: remove 's' from end if present (e.g. bills -> bill) except 'business'
-  const singularType = type.endsWith("s") ? type.slice(0, -1) : type;
+  // Normalize type: Handle special plural cases
+  const singularType = (() => {
+      if (type === 'policies') return 'policy';
+      if (type === 'inquiries') return 'inquiry'; // Just in case
+      if (type.endsWith("s")) return type.slice(0, -1);
+      return type;
+  })();
   const isBill = singularType === "bill";
+  const { isAdmin } = useAuth();
 
   const [date, setDate] = useState<DateRange | undefined>();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300); // Debounce search by 300ms
   const [status, setStatus] = useState<string>("all");
   const [committee, setCommittee] = useState<string>("all");
   const [committees, setCommittees] = useState<{name: string}[]>([]); 
@@ -54,7 +64,7 @@ export default function BusinessView() {
   const { data: billData, isLoading: billsLoading } = useBillList({
     status: status as BillStatus | "all",
     committee, 
-    search, 
+    search: debouncedSearch, // Use debounced search
     page, 
     pageSize,
     startDate: date?.from,
@@ -65,7 +75,7 @@ export default function BusinessView() {
     type: singularType as DocumentType,
     status: status as DocumentStatus | "all",
     committee,
-    search,
+    search: debouncedSearch, // Use debounced search
     page,
     pageSize,
     startDate: date?.from,
@@ -85,14 +95,17 @@ export default function BusinessView() {
     globalThis.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const title = type.charAt(0).toUpperCase() + type.slice(1);
+  const title = (() => {
+      if (type === 'policies') return 'Policies & Guidelines';
+      return type.charAt(0).toUpperCase() + type.slice(1);
+  })();
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{title} Management</h1>
         <Button onClick={() => navigate(`/dashboard/add/${type}`)}>
-          <Plus className="mr-2 h-4 w-4" /> Add {singularType}
+          <Plus className="mr-2 h-4 w-4" /> Add {singularType === 'policy' ? 'Policy & Guideline' : singularType}
         </Button>
       </div>
 
@@ -146,7 +159,7 @@ export default function BusinessView() {
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="concluded">Concluded</SelectItem>
                 <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="frozen">Frozen</SelectItem>
+                <SelectItem value="limbo">TBD</SelectItem>
                 {/* Add under_review if needed */}
               </SelectContent>
             </Select>
@@ -171,14 +184,14 @@ export default function BusinessView() {
       {/* List */}
       <div className="space-y-4">
         {isLoading ? (
-            <div>Loading...</div>
+            <BillListSkeleton count={5} />
         ) : listData && listData.length > 0 ? (
             <div className="grid gap-4">
                 {listData.map((item) => (
                     isBill ? (
-                        <BillCard key={item.id} bill={item as Bill} />
+                        <BillCard key={item.id} bill={item as Bill} showActions={isAdmin} />
                     ) : (
-                        <DocumentCard key={item.id} document={item as Document} />
+                        <DocumentCard key={item.id} document={item as Document} showActions={isAdmin} />
                     )
                 ))}
             </div>
