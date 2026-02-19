@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/use-toast.ts";
 import { Session } from '@supabase/supabase-js';
 import { AuthContextType, AuthUser } from '@/types/auth.ts';
 import { useUserProfile } from '@/hooks/useUserProfile.ts';
+import { isSuperAdmin as checkSuperAdminEmail } from '@/utils/security.ts';
 
 // Create the context with default values
 const AuthContext = createContext<AuthContextType>({
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
   isAuthenticated: false,
   isAdmin: false,
+  isSuperAdmin: false,
   isClerk: false,
   isLoading: true
 });
@@ -180,6 +182,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isSuperAdminRole = user?.role === "super_admin" || checkSuperAdminEmail(session?.user?.email);
+
   return (
     <AuthContext.Provider
       value={{
@@ -188,7 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         logout,
         isAuthenticated: !!user,
-        isAdmin: user?.role === "admin",
+        isAdmin: user?.role === "admin" || isSuperAdminRole,
+        isSuperAdmin: isSuperAdminRole,
         isClerk: user?.role === "clerk",
         isLoading
       }}

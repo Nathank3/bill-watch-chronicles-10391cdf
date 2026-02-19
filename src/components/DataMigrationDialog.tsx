@@ -31,7 +31,7 @@ interface LocalDocument extends LocalBill {
   type: string;
 }
 
-export function DataMigrationDialog() {
+export function DataMigrationDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ bills: 0, documents: 0 });
@@ -156,10 +156,12 @@ export function DataMigrationDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <UploadCloud className="h-4 w-4" />
-          Sync Local Data
-        </Button>
+        {trigger ? trigger : (
+          <Button variant="outline" className="gap-2">
+            <UploadCloud className="h-4 w-4" />
+            Sync Local Data
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

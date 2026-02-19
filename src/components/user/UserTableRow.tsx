@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { UserRoleSelector } from "./UserRoleSelector.tsx";
 import { validateRole } from "@/utils/roleUtils.ts";
-import { Trash2, Loader2, KeyRound } from "lucide-react";
+import { Trash2, Loader2, KeyRound, Pencil } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +30,7 @@ import {
 interface UserTableRowProps {
   user: {
     id: string;
+    username: string | null;
     email: string;
     role: string;
   };
@@ -38,7 +39,9 @@ interface UserTableRowProps {
   onUserDeleted: (userId: string) => void;
   isDeleting: boolean;
   onPasswordReset: (userId: string, newPassword: string) => Promise<void>;
+  onUsernameUpdated?: (userId: string, newUsername: string) => Promise<void>;
   isAdmin: boolean;
+  isCurrentUserSuperAdmin: boolean;
 }
 
 export const UserTableRow = ({
@@ -48,7 +51,9 @@ export const UserTableRow = ({
   onUserDeleted,
   isDeleting,
   onPasswordReset,
+  onUsernameUpdated,
   isAdmin,
+  isCurrentUserSuperAdmin,
   currentUserId
 }: UserTableRowProps & { currentUserId?: string }) => {
   // Ensure role is always valid using our utility function
@@ -56,6 +61,11 @@ export const UserTableRow = ({
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [isResetting, setIsResetting] = useState(false);
+
+  // Name Editing State
+  const [isEditNameDialogOpen, setIsEditNameDialogOpen] = useState(false);
+  const [editName, setEditName] = useState(user.username || "");
+  const [isEditingName, setIsEditingName] = useState(false);
 
   const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,12 +78,64 @@ export const UserTableRow = ({
     setNewPassword("");
   };
 
+  const handleNameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUsernameUpdated) return;
+    
+    setIsEditingName(true);
+    await onUsernameUpdated(user.id, editName);
+    setIsEditingName(false);
+    setIsEditNameDialogOpen(false);
+  };
+
   const isSecretAdmin = user.email.toLowerCase() === "nathankimeu067@gmail.com";
   const isSelf = user.id === currentUserId;
   const canDelete = isAdmin && !isSecretAdmin && !isSelf;
+  const canEditName = isAdmin || isSelf;
 
   return (
     <TableRow>
+      <TableCell className="font-medium">
+          <div className="flex items-center gap-2">
+            <span>{user.username || "N/A"}</span>
+            {canEditName && onUsernameUpdated && (
+                <Dialog open={isEditNameDialogOpen} onOpenChange={setIsEditNameDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-30 hover:opacity-100" onClick={() => setEditName(user.username || "")}>
+                            <Pencil className="h-3 w-3" />
+                            <span className="sr-only">Edit Name</span>
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Edit Name</DialogTitle>
+                            <DialogDescription>
+                                Update the display name for this user.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleNameSubmit}>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="name">Name</Label>
+                                    <Input
+                                        id="name"
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        placeholder="John Doe"
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button type="submit" disabled={isEditingName}>
+                                    {isEditingName ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            )}
+          </div>
+      </TableCell>
       <TableCell>{user.email}</TableCell>
       <TableCell>{safeRole}</TableCell>
       <TableCell>
@@ -85,6 +147,7 @@ export const UserTableRow = ({
               currentRole={safeRole}
               onRoleUpdated={onRoleUpdated}
               disabled={isUpdating || isDeleting}
+              currentUserIsSuperAdmin={isCurrentUserSuperAdmin}
             />
           )}
 

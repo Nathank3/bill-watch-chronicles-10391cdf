@@ -5,68 +5,57 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE, validateRole } from "@/utils/roleUtils";
+import { ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE, SUPER_ADMIN_ROLE, validateRole } from "@/utils/roleUtils";
 
 interface UserRoleSelectorProps {
   userId: string;
   currentRole: string;
   onRoleUpdated: (userId: string, newRole: string) => void;
   disabled?: boolean;
+  currentUserIsSuperAdmin?: boolean;
 }
 
 export const UserRoleSelector = ({
   userId,
   currentRole,
   onRoleUpdated,
-  disabled = false
+  disabled = false,
+  currentUserIsSuperAdmin = false
 }: UserRoleSelectorProps) => {
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
-  
-  // Validate current role to ensure it's never empty or invalid
+
   const safeRole = validateRole(currentRole);
-  
-  // Handle role changes
+
   const updateUserRole = async (newRole: string) => {
-    // Validate the new role
-    const validatedRole = validateRole(newRole);
-    
-    // Skip if role is unchanged
-    if (validatedRole === safeRole) return;
+    if (newRole === safeRole) return;
     
     setUpdating(true);
     try {
-      // Call the Edge Function to update the role
       const { data, error } = await supabase.functions.invoke("manage-user-roles", {
-        body: { userId, role: validatedRole },
+        body: { userId, role: newRole }
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      onRoleUpdated(userId, validatedRole);
-
+      onRoleUpdated(userId, newRole);
+      
       toast({
         title: "Role updated",
-        description: `User role has been updated to ${validatedRole}.`,
+        description: "User role has been successfully updated.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating role:", error);
       toast({
         title: "Error updating role",
-        description: (error as Error).message || "Failed to update user role.",
+        description: error.message || "Failed to update user role.",
         variant: "destructive",
       });
     } finally {
       setUpdating(false);
     }
   };
-
   return (
     <div className="space-y-4">
       <RadioGroup 
@@ -75,6 +64,12 @@ export const UserRoleSelector = ({
         className="flex flex-col space-y-2"
         disabled={disabled || updating}
       >
+        {currentUserIsSuperAdmin && (
+             <div className="flex items-center space-x-2">
+              <RadioGroupItem value={SUPER_ADMIN_ROLE} id={`${userId}-super_admin`} className="border-red-400 text-red-600" />
+              <Label htmlFor={`${userId}-super_admin`} className="text-red-600 font-bold">Super Admin</Label>
+            </div>
+        )}
         <div className="flex items-center space-x-2">
           <RadioGroupItem value={ADMIN_ROLE} id={`${userId}-admin`} />
           <Label htmlFor={`${userId}-admin`}>Admin</Label>

@@ -2,7 +2,7 @@
 import { User, Session } from '@supabase/supabase-js';
 
 // Define user roles
-export type UserRole = "admin" | "clerk" | "public";
+export type UserRole = "admin" | "clerk" | "public" | "super_admin";
 
 // Define user type
 export interface AuthUser {
@@ -19,6 +19,7 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isClerk: boolean;
   isLoading: boolean;
 }

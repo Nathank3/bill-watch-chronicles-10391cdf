@@ -45,21 +45,21 @@ serve(async (req) => {
     }
 
     // Validate role is one of the allowed values
-    const allowedRoles = ['admin', 'clerk', 'public'];
+    const allowedRoles = ['admin', 'clerk', 'public', 'super_admin'];
     if (!allowedRoles.includes(role)) {
-      return new Response(JSON.stringify({ error: 'Invalid role. Must be admin, clerk, or public' }), {
+      return new Response(JSON.stringify({ error: 'Invalid role.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400
       });
     }
 
-    // Check if the current user is an admin
+    // Check if the current user is an admin or super_admin
     const {
       data: { user },
       error: getUserError,
     } = await supabaseClient.auth.getUser();
 
-    if (getUserError) {
+    if (getUserError || !user) {
       return new Response(JSON.stringify({ error: 'Authentication failed' }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401 
@@ -67,17 +67,35 @@ serve(async (req) => {
     }
 
     // Get the current user's role
-    const { data: currentUserRole, error: roleError } = await supabaseClient
+    const { data: currentUserProfile, error: roleError } = await supabaseClient
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (roleError || currentUserRole.role !== 'admin') {
+    if (roleError) {
+       return new Response(JSON.stringify({ error: 'Unauthorized.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403
+      });
+    }
+
+    const isSuperAdmin = currentUserProfile.role === 'super_admin' || user.email === 'nathankimeu067@gmail.com'; // Hardcoded secret admin fallback
+    const isAdmin = currentUserProfile.role === 'admin';
+
+    if (!isSuperAdmin && !isAdmin) {
       return new Response(JSON.stringify({ error: 'Unauthorized. Only admins can manage roles.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403
       });
+    }
+
+    // Restriction: Only Super Admin can assign 'super_admin' role
+    if (role === 'super_admin' && !isSuperAdmin) {
+        return new Response(JSON.stringify({ error: 'Unauthorized. Only Super Admins can promote others to Super Admin.' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403
+        });
     }
 
     // Update the user's role
@@ -98,8 +116,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200
     });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400
     });

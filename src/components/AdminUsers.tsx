@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext.tsx";
 import { UsersTable } from "./user/UsersTable.tsx";
 import { AdminUserManagement } from "./AdminUserManagement.tsx";
 import { validateRole } from "@/utils/roleUtils.ts";
-import { isSuperAdmin } from "@/utils/security.ts";
+import { isSuperAdmin as checkIsSuperAdmin } from "@/utils/security.ts";
 
 type UserInfo = {
   id: string;
@@ -25,36 +25,37 @@ type UserInfo = {
 export function AdminUsers() {
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const { toast } = useToast();
-  const { session, user } = useAuth();
+  const { session, user, isSuperAdmin } = useAuth();
+
+  console.log("AdminUsers Render:", { user, isSuperAdmin });
 
   // Fetch all users and their profiles
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("id, username, role");
+        console.log("Fetching users...");
+        const { data, error } = await supabase.functions.invoke("fetch-users");
 
         if (error) throw error;
+        if (data?.error) throw new Error(data.error);
 
-        // Map the roles to ensure they are valid
-        const usersWithEmails = await Promise.all(
-          data.map((profile) => {
-            return {
-              id: profile.id,
-              username: profile.username,
-              email: profile.username || "",
-              role: validateRole(profile.role),
-            };
-          })
-        );
+        console.log("Users fetched:", data.users);
 
-        setUsers(usersWithEmails);
-      } catch (error) {
+        const processedUsers = data.users.map((u: any) => ({
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            role: validateRole(u.role),
+        }));
+
+        setUsers(processedUsers);
+      } catch (error: any) {
         console.error("Error fetching users:", error);
+        setError(error.message);
         toast({
           title: "Error fetching users",
           description: "Failed to load users. Please try again.",
@@ -124,7 +125,7 @@ export function AdminUsers() {
 
     // Prevent deletion of Secret Admin
     const targetUser = users.find(u => u.id === userId);
-    if (isSuperAdmin(targetUser?.email)) {
+    if (checkIsSuperAdmin(targetUser?.email)) {
         toast({
             title: "Action Denied",
             description: "You cannot delete the system administrator.",
@@ -191,6 +192,26 @@ export function AdminUsers() {
     }
   };
 
+  // Handle username update
+  const handleUsernameUpdate = async (userId: string, newUsername: string) => {
+    try {
+        const { error } = await supabase.functions.invoke("update-user-profile", {
+            body: { userId, username: newUsername }
+        });
+        if (error) throw error;
+        
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, username: newUsername } : u));
+        toast({ title: "Updated", description: "Username updated successfully." });
+    } catch (e: any) {
+        console.error("Error updating username:", e);
+        toast({ variant: "destructive", title: "Error", description: e.message || "Failed to update username" });
+    }
+  };
+
+  if (error) {
+      return <div className="p-4 text-red-500">Error: {error}</div>;
+  }
+
   return (
     <div className="space-y-6">
       <AdminUserManagement />
@@ -211,7 +232,9 @@ export function AdminUsers() {
             onUserDeleted={handleUserDelete}
             deletingUserId={deleting}
             onPasswordReset={handlePasswordReset}
-            isAdmin={!!user && user.role === 'admin'}
+            onUsernameUpdated={handleUsernameUpdate}
+            isAdmin={!!user && (user.role === 'admin' || !!isSuperAdmin)}
+            isSuperAdmin={!!isSuperAdmin}
             currentUserId={user?.id}
           />
         </CardContent>

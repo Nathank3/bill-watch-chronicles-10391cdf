@@ -58,14 +58,24 @@ serve(async (req) => {
       });
     }
 
-    // Check if the current user is an admin
-    const { data: currentUserRole, error: roleError } = await supabaseClient
+    // Check if the current user is an admin or super_admin
+    const { data: currentUserProfile, error: roleError } = await supabaseClient
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    if (roleError || currentUserRole.role !== 'admin') {
+    if (roleError) {
+        return new Response(JSON.stringify({ error: 'Unauthorized.' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403
+        });
+    }
+
+    const isSuperAdmin = currentUserProfile.role === 'super_admin' || user.email === 'nathankimeu067@gmail.com';
+    const isAdmin = currentUserProfile.role === 'admin';
+
+    if (!isSuperAdmin && !isAdmin) {
       return new Response(JSON.stringify({ error: 'Unauthorized. Only admins can delete users.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 403
@@ -129,7 +139,7 @@ serve(async (req) => {
       status: 200
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in delete-user function:", error);
     return new Response(JSON.stringify({ error: error.message || 'An unexpected error occurred' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

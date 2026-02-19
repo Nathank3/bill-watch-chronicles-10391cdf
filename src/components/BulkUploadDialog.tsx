@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client.ts";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu.tsx";
 
-export const BulkUploadDialog = () => {
+export const BulkUploadDialog = ({ trigger }: { trigger?: React.ReactNode }) => {
   const [open, setOpen] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -231,10 +231,12 @@ export const BulkUploadDialog = () => {
         if (!isUploading) setOpen(val); // Prevent closing during upload
     }}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
-          <FileUp className="h-4 w-4" />
-          Bulk Upload
-        </Button>
+        {trigger ? trigger : (
+          <Button variant="outline" className="flex items-center gap-2">
+            <FileUp className="h-4 w-4" />
+            Bulk Upload
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>

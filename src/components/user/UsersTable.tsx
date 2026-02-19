@@ -27,7 +27,9 @@ interface UsersTableProps {
   onUserDeleted: (userId: string) => void;
   deletingUserId: string | null;
   onPasswordReset: (userId: string, newPassword: string) => Promise<void>;
+  onUsernameUpdated?: (userId: string, newUsername: string) => Promise<void>;
   isAdmin: boolean;
+  isSuperAdmin?: boolean;
   currentUserId?: string;
 }
 
@@ -39,7 +41,9 @@ export const UsersTable = ({
   onUserDeleted,
   deletingUserId,
   onPasswordReset,
+  onUsernameUpdated,
   isAdmin,
+  isSuperAdmin = false,
   currentUserId
 }: UsersTableProps) => {
   if (loading) {
@@ -57,6 +61,7 @@ export const UsersTable = ({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Actions</TableHead>
@@ -65,7 +70,7 @@ export const UsersTable = ({
         <TableBody>
           {validatedUsers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={3} className="text-center py-6">
+              <TableCell colSpan={4} className="text-center py-6">
                 No users found
               </TableCell>
             </TableRow>
@@ -79,8 +84,10 @@ export const UsersTable = ({
                 onUserDeleted={onUserDeleted}
                 isDeleting={deletingUserId === user.id}
                 onPasswordReset={onPasswordReset}
+                onUsernameUpdated={onUsernameUpdated}
 
                 isAdmin={isAdmin}
+                isCurrentUserSuperAdmin={isSuperAdmin}
                 currentUserId={currentUserId}
               />
             ))

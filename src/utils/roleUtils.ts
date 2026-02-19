@@ -1,11 +1,11 @@
-
 // Define user roles as constants with explicit string literals
 export const ADMIN_ROLE = "admin";
 export const CLERK_ROLE = "clerk";
 export const PUBLIC_ROLE = "public";
+export const SUPER_ADMIN_ROLE = "super_admin";
 
 // Array of valid roles for validation
-export const VALID_ROLES = [ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE] as const;
+export const VALID_ROLES = [ADMIN_ROLE, CLERK_ROLE, PUBLIC_ROLE, SUPER_ADMIN_ROLE] as const;
 
 // Type for valid user roles
 export type ValidUserRole = typeof VALID_ROLES[number];

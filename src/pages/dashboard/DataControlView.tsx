@@ -1,10 +1,11 @@
+import { DataMigrationDialog } from "@/components/DataMigrationDialog.tsx";
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { RestoreBackupDialog } from "@/components/RestoreBackupDialog.tsx";
 import { BulkUploadDialog } from "@/components/BulkUploadDialog.tsx";
 import { ConcludedUploadDialog } from "@/components/ConcludedUploadDialog.tsx";
-import { Database, Trash2, RefreshCw, Archive, Download, Loader2 } from "lucide-react";
+import { Database, Trash2, RefreshCw, Archive, Download, Loader2, FileUp, UploadCloud } from "lucide-react";
 import { toast } from "@/components/ui/use-toast.ts";
 import { DeleteAllDataDialog } from "@/components/DeleteAllDataDialog.tsx";
 import { supabase } from "@/integrations/supabase/client.ts";
@@ -18,8 +19,7 @@ export default function DataControlView() {
   const [isExporting, setIsExporting] = useState(false);
   const [isCorrecting, setIsCorrecting] = useState(false);
   // Use session to get email because the 'user' object is just the profile and lacks email
-  const { session } = useAuth();
-  const isSuperAdmin = checkSuperAdmin(session?.user?.email);
+  const { session, isSuperAdmin } = useAuth();
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -55,16 +55,6 @@ export default function DataControlView() {
     } finally {
         setIsExporting(false);
     }
-  };
-
-  const handleSync = () => {
-     toast({
-        title: "Syncing Data",
-        description: "Local data sync started...",
-      });
-      setTimeout(() => {
-        toast({ title: "Sync Complete", description: "Data is up to date." });
-      }, 1000);
   };
 
   const handleCorrectStatus = async () => {
@@ -106,7 +96,14 @@ export default function DataControlView() {
                     Import bills, statements, and other documents in bulk using the standard template.
                 </div>
                 <div className="flex flex-col gap-2">
-                    <BulkUploadDialog />
+                    <BulkUploadDialog 
+                        trigger={
+                            <Button variant="outline" className="w-full gap-2">
+                                <FileUp className="h-4 w-4" />
+                                Bulk Upload
+                            </Button>
+                        } 
+                    />
                 </div>
             </CardContent>
         </Card>
@@ -139,9 +136,14 @@ export default function DataControlView() {
                 <div className="text-sm text-muted-foreground mb-4">
                     Manually trigger a data synchronization if you notice discrepancies.
                 </div>
-                <Button onClick={handleSync} variant="outline" className="w-full">
-                    Sync Now
-                </Button>
+                 <DataMigrationDialog 
+                    trigger={
+                        <Button variant="outline" className="w-full gap-2">
+                            <UploadCloud className="h-4 w-4" />
+                            Sync Now
+                        </Button>
+                    } 
+                />
             </CardContent>
         </Card>
 
