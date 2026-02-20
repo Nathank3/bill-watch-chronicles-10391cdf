@@ -208,7 +208,7 @@ export default function AnalyticsView() {
           if (stdStatus === "concluded") dateVal = item.concluded_at;
           else if (stdStatus === "pending" || stdStatus === "overdue") dateVal = item.presentation_date;
           
-          row.push(dateVal ? format(new Date(dateVal as string | number | Date), "dd/MM/yyyy") : "TBD");
+          row.push(dateVal ? format(new Date(dateVal as string | number | Date), "dd/MM/yyyy") : "-");
           
           return row;
       });
@@ -389,7 +389,7 @@ export default function AnalyticsView() {
                   ? item.concluded_at 
                   : item.presentation_date;
               
-              row.push(dateToDisplay ? format(new Date(dateToDisplay as string | number | Date), "dd/MM/yyyy") : "TBD");
+              row.push(dateToDisplay ? format(new Date(dateToDisplay as string | number | Date), "dd/MM/yyyy") : "-");
               
               return row;
           });
@@ -519,8 +519,8 @@ export default function AnalyticsView() {
             item.title,
             item.itemType, 
             item.committee,
-            item.presentation_date ? format(new Date(item.presentation_date), "dd/MM/yyyy") : "N/A",
-            item.concluded_at ? format(new Date(item.concluded_at), "dd/MM/yyyy") : "N/A"
+            item.presentation_date ? format(new Date(item.presentation_date), "dd/MM/yyyy") : "-",
+            item.concluded_at ? format(new Date(item.concluded_at), "dd/MM/yyyy") : "-"
         ]));
 
         autoTable(doc, {

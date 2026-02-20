@@ -206,10 +206,10 @@ const HomePage = () => {
         }
 
         row.push(
-          item.dateCommitted ? format(item.dateCommitted, "EEE, dd/MM/yyyy") : "TBD",
+          item.dateCommitted ? format(item.dateCommitted, "EEE, dd/MM/yyyy") : "-",
           displayDays,
           statusText,
-          item.presentationDate ? format(item.presentationDate, "EEE, dd/MM/yyyy") : "TBD"
+          item.presentationDate ? format(item.presentationDate, "EEE, dd/MM/yyyy") : "-"
         );
 
         return row;

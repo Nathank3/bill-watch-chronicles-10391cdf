@@ -261,10 +261,10 @@ const CommitteePage = () => {
         }
 
         row.push(
-          dDate ? format(dDate, "dd/MM/yyyy") : "TBD",
+          dDate ? format(dDate, "dd/MM/yyyy") : "-",
           displayDays,
           statusText,
-          pDate ? format(pDate, "dd/MM/yyyy") : "N/A"
+          pDate ? format(pDate, "dd/MM/yyyy") : "-"
         );
         
         return row;
