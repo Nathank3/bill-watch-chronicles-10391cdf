@@ -11,7 +11,7 @@ import { Download, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { toast } from "@/components/ui/use-toast.ts";
 import { format } from "date-fns";
-import { addHeaderImage, drawDivider } from "@/utils/pdfUtils.ts";
+import { addHeaderImage, drawDivider, addPdfHeaderAndTitle } from "@/utils/pdfUtils.ts";
 import { Calendar } from "@/components/ui/calendar.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover.tsx";
 import { CalendarIcon } from "lucide-react";
@@ -83,8 +83,19 @@ export default function AnalyticsView() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       type QueryBuilder = any;
       const applyFilters = (q: QueryBuilder) => {
-        if (stdStatus !== "all") q = q.eq("status", stdStatus);
-        if (stdCommittee !== "all") q = q.eq("committee", stdCommittee);
+        if (stdStatus !== "all") {
+          if (stdStatus === "tbd" || stdStatus === "limbo") {
+            q = q.or("status.eq.tbd,status.eq.limbo,and(status.eq.pending,presentation_date.is.null)");
+          } else if (stdStatus === "pending") {
+            q = q.eq("status", "pending").not("presentation_date", "is", null);
+          } else {
+            q = q.eq("status", stdStatus);
+          }
+        }
+        
+        if (stdCommittee !== "all") {
+          q = q.or(`committee.eq."${stdCommittee}",committee.eq."All Committees"`);
+        }
         
         let dateCol = "date_committed";
         if (stdStatus === "concluded") dateCol = "concluded_at";
@@ -158,17 +169,6 @@ export default function AnalyticsView() {
       const { default: jsPDF } = await import("jspdf");
       const { default: autoTable } = await import("jspdf-autotable");
       const doc = new jsPDF();
-      const headerHeight = await addHeaderImage(doc, "/header_logo.png");
-      let startY = headerHeight > 0 ? headerHeight + 5 : 20;
-
-      // Draw divider line below header
-      if (headerHeight > 0) {
-          startY = drawDivider(doc, startY, 15, 15);
-          startY += 10;
-      }
-
-      doc.setFontSize(14);
-      doc.setFont("times", "bold");
       
       const statusText = stdStatus === "all" ? "All" : stdStatus.charAt(0).toUpperCase() + stdStatus.slice(1);
       const typeText = stdType === "all_business" ? "Business" : stdType.charAt(0).toUpperCase() + stdType.slice(1);
@@ -184,26 +184,14 @@ export default function AnalyticsView() {
       const committeeText = stdCommittee === "all" ? "" : (stdCommittee.toUpperCase().endsWith("COMMITTEE") ? stdCommittee.toUpperCase() : stdCommittee.toUpperCase() + " COMMITTEE");
       const titleText = `Makueni County Assembly ${committeeText} ${statusText} ${typeText} ${dateRangeText}`.trim().replace(/\s+/g, ' ').toUpperCase();
 
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const marginLeft = 15;
-      const maxWidth = pageWidth - (marginLeft * 2);
-      
-      const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-      doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
-      
-      const lineY = startY + (splitTitle.length * 7) + 5;
-      doc.setLineWidth(0.5);
-      doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
-
-      startY += 20;
+      const startYContent = await addPdfHeaderAndTitle(doc, titleText);
       
       doc.setFontSize(10);
-      startY += 10;
       
       const showTypeCol = stdType === 'all_business';
       const showStatusCol = stdStatus === 'all';
 
-      const tableData = data.map(item => {
+      const tableData = data.map((item, index) => {
           let statusDisplay = item.status;
           if ((item.status === "limbo" || item.status === "tbd") && item.status_reason) {
               statusDisplay = `TBD - ${item.status_reason}`;
@@ -211,7 +199,7 @@ export default function AnalyticsView() {
               statusDisplay = "TBD";
           }
 
-          const row = [item.title];
+          const row = [String(index + 1), item.title];
           if (showTypeCol) row.push(item.typeLabel || "N/A");
           row.push(item.committee);
           if (showStatusCol) row.push(statusDisplay);
@@ -225,7 +213,7 @@ export default function AnalyticsView() {
           return row;
       });
 
-      const headers = ['Title'];
+      const headers = ['No.', 'Title'];
       if (showTypeCol) headers.push('Type');
       headers.push('Committee');
       if (showStatusCol) headers.push('Status');
@@ -236,11 +224,12 @@ export default function AnalyticsView() {
       
       headers.push(dateHeader);
 
-      const columnStyles: { [key: string]: { cellWidth: number; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
-          0: { cellWidth: showTypeCol ? 70 : (showStatusCol ? 90 : 115), overflow: 'linebreak' } 
+      const columnStyles: { [key: string]: { cellWidth?: number | 'auto' | 'wrap'; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
+          0: { cellWidth: 10 },
+          1: { overflow: 'linebreak' } 
       };
       
-      let colIndex = 1;
+      let colIndex = 2;
       if (showTypeCol) {
           columnStyles[colIndex] = { cellWidth: 20 };
           colIndex++;
@@ -255,11 +244,11 @@ export default function AnalyticsView() {
       columnStyles[colIndex] = { cellWidth: 25 }; 
 
       autoTable(doc, {
-          startY,
+          startY: startYContent,
           head: [headers],
           body: tableData,
           theme: 'grid',
-          styles: { fontSize: 8, cellPadding: 3 },
+          styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 },
           headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
           margin: { top: 20, right: 15, bottom: 10, left: 15 },
           columnStyles: columnStyles
@@ -312,8 +301,19 @@ export default function AnalyticsView() {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           type QueryBuilder = any;
           const applyFilters = (q: QueryBuilder) => {
-              if (dailyStatus !== "all") q = q.eq("status", dailyStatus);
-              if (dailyCommittee !== "all") q = q.eq("committee", dailyCommittee);
+              if (dailyStatus !== "all") {
+                if (dailyStatus === "tbd" || dailyStatus === "limbo") {
+                  q = q.or("status.eq.tbd,status.eq.limbo,and(status.eq.pending,presentation_date.is.null)");
+                } else if (dailyStatus === "pending") {
+                  q = q.eq("status", "pending").not("presentation_date", "is", null);
+                } else {
+                  q = q.eq("status", dailyStatus);
+                }
+              }
+              
+              if (dailyCommittee !== "all") {
+                q = q.or(`committee.eq."${dailyCommittee}",committee.eq."All Committees"`);
+              }
               
               // Filter strict date range for the single day
               if (dailyStatus === "concluded") {
@@ -368,17 +368,7 @@ export default function AnalyticsView() {
           const { default: jsPDF } = await import("jspdf");
           const { default: autoTable } = await import("jspdf-autotable");
           const doc = new jsPDF();
-          const headerHeight = await addHeaderImage(doc, "/header_logo.png");
-          let startY = headerHeight > 0 ? headerHeight + 5 : 20;
-
-          if (headerHeight > 0) {
-              startY = drawDivider(doc, startY, 15, 15);
-              startY += 10;
-          }
-
-          doc.setFontSize(14);
-          doc.setFont("times", "bold");
-
+          
           const statusText = dailyStatus === "all" ? "All" : dailyStatus.charAt(0).toUpperCase() + dailyStatus.slice(1);
           const typeText = dailyType === "all_business" ? "Business" : dailyType.charAt(0).toUpperCase() + dailyType.slice(1);
           const dateText = format(dailyDate, "dd/MM/yyyy");
@@ -386,23 +376,12 @@ export default function AnalyticsView() {
           const committeeText = dailyCommittee === "all" ? "" : (dailyCommittee.toUpperCase().endsWith("COMMITTEE") ? dailyCommittee.toUpperCase() : dailyCommittee.toUpperCase() + " COMMITTEE");
           const titleText = `Makueni County Assembly ${committeeText} ${statusText} ${typeText} On ${dateText}`.trim().replace(/\s+/g, ' ').toUpperCase();
 
-          const pageWidth = doc.internal.pageSize.getWidth();
-          const marginLeft = 15;
-          const maxWidth = pageWidth - (marginLeft * 2);
-
-          const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-          doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
-
-          const lineY = startY + (splitTitle.length * 7) + 5;
-          doc.setLineWidth(0.5);
-          doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
-
-          startY += 20;
+          const startYContent = await addPdfHeaderAndTitle(doc, titleText);
 
           const showTypeCol = dailyType === 'all_business';
           
-          const tableData = data.map(item => {
-              const row = [item.title];
+          const tableData = data.map((item, index) => {
+              const row = [String(index + 1), item.title];
               if (showTypeCol) row.push(item.typeLabel || "N/A");
               row.push(item.committee);
               
@@ -415,16 +394,17 @@ export default function AnalyticsView() {
               return row;
           });
 
-          const headers = ['Title'];
+          const headers = ['No.', 'Title'];
           if (showTypeCol) headers.push('Type');
           headers.push('Committee');
           headers.push('Date');
 
-          const columnStyles: { [key: string]: { cellWidth: number; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
-              0: { cellWidth: showTypeCol ? 80 : 105, overflow: 'linebreak' } 
+          const columnStyles: { [key: string]: { cellWidth?: number | 'auto' | 'wrap'; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
+              0: { cellWidth: 10 },
+              1: { overflow: 'linebreak' } 
           };
           
-          let colIndex = 1;
+          let colIndex = 2;
           if (showTypeCol) {
               columnStyles[colIndex] = { cellWidth: 25 }; 
               colIndex++;
@@ -434,11 +414,11 @@ export default function AnalyticsView() {
           columnStyles[colIndex] = { cellWidth: 30 }; 
 
           autoTable(doc, {
-              startY,
+              startY: startYContent,
               head: [headers],
               body: tableData,
               theme: 'grid',
-              styles: { fontSize: 8, cellPadding: 3 },
+              styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 },
               headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
               margin: { top: 20, right: 15, bottom: 10, left: 15 },
               columnStyles: columnStyles
@@ -480,7 +460,7 @@ export default function AnalyticsView() {
         const queryTable = async (table: "bills" | "documents") => {
             let query = supabase.from(table).select("*").eq("status", "concluded");
             
-            if (concCommittee !== "all") query = query.eq("committee", concCommittee);
+            if (concCommittee !== "all") query = query.or(`committee.eq."${concCommittee}",committee.eq."All Committees"`);
             
             if (concType !== "all_business") {
                 if (table === "bills" && concType !== "bills") return [];
@@ -527,36 +507,15 @@ export default function AnalyticsView() {
         const { default: jsPDF } = await import("jspdf");
         const { default: autoTable } = await import("jspdf-autotable");
         const doc = new jsPDF();
-        const headerHeight = await addHeaderImage(doc, "/header_logo.png");
-        let startY = headerHeight > 0 ? headerHeight + 5 : 20;
-
-        if (headerHeight > 0) {
-            startY = drawDivider(doc, startY, 15, 15);
-            startY += 10;
-        }
-
-        doc.setFontSize(14);
-        doc.setFont("times", "bold");
-        
         const typeText = concType === "all_business" ? "Business" : (concType === "policies" ? "Policies & Guidelines" : (concType.charAt(0).toUpperCase() + concType.slice(1)));
         const dateText = format(new Date(), "EEEE, do MMMM yyyy");
         const committeeText = concCommittee === "all" ? "" : (concCommittee.toUpperCase().endsWith("COMMITTEE") ? concCommittee.toUpperCase() : concCommittee.toUpperCase() + " COMMITTEE");
         const titleText = `MAKUENI COUNTY ASSEMBLY ${committeeText} CONCLUDED ${typeText.toUpperCase()} AS AT ${dateText.toUpperCase()}`.trim().replace(/\s+/g, ' ');
         
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const marginLeft = 15;
-        const maxWidth = pageWidth - (marginLeft * 2);
+        const startYContent = await addPdfHeaderAndTitle(doc, titleText);
 
-        const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-        doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
-        
-        const lineY = startY + (splitTitle.length * 7) + 5;
-        doc.setLineWidth(0.5);
-        doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
-
-        startY += 20;
-
-        const tableData = allItems.map(item => ([
+        const tableData = allItems.map((item, index) => ([
+            String(index + 1),
             item.title,
             item.itemType, 
             item.committee,
@@ -565,19 +524,20 @@ export default function AnalyticsView() {
         ]));
 
         autoTable(doc, {
-            startY,
-            head: [['Title', 'Type', 'Committee', 'Sitting Date', 'Date Concluded']],
+            startY: startYContent,
+            head: [['No.', 'Title', 'Type', 'Committee', 'Date Tabled/Presented/Requested', 'Date Concluded']],
             body: tableData,
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 3 },
+            styles: { fontSize: 9, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 },
             headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
             margin: { top: 20, right: 15, bottom: 10, left: 15 },
             columnStyles: { 
-                0: { cellWidth: 60, overflow: 'linebreak' }, 
-                1: { cellWidth: 20 }, 
-                2: { cellWidth: 40, overflow: 'linebreak' }, 
-                3: { cellWidth: 25 }, 
-                4: { cellWidth: 25 } 
+                0: { cellWidth: 10 },
+                1: { overflow: 'linebreak' }, 
+                2: { cellWidth: 20 }, 
+                3: { cellWidth: 40, overflow: 'linebreak' }, 
+                4: { cellWidth: 25 }, 
+                5: { cellWidth: 25 } 
             }
         });
 
@@ -616,7 +576,7 @@ export default function AnalyticsView() {
         const queryTable = async (table: "bills" | "documents") => {
             let query = supabase.from(table).select("*");
             
-            if (excCommittee !== "all") query = query.eq("committee", excCommittee);
+            if (excCommittee !== "all") query = query.or(`committee.eq."${excCommittee}",committee.eq."All Committees"`);
             
             if (excType !== "all_business") {
                 if (table === "bills" && excType !== "bills") return [];
@@ -677,16 +637,6 @@ export default function AnalyticsView() {
         const { default: jsPDF } = await import("jspdf");
         const { default: autoTable } = await import("jspdf-autotable");
         const doc = new jsPDF();
-        const headerHeight = await addHeaderImage(doc, "/header_logo.png");
-        let startY = headerHeight > 0 ? headerHeight + 5 : 20;
-
-        if (headerHeight > 0) {
-            startY = drawDivider(doc, startY, 15, 15);
-            startY += 10;
-        }
-
-        doc.setFontSize(14);
-        doc.setFont("times", "bold");
         
         const statusDisp = excStatus.charAt(0).toUpperCase() + excStatus.slice(1);
         const typeDisp = excType === "all_business" ? "Business" : (excType === "policies" ? "Policies & Guidelines" : (excType.charAt(0).toUpperCase() + excType.slice(1)));
@@ -698,24 +648,13 @@ export default function AnalyticsView() {
 
         const titleText = `Makueni County Assembly ${statusDisp} ${typeDisp} for ${committeeDisp}`.toUpperCase();
 
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const marginLeft = 15;
-        const maxWidth = pageWidth - (marginLeft * 2);
-
-        const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-        doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
-        
-        const lineY = startY + (splitTitle.length * 7) + 5;
-        doc.setLineWidth(0.5);
-        doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
-
-        startY += 20;
+        const startYContent = await addPdfHeaderAndTitle(doc, titleText);
 
         const showTypeCol = excType === 'all_business';
         const showCommitteeCol = excCommittee === 'all';
 
-        const tableData = allItems.map(item => {
-            const row = [item.title];
+        const tableData = allItems.map((item, index) => {
+            const row = [String(index + 1), item.title];
             if (showTypeCol) row.push(item.itemType);
             if (showCommitteeCol) row.push(item.committee);
             
@@ -725,49 +664,43 @@ export default function AnalyticsView() {
         
         const lastColHeader = excStatus === 'overdue' ? 'Overdue By' : 'Reason / Details';
 
-        const headers = ['Title'];
+        const headers = ['No.', 'Title'];
         if (showTypeCol) headers.push('Type');
         if (showCommitteeCol) headers.push('Committee');
         headers.push(lastColHeader);
         
         // Dynamic column width calculation
-        const columnStyles: { [key: number]: { cellWidth: number; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {};
+        const columnStyles: { [key: number]: { cellWidth?: number | 'auto' | 'wrap'; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {};
         
-        // Base widths assuming A4 portrait (~180mm usable width)
-        let titleWidth = 80;
         let colIndex = 0;
         
-        // 0: Title
-        columnStyles[colIndex] = { cellWidth: titleWidth, overflow: 'linebreak' }; // Placeholder, updated below
+        // 0: No.
+        columnStyles[colIndex] = { cellWidth: 10 };
+        colIndex++;
+
+        // 1: Title
+        columnStyles[colIndex] = { overflow: 'linebreak' }; // span dynamically
         colIndex++;
 
         if (showTypeCol) {
             columnStyles[colIndex] = { cellWidth: 25 };
             colIndex++;
-            titleWidth -= 10; // Steal a bit from title if crowded
         }
         if (showCommitteeCol) {
             columnStyles[colIndex] = { cellWidth: 40, overflow: 'linebreak' };
             colIndex++;
-            titleWidth -= 10;
         }
         
         // Last col (Reason/Overdue)
         const lastColWidth = showTypeCol && showCommitteeCol ? 40 : 50; 
         columnStyles[colIndex] = { cellWidth: lastColWidth, overflow: 'linebreak' };
-        
-        // Adjust title width to fill remaining space
-        const usedWidth = (showTypeCol ? 25 : 0) + (showCommitteeCol ? 40 : 0) + lastColWidth;
-        // Total usable is approx 180 (210 - 15 - 15)
-        const remainingForTitle = 180 - usedWidth;
-        columnStyles[0].cellWidth = remainingForTitle;
 
         autoTable(doc, {
-            startY,
+            startY: startYContent,
             head: [headers],
             body: tableData,
             theme: 'grid',
-            styles: { fontSize: 9, cellPadding: 3 },
+            styles: { fontSize: 9, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 },
             headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
             margin: { top: 20, right: 15, bottom: 10, left: 15 },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

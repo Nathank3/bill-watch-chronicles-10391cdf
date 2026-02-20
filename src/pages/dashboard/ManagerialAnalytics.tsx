@@ -196,14 +196,14 @@ export const ManagerialAnalytics = () => {
                         
                         {/* Report Title */}
                         <div className="border-b pb-6">
-                            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Executive Managerial Report</h1>
-                            <p className="text-gray-500 mt-2">Generated on {format(new Date(), "MMMM do, yyyy")}</p>
+                            <h1 className="text-3xl font-bold text-black tracking-tight">Executive Managerial Report</h1>
+                            <p className="text-black mt-2">Generated on {format(new Date(), "MMMM do, yyyy")}</p>
                         </div>
                     </div>
 
                     {/* 1. Monthly Insights */}
                     <section>
-                        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-slate-800">
+                        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-black">
                             <TrendingUp className="h-5 w-5 text-primary" />
                             Monthly Business Insights
                         </h2>
@@ -237,7 +237,7 @@ export const ManagerialAnalytics = () => {
 
                     {/* 2. Visual Distributions */}
                     <section>
-                         <h2 className="text-xl font-semibold mb-6 text-slate-800">Committee Workload Distribution</h2>
+                         <h2 className="text-xl font-semibold mb-6 text-black">Committee Workload Distribution</h2>
                          <Card className="border-slate-100 shadow-sm">
                             <CardContent className="pt-6 pl-0">
                                 <div className="h-[400px] w-full pr-6">
@@ -255,7 +255,7 @@ export const ManagerialAnalytics = () => {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
-                                <p className="text-sm text-center text-gray-500 mt-4 font-medium">Top 10 Most Active Committees</p>
+                                <p className="text-sm text-center text-black mt-4 font-medium">Top 10 Most Active Committees</p>
                             </CardContent>
                          </Card>
                     </section>
@@ -264,11 +264,12 @@ export const ManagerialAnalytics = () => {
                 {/* PART 2: TABLE (Page 2) */}
                 <div id="managerial-table" className="p-8 bg-white">
                     <section>
-                        <h2 className="text-xl font-semibold mb-6 text-slate-800">Committee Performance Efficiency</h2>
-                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                        <h2 className="text-xl font-semibold mb-6 text-black">Committee Performance Efficiency</h2>
+                        <div className="rounded-lg border border-black overflow-hidden">
                             <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                                <thead className="bg-slate-50 text-black font-semibold border-b border-black">
                                     <tr>
+                                        <th className="p-4">No.</th>
                                         <th className="p-4">Committee Name</th>
                                         <th className="p-4 text-right">Total Items</th>
                                         <th className="p-4 text-right">Concluded</th>
@@ -276,7 +277,7 @@ export const ManagerialAnalytics = () => {
                                         <th className="p-4 text-right text-red-600">Overdue</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-black">
                                     {stats.committees
                                         .sort((a, b) => b.total_items - a.total_items)
                                         .map((comm, i) => {
@@ -286,9 +287,10 @@ export const ManagerialAnalytics = () => {
                                             
                                             return (
                                                 <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                                    <td className="p-4 font-medium text-slate-700">{comm.committee}</td>
-                                                    <td className="p-4 text-right text-slate-600">{comm.total_items}</td>
-                                                    <td className="p-4 text-right text-slate-600">{comm.concluded_items}</td>
+                                                    <td className="p-4 font-medium text-black">{i + 1}</td>
+                                                    <td className="p-4 font-medium text-black">{comm.committee}</td>
+                                                    <td className="p-4 text-right text-black">{comm.total_items}</td>
+                                                    <td className="p-4 text-right text-black">{comm.concluded_items}</td>
                                                     <td className="p-4 text-right">
                                                         <div className="flex items-center justify-end gap-2">
                                                             <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
@@ -313,7 +315,7 @@ export const ManagerialAnalytics = () => {
                 </div>
                 
                 {/* Footer */}
-                <div className="p-8 pt-0 text-center text-sm text-gray-400">
+                <div className="p-8 pt-0 text-center text-sm text-black">
                     Bill Watch Chronicles System &copy; {new Date().getFullYear()}
                 </div>
             </div>
@@ -323,13 +325,13 @@ export const ManagerialAnalytics = () => {
 
 const InsightCard = ({ title, current, last, icon }: { title: string, current: number, last: number, icon: ReactNode }) => {
     const growth = last === 0 ? (current > 0 ? 100 : 0) : Math.round(((current - last) / last) * 100);
-    const growthColor = growth > 0 ? "text-green-600" : (growth < 0 ? "text-red-600" : "text-gray-500");
+    const growthColor = growth > 0 ? "text-green-600" : (growth < 0 ? "text-red-600" : "text-black");
     const growthIcon = growth > 0 ? <TrendingUp className="h-3 w-3" /> : (growth < 0 ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />);
 
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-sm font-medium text-black">
                     {title}
                 </CardTitle>
                 {icon}
@@ -339,7 +341,7 @@ const InsightCard = ({ title, current, last, icon }: { title: string, current: n
                 <div className={`text-xs font-medium flex items-center gap-1 mt-1 ${growthColor}`}>
                     {growthIcon}
                     <span>{Math.abs(growth)}%</span>
-                    <span className="text-muted-foreground font-normal ml-1">from last month</span>
+                    <span className="text-black font-normal ml-1">from last month</span>
                 </div>
             </CardContent>
         </Card>

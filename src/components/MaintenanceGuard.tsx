@@ -38,11 +38,11 @@ export const MaintenanceGuard = ({ children }: { children: React.ReactNode }) =>
             <Construction className="w-16 h-16 text-orange-500" />
         </div>
         
-        <h1 className="text-3xl font-bold tracking-tight">Business Under Maintenance</h1>
+        <h1 className="text-3xl font-bold tracking-tight">County Assembly Business Update in Progress</h1>
         
         <p className="text-gray-400 text-lg">
-            We are currently updating our systems to provide you with better service. 
-            Access to public documents and bills is temporarily unavailable.
+            We are currently working to provide you with updated assembly business. 
+            Public access and view is temporarily unavailable.
         </p>
 
 

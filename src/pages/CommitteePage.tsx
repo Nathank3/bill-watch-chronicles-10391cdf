@@ -10,7 +10,7 @@ import jsPDF from "jspdf";
 import { toast } from "@/components/ui/use-toast.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
 import { calculateCurrentCountdown, determineItemStatus } from "@/utils/countdownUtils.ts";
-import { addHeaderImage, drawDivider } from "@/utils/pdfUtils.ts";
+import { addPdfHeaderAndTitle } from "@/utils/pdfUtils.ts";
 import { DocumentType } from "@/types/document.ts";
 
 interface CommitteeItem {
@@ -234,7 +234,7 @@ const CommitteePage = () => {
         return aDays - bDays;
       });
 
-      const tableData = sortedItems.map(item => {
+      const tableData = sortedItems.map((item, index) => {
         const pDate = item.presentationDate ? new Date(item.presentationDate) : null;
         const dDate = item.dateCommitted ? new Date(item.dateCommitted) : null;
 
@@ -249,8 +249,9 @@ const CommitteePage = () => {
         else if (currentStatus === "tbd") statusText = "TBD";
         else if (currentStatus === "concluded") statusText = "Concluded";
         
-        // Structure: Title -> [Type] -> Date -> Days -> Status -> Due Date
+        // Structure: No. -> Title -> [Type] -> Date -> Days -> Status -> Due Date
         const row = [
+          String(index + 1),
           String(item.title || "N/A"),
           // Committee column removed
         ];
@@ -269,7 +270,7 @@ const CommitteePage = () => {
         return row;
       });
 
-      const expectedColumns = includeTypeColumn ? 6 : 5;
+      const expectedColumns = includeTypeColumn ? 7 : 6;
       const validTableData = tableData.filter(row => 
         Array.isArray(row) && row.length === expectedColumns && row.every(cell => typeof cell === 'string')
       );
@@ -279,69 +280,44 @@ const CommitteePage = () => {
       }
 
       const doc = new jsPDF();
-      const headerHeight = await addHeaderImage(doc, "/header_logo.png");
       const currentDate = new Date();
       const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
-      
-      let startY = headerHeight > 0 ? headerHeight + 5 : 20;
-      
-      // Draw divider line below header
-      if (headerHeight > 0) {
-          startY = drawDivider(doc, startY, 15, 15); // 15mm margins
-          startY += 10; // Extra spacing after divider
-      }
-
-      doc.setFontSize(14);
-      doc.setFont("times", "bold");
-      doc.setTextColor(0, 0, 0);
-      
       const displayCommitteeName = committeeName.toUpperCase().endsWith("COMMITTEE") 
-        ? committeeName.toUpperCase() 
-        : `${committeeName.toUpperCase()} COMMITTEE`;
-
+          ? committeeName.toUpperCase() 
+          : `${committeeName.toUpperCase()} COMMITTEE`;
       const titleText = `MAKUENI COUNTY ASSEMBLY ${displayCommitteeName} PENDING ${typeLabel.toUpperCase()} AS AT ${formattedDate.toUpperCase()}`;
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const marginLeft = 15;
-      const maxWidth = pageWidth - (marginLeft * 2);
-      const splitTitle = doc.splitTextToSize(titleText, maxWidth);
       
-      // Center align the text
-      doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
-
-      const titleLines = splitTitle.length;
-      const lineY = startY + (titleLines * 6) + 2;
-
-      // Draw line below title (Implicitly green due to drawDivider state)
-      doc.setLineWidth(0.5);
-      doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
+      const startYContent = await addPdfHeaderAndTitle(doc, titleText);
 
       try {
         const headers = includeTypeColumn 
-          ? [['Title', 'Type', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']]
-          : [['Title', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
+          ? [['No.', 'Title', 'Type', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']]
+          : [['No.', 'Title', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
         
         // Define column styles - wrap text columns, fixed width for date/number columns
         // Standard A4 width ~210mm. Margins 15mm each -> 180mm available.
-        // Removed Committee Width (25-30) -> Added to Title
+        // We delete cellWidth for the Title column (index 1) so it spans the rest.
         const columnStylesConfig = includeTypeColumn 
           ? {
-              0: { overflow: 'linebreak' as const, cellWidth: 70 },  // Title (Big increase)
-              1: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const },  // Type
+              0: { cellWidth: 10, minCellWidth: 10, overflow: 'visible' as const },
+              1: { overflow: 'linebreak' as const },  // Title
+              2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const },  // Type
+              3: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
+              4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
+              5: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }, // Status
+              6: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date
+            }
+          : {
+              0: { cellWidth: 10, minCellWidth: 10, overflow: 'visible' as const },
+              1: { overflow: 'linebreak' as const },  // Title
               2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
               3: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
               4: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }, // Status
               5: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date
-            }
-          : {
-              0: { overflow: 'linebreak' as const, cellWidth: 95 },  // Title (Huge increase)
-              1: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
-              2: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
-              3: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' as const }, // Status
-              4: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date
             };
         
         autoTable(doc, {
-          startY: lineY + 5,
+          startY: startYContent,
           head: headers,
           body: validTableData,
           theme: 'grid',
@@ -349,7 +325,10 @@ const CommitteePage = () => {
             fontSize: 8,
             cellPadding: 3,
             halign: 'left',
-            valign: 'middle'
+            valign: 'middle',
+            textColor: [0, 0, 0],
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1
           },
           headStyles: { 
             fillColor: [66, 139, 202],
@@ -367,8 +346,8 @@ const CommitteePage = () => {
 
             const currentStatus = determineItemStatus(originalItem.status, originalItem.presentationDate ? new Date(originalItem.presentationDate) : null, originalItem.extensionsCount);
 
-            const statusIndex = includeTypeColumn ? 4 : 3;
-            const daysIndex = includeTypeColumn ? 3 : 2;
+            const statusIndex = includeTypeColumn ? 5 : 4;
+            const daysIndex = includeTypeColumn ? 4 : 3;
 
             // Color status in red if overdue or frozen (legacy)
             if (data.column.index === statusIndex && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
@@ -377,7 +356,7 @@ const CommitteePage = () => {
             }
             
             // Urgency: Color name (title) in red if frozen
-            if (data.column.index === 0 && currentStatus === "frozen" as string) {
+            if (data.column.index === 1 && currentStatus === "frozen" as string) {
               data.cell.styles.textColor = [255, 0, 0];
               data.cell.styles.fontStyle = 'bold';
             }

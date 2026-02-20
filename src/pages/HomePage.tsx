@@ -12,7 +12,7 @@ import { format, differenceInDays } from "date-fns";
 import type { UserOptions } from "jspdf-autotable";
 import { toast } from "@/components/ui/use-toast.ts";
 import { calculateCurrentCountdown, determineItemStatus } from "@/utils/countdownUtils.ts";
-import { addHeaderImage, drawDivider } from "@/utils/pdfUtils.ts";
+import { addPdfHeaderAndTitle } from "@/utils/pdfUtils.ts";
 import { DocumentType } from "@/types/document.ts";
 import { supabase } from "@/integrations/supabase/client.ts";
 
@@ -185,7 +185,7 @@ const HomePage = () => {
       });
 
       // Prepare Table Data
-      const tableData = sortedItems.map(item => {
+      const tableData = sortedItems.map((item, index) => {
         const countdown = calculateCurrentCountdown(item.presentationDate);
         const displayDays = String(Math.abs(countdown));
         const currentStatus = determineItemStatus(item.status as BillStatus | DocumentStatus, item.presentationDate, item.extensionsCount);
@@ -196,6 +196,7 @@ const HomePage = () => {
         else if (currentStatus === "tbd" || currentStatus === "limbo" as string) statusText = "TBD";
 
         const row = [
+          String(index + 1),
           String(item.title || "N/A"),
           String(item.committee || "N/A"),
         ];
@@ -221,64 +222,40 @@ const HomePage = () => {
       const currentDate = new Date();
       const formattedDate = format(currentDate, "EEEE do MMMM yyyy");
 
-      const headerHeight = await addHeaderImage(doc, "/header_logo.png");
-
-      let startY = 20;
-      if (headerHeight > 0) {
-        startY = headerHeight + 5;
-        startY = drawDivider(doc, startY, 15, 15);
-        startY += 10;
-      } else {
-        startY = 20;
-      }
-
-      doc.setFontSize(16);
-      doc.setFont("times", "bold");
-      doc.setTextColor(0, 0, 0);
-
       const titleText = `MAKUENI COUNTY ASSEMBLY PENDING ${typeLabel.toUpperCase()} AS AT ${formattedDate.toUpperCase()}`;
-      const marginLeft = 15;
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const maxWidth = pageWidth - (marginLeft * 2);
-
-      const splitTitle = doc.splitTextToSize(titleText, maxWidth);
-      doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
-
-      const titleLines = splitTitle.length;
-      const lineY = startY + (titleLines * 6) + 2;
-
-      doc.setLineWidth(0.5);
-      doc.line(marginLeft, lineY, marginLeft + maxWidth, lineY);
+      const startYContent = await addPdfHeaderAndTitle(doc, titleText);
 
       const headers = includeTypeColumn
-          ? [['Title', 'Committee', 'Type', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']]
-          : [['Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
+          ? [['No.', 'Title', 'Committee', 'Type', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']]
+          : [['No.', 'Title', 'Committee', 'Date Committed', 'Days Remaining', 'Status', 'Due Date']];
       
       const columnStylesConfig = includeTypeColumn
           ? {
-             0: { overflow: 'linebreak' }, 
-             1: { overflow: 'linebreak', cellWidth: 28 }, 
-             2: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' }, // Type moved here
-             3: { cellWidth: 32, minCellWidth: 32 }, 
-             4: { cellWidth: 15, minCellWidth: 15 }, 
-             5: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
-             6: { cellWidth: 32, minCellWidth: 32 }
+             0: { cellWidth: 10, minCellWidth: 10 },
+             1: { overflow: 'linebreak' }, 
+             2: { overflow: 'linebreak', cellWidth: 28 }, 
+             3: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' }, // Type moved here
+             4: { cellWidth: 32, minCellWidth: 32 }, 
+             5: { cellWidth: 15, minCellWidth: 15 }, 
+             6: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
+             7: { cellWidth: 32, minCellWidth: 32 }
           }
           : {
-             0: { overflow: 'linebreak' },
-             1: { overflow: 'linebreak', cellWidth: 33 }, // Reduced from 45 to 33
-             2: { cellWidth: 32, minCellWidth: 32 },
-             3: { cellWidth: 15, minCellWidth: 15 },
-             4: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
-             5: { cellWidth: 32, minCellWidth: 32 }
+             0: { cellWidth: 10, minCellWidth: 10 },
+             1: { overflow: 'linebreak' },
+             2: { overflow: 'linebreak', cellWidth: 33 }, // Reduced from 45 to 33
+             3: { cellWidth: 32, minCellWidth: 32 },
+             4: { cellWidth: 15, minCellWidth: 15 },
+             5: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' },
+             6: { cellWidth: 32, minCellWidth: 32 }
           };
 
       const options: UserOptions = {
-          startY: lineY + 5,
+          startY: startYContent,
           head: headers,
           body: tableData,
           theme: 'grid',
-          styles: { fontSize: 8, cellPadding: 3, halign: 'left', valign: 'middle', overflow: 'linebreak' },
+          styles: { fontSize: 8, cellPadding: 3, halign: 'left', valign: 'middle', overflow: 'linebreak', textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 },
           headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
           columnStyles: columnStylesConfig as UserOptions["columnStyles"],
           margin: { top: 20, right: 15, bottom: 10, left: 15 },
@@ -292,16 +269,18 @@ const HomePage = () => {
              const currentStatus = determineItemStatus(originalItem.status as BillStatus | DocumentStatus, originalItem.presentationDate, originalItem.extensionsCount);
 
              // Adjusted column indices for styling
-             // Status column: Was 4, now 5 if type included
-             const statusIdx = includeTypeColumn ? 5 : 4;
-             // Days column: Was 3, now 4 if type included
-             const daysIdx = includeTypeColumn ? 4 : 3;
+             // Status column: Was 4, now 6 if type included, or 5 if not
+             const statusIdx = includeTypeColumn ? 6 : 5;
+             // Days column: Was 3, now 5 if type included, or 4 if not
+             const daysIdx = includeTypeColumn ? 5 : 4;
+             // Title column:
+             const titleIdx = 1;
 
              if (data.column.index === statusIdx && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
                data.cell.styles.textColor = [255, 0, 0];
                data.cell.styles.fontStyle = 'bold';
              }
-             if (data.column.index === 0 && currentStatus === "frozen" as string) {
+             if (data.column.index === titleIdx && currentStatus === "frozen" as string) {
                data.cell.styles.textColor = [255, 0, 0];
                data.cell.styles.fontStyle = 'bold';
              }

@@ -144,7 +144,7 @@ export default function Overview() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-5">
                 <CardHeader>
-                    <CardTitle>Business Distribution</CardTitle>
+                    <CardTitle>Pending Business distribution</CardTitle>
                 </CardHeader>
                 <CardContent className="pl-2">
                    <div className="h-[300px] w-full">

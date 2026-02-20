@@ -93,3 +93,45 @@ export const drawDivider = (doc: jsPDF, yPosition: number, leftMargin: number, r
   return yPosition + 2 + 2; // 2mm for green line + 2mm spacing
 };
 
+/**
+ * Standardized function to add header image, dividers, and title to PDF
+ */
+export const addPdfHeaderAndTitle = async (
+  doc: jsPDF,
+  titleText: string,
+  marginLeft = 15,
+  marginRight = 15
+): Promise<number> => {
+  const headerHeight = await addHeaderImage(doc, "/header_logo.png");
+  let startY = headerHeight > 0 ? headerHeight + 5 : 20;
+
+  if (headerHeight > 0) {
+    startY = drawDivider(doc, startY, marginLeft, marginRight);
+    startY += 10;
+  }
+
+  doc.setFontSize(14);
+  doc.setFont("times", "bold");
+  doc.setTextColor(0, 0, 0);
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const maxWidth = pageWidth - marginLeft - marginRight;
+
+  const splitTitle = doc.splitTextToSize(titleText, maxWidth);
+  // Center align the text
+  doc.text(splitTitle, pageWidth / 2, startY, { align: "center" });
+
+  const titleLines = splitTitle.length;
+  // Calculate text block height: approx 7 pt per line + 5 pt bottom padding
+  const lineY = startY + titleLines * 7 + 2;
+
+  // Draw single green line below title
+  doc.setDrawColor(0, 128, 0); // Green
+  doc.setLineWidth(0.5);
+  doc.line(marginLeft, lineY, pageWidth - marginRight, lineY);
+
+  // Return the Y position for the table
+  return lineY + 8;
+};
+
+
