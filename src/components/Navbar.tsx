@@ -92,7 +92,7 @@ export const Navbar = () => {
           </NavigationMenu>
 
           <Link to="/documents" className="text-sm font-medium text-blue-600 hover:text-green-600">
-            Documents
+            Business
           </Link>
 
           {isAuthenticated ? (
@@ -156,7 +156,7 @@ export const Navbar = () => {
              className="block text-sm font-medium text-blue-600 hover:text-green-600"
              onClick={() => setIsMobileMenuOpen(false)}
            >
-             Documents
+             Business
            </Link>
 
            {isAuthenticated ? (

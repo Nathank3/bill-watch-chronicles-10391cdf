@@ -30,6 +30,8 @@ interface CommitteeItem {
   itemType?: string;
 }
 
+const hasCompleteDatePair = (item: CommitteeItem) => Boolean(item.dateCommitted && item.presentationDate);
+
 const CommitteePage = () => {
   const { committeeId } = useParams();
   const navigate = useNavigate();
@@ -215,8 +217,8 @@ const CommitteePage = () => {
 
       const sortedItems = [...pendingItemsRaw].sort((a, b) => {
         // TBD Check - Push to bottom
-        const isATbd = a.status === 'tbd' || a.status === 'limbo' as string || !a.presentationDate;
-        const isBTbd = b.status === 'tbd' || b.status === 'limbo' as string || !b.presentationDate;
+        const isATbd = a.status === 'tbd' || a.status === 'limbo' as string || !hasCompleteDatePair(a);
+        const isBTbd = b.status === 'tbd' || b.status === 'limbo' as string || !hasCompleteDatePair(b);
 
         if (isATbd && !isBTbd) return 1;
         if (!isATbd && isBTbd) return -1;
@@ -238,8 +240,9 @@ const CommitteePage = () => {
         const pDate = item.presentationDate ? new Date(item.presentationDate) : null;
         const dDate = item.dateCommitted ? new Date(item.dateCommitted) : null;
 
-        const countdown = calculateCurrentCountdown(pDate);
-        const displayDays = String(Math.abs(countdown));
+        const canCalculateDays = Boolean(dDate && pDate);
+        const countdown = canCalculateDays ? calculateCurrentCountdown(pDate) : null;
+        const displayDays = countdown === null ? "-" : String(Math.abs(countdown));
         const currentStatus = determineItemStatus(item.status, pDate, item.extensionsCount);
         
         let statusText = "Pending";
@@ -299,7 +302,7 @@ const CommitteePage = () => {
         // We delete cellWidth for the Title column (index 1) so it spans the rest.
         const columnStylesConfig = includeTypeColumn 
           ? {
-              0: { cellWidth: 10, minCellWidth: 10, overflow: 'visible' as const },
+              0: { cellWidth: 16, minCellWidth: 16, overflow: 'visible' as const, halign: 'center' as const },
               1: { overflow: 'linebreak' as const },  // Title
               2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const },  // Type
               3: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
@@ -308,7 +311,7 @@ const CommitteePage = () => {
               6: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }  // Due Date
             }
           : {
-              0: { cellWidth: 10, minCellWidth: 10, overflow: 'visible' as const },
+              0: { cellWidth: 16, minCellWidth: 16, overflow: 'visible' as const, halign: 'center' as const },
               1: { overflow: 'linebreak' as const },  // Title
               2: { cellWidth: 25, minCellWidth: 25, overflow: 'visible' as const }, // Date Committed
               3: { cellWidth: 15, minCellWidth: 15, overflow: 'visible' as const }, // Days Remaining
@@ -348,6 +351,7 @@ const CommitteePage = () => {
 
             const statusIndex = includeTypeColumn ? 5 : 4;
             const daysIndex = includeTypeColumn ? 4 : 3;
+            const hasMissingDate = !hasCompleteDatePair(originalItem);
 
             // Color status in red if overdue or frozen (legacy)
             if (data.column.index === statusIndex && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
@@ -363,6 +367,10 @@ const CommitteePage = () => {
 
             // Color days column in red if overdue/frozen
             if (data.column.index === daysIndex && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
+              data.cell.styles.textColor = [255, 0, 0];
+              data.cell.styles.fontStyle = 'bold';
+            }
+            if (data.column.index === daysIndex && hasMissingDate) {
               data.cell.styles.textColor = [255, 0, 0];
               data.cell.styles.fontStyle = 'bold';
             }

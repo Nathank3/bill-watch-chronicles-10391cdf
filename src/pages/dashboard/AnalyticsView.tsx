@@ -225,7 +225,7 @@ export default function AnalyticsView() {
       headers.push(dateHeader);
 
       const columnStyles: { [key: string]: { cellWidth?: number | 'auto' | 'wrap'; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
-          0: { cellWidth: 10 },
+          0: { cellWidth: 16, overflow: 'visible', halign: 'center' },
           1: { overflow: 'linebreak' } 
       };
       
@@ -400,7 +400,7 @@ export default function AnalyticsView() {
           headers.push('Date');
 
           const columnStyles: { [key: string]: { cellWidth?: number | 'auto' | 'wrap'; overflow?: 'linebreak' | 'ellipsize' | 'visible' | 'hidden' } } = {
-              0: { cellWidth: 10 },
+              0: { cellWidth: 16, overflow: 'visible', halign: 'center' },
               1: { overflow: 'linebreak' } 
           };
           
@@ -532,7 +532,7 @@ export default function AnalyticsView() {
             headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' },
             margin: { top: 20, right: 15, bottom: 10, left: 15 },
             columnStyles: { 
-                0: { cellWidth: 10 },
+                0: { cellWidth: 16, overflow: 'visible', halign: 'center' },
                 1: { overflow: 'linebreak' }, 
                 2: { cellWidth: 20 }, 
                 3: { cellWidth: 40, overflow: 'linebreak' }, 
@@ -675,7 +675,7 @@ export default function AnalyticsView() {
         let colIndex = 0;
         
         // 0: No.
-        columnStyles[colIndex] = { cellWidth: 10 };
+        columnStyles[colIndex] = { cellWidth: 16, overflow: 'visible', halign: 'center' };
         colIndex++;
 
         // 1: Title

@@ -39,6 +39,8 @@ interface Stats {
   tbd?: number;
 }
 
+const hasCompleteDatePair = (item: PdfItem) => Boolean(item.dateCommitted && item.presentationDate);
+
 const HomePage = () => {
   // Fetch Stats
   const { data: billStats } = useBillStats();
@@ -165,8 +167,8 @@ const HomePage = () => {
       // Sort
       const sortedItems = [...pendingItemsRaw].sort((a, b) => {
         // TBD Check - Push to bottom
-        const isATbd = a.status === 'tbd' || a.status === 'limbo' as string || !a.presentationDate;
-        const isBTbd = b.status === 'tbd' || b.status === 'limbo' as string || !b.presentationDate;
+        const isATbd = a.status === 'tbd' || a.status === 'limbo' as string || !hasCompleteDatePair(a);
+        const isBTbd = b.status === 'tbd' || b.status === 'limbo' as string || !hasCompleteDatePair(b);
 
         if (isATbd && !isBTbd) return 1;
         if (!isATbd && isBTbd) return -1;
@@ -186,8 +188,9 @@ const HomePage = () => {
 
       // Prepare Table Data
       const tableData = sortedItems.map((item, index) => {
-        const countdown = calculateCurrentCountdown(item.presentationDate);
-        const displayDays = String(Math.abs(countdown));
+        const canCalculateDays = hasCompleteDatePair(item);
+        const countdown = canCalculateDays ? calculateCurrentCountdown(item.presentationDate) : null;
+        const displayDays = countdown === null ? "-" : String(Math.abs(countdown));
         const currentStatus = determineItemStatus(item.status as BillStatus | DocumentStatus, item.presentationDate, item.extensionsCount);
         
         let statusText = "Pending";
@@ -231,7 +234,7 @@ const HomePage = () => {
       
       const columnStylesConfig = includeTypeColumn
           ? {
-             0: { cellWidth: 10, minCellWidth: 10 },
+             0: { cellWidth: 16, minCellWidth: 16, overflow: 'visible', halign: 'center' },
              1: { overflow: 'linebreak' }, 
              2: { overflow: 'linebreak', cellWidth: 28 }, 
              3: { cellWidth: 18, minCellWidth: 18, overflow: 'visible' }, // Type moved here
@@ -241,7 +244,7 @@ const HomePage = () => {
              7: { cellWidth: 32, minCellWidth: 32 }
           }
           : {
-             0: { cellWidth: 10, minCellWidth: 10 },
+             0: { cellWidth: 16, minCellWidth: 16, overflow: 'visible', halign: 'center' },
              1: { overflow: 'linebreak' },
              2: { overflow: 'linebreak', cellWidth: 33 }, // Reduced from 45 to 33
              3: { cellWidth: 32, minCellWidth: 32 },
@@ -275,6 +278,7 @@ const HomePage = () => {
              const daysIdx = includeTypeColumn ? 5 : 4;
              // Title column:
              const titleIdx = 1;
+             const hasMissingDate = !hasCompleteDatePair(originalItem);
 
              if (data.column.index === statusIdx && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
                data.cell.styles.textColor = [255, 0, 0];
@@ -285,6 +289,10 @@ const HomePage = () => {
                data.cell.styles.fontStyle = 'bold';
              }
              if (data.column.index === daysIdx && (currentStatus === "overdue" || currentStatus === "frozen" as string)) {
+               data.cell.styles.textColor = [255, 0, 0];
+               data.cell.styles.fontStyle = 'bold';
+             }
+             if (data.column.index === daysIdx && hasMissingDate) {
                data.cell.styles.textColor = [255, 0, 0];
                data.cell.styles.fontStyle = 'bold';
              }
